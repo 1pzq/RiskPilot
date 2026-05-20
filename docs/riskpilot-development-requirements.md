@@ -6,7 +6,7 @@ This document is a detailed product and engineering requirement for building the
 
 The intended reader is GPT-5.5 or another coding agent that will implement the full project. Follow this document as the source of truth unless the human team explicitly changes the scope.
 
-RiskPilot is a Sui DeFi risk-management demo. It should help a user connect a Sui wallet, view portfolio risk, receive an AI-generated explanation, approve a bounded protective strategy, simulate or execute a DeepBook-style action, and store the decision package on Walrus.
+RiskPilot is a Sui DeFi risk-management demo. It should help a user connect a Sui mainnet wallet, view portfolio risk, receive an AI-generated explanation, approve a bounded protective strategy, prepare or execute a DeepBook mainnet action, and store the decision package on Walrus mainnet.
 
 ## 1. Product Goal
 
@@ -18,7 +18,26 @@ The demo must prove five things:
 2. RiskPilot can identify meaningful risk signals.
 3. RiskPilot can recommend a specific protective strategy.
 4. RiskPilot can enforce user-defined policy limits before execution.
-5. RiskPilot can create a verifiable audit package and upload it to Walrus or a local Walrus-compatible fallback.
+5. RiskPilot can create a verifiable audit package and upload it to Walrus mainnet, with local fallback only for development failure recovery.
+
+## 1.1 Mainnet Requirement
+
+This project must target production networks only.
+
+- Sui network: **mainnet**
+- Sui RPC: **mainnet RPC**
+- Walrus: **mainnet**
+- DeepBook / DeepBook Predict: **mainnet**
+
+No non-mainnet chain flow should be implemented or documented as a product path. Local simulation is allowed only as a safety fallback for development, UI testing, or when a mainnet dependency is temporarily unavailable. Any simulation fallback must be clearly labeled as local simulation.
+
+Mainnet safety is mandatory:
+
+- Never execute a mainnet transaction without explicit wallet confirmation.
+- Default all executable strategies to very small budget caps.
+- Require policy checks before transaction construction.
+- Show asset, market, amount, estimated cost, and risk before the user signs.
+- Prefer prepare-only / dry-run mode until the user explicitly chooses live mainnet execution.
 
 ## 2. Recommended Scope
 
@@ -33,22 +52,22 @@ The demo must prove five things:
 - Strategy recommendation engine.
 - AI explanation endpoint with fallback mock explanation.
 - Policy confirmation UI.
-- DeepBook action builder with simulation-first fallback.
+- DeepBook mainnet action builder with prepare-only / simulation fallback.
 - Walrus audit package generation.
-- Result page showing transaction digest or simulation ID and Walrus blob ID or local fallback ID.
+- Result page showing mainnet transaction digest or local simulation ID and Walrus mainnet blob ID or local fallback ID.
 
 ### Should Have
 
 - Clean UI with mobile and desktop support.
 - Risk score before and after strategy.
 - JSON audit preview.
-- A small local demo mode that works even without testnet funds.
+- A small local demo mode that works without spending mainnet funds.
 - Clear error states for wallet, RPC, AI, Walrus, and DeepBook failures.
 
 ### Nice To Have
 
-- Real DeepBook SDK interaction on testnet.
-- Real Walrus testnet upload.
+- Real DeepBook SDK interaction on mainnet.
+- Real Walrus mainnet upload.
 - Session-key style authorization.
 - Additional Sui DeFi integrations.
 - Historical price charts.
@@ -90,9 +109,9 @@ The MVP should be policy-constrained, explainable, and demo-friendly.
 
 ### Chain / Protocol
 
-- Sui testnet
-- DeepBook / DeepBook Predict testnet if integration is stable
-- Fallback transaction simulation when integration is incomplete
+- Sui mainnet
+- DeepBook / DeepBook Predict mainnet if integration is stable
+- Local transaction simulation when integration is incomplete or when the user does not want to spend funds
 
 ### Optional Move Contracts
 
@@ -158,20 +177,23 @@ npm install openai
 Create `.env.local`:
 
 ```bash
-NEXT_PUBLIC_SUI_NETWORK=testnet
-NEXT_PUBLIC_SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+NEXT_PUBLIC_SUI_NETWORK=mainnet
+NEXT_PUBLIC_SUI_RPC_URL=https://fullnode.mainnet.sui.io:443
 OPENAI_API_KEY=
-WALRUS_MODE=local
+WALRUS_MODE=walrus
 WALRUS_PUBLISHER_URL=
 WALRUS_AGGREGATOR_URL=
-NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=false
+NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=true
+NEXT_PUBLIC_MAINNET_EXECUTION_MODE=prepare
+NEXT_PUBLIC_DEFAULT_MAX_BUDGET_USD=5
 ```
 
 Rules:
 
 - The app must run when `OPENAI_API_KEY` is empty by using mock explanations.
-- The app must run when Walrus is unavailable by using local fallback storage.
-- The app must run when real DeepBook execution is disabled by using simulation mode.
+- The app should upload audit packages to Walrus mainnet when Walrus is available.
+- The app must run when Walrus is unavailable by using local fallback storage and showing a clear warning.
+- The app must target DeepBook mainnet. If live execution is disabled, use mainnet prepare-only or local simulation mode.
 
 ### 5.4 Development Commands
 
@@ -342,7 +364,7 @@ export type StrategyRecommendation = {
   estimatedCostUsd: number;
   expectedRiskReduction: number;
   deepbookAction: {
-    mode: "simulate" | "testnet";
+    mode: "simulate" | "prepare_mainnet" | "mainnet";
     market: string;
     side: "buy" | "sell";
     assetIn: string;
@@ -385,7 +407,7 @@ export type AuditPackage = {
   policyCheck: PolicyCheckResult;
   aiExplanation: string;
   execution: {
-    mode: "simulation" | "testnet";
+    mode: "simulation" | "prepare_mainnet" | "mainnet";
     status: "prepared" | "submitted" | "confirmed" | "failed";
     digest?: string;
     simulationId?: string;
@@ -395,11 +417,19 @@ export type AuditPackage = {
 };
 ```
 
-## 8. Phase 1: Build The Small Demo First
+## 8. Phase 1: Build The Mainnet-Ready Small Demo First
 
 ### 8.1 Phase 1 Goal
 
-Build a local-first demo that works even without real DeepBook or Walrus integration.
+Build a mainnet-ready demo that proves the full product flow without requiring the user to spend funds by default.
+
+Phase 1 should use:
+
+- Sui mainnet for wallet connection and balance reads.
+- Walrus mainnet for audit package upload when available.
+- DeepBook mainnet adapter shape from the beginning, with prepare-only / local simulation as the default execution mode.
+
+Do not use non-mainnet Sui, Walrus, or DeepBook environments.
 
 The user should be able to:
 
@@ -410,9 +440,9 @@ The user should be able to:
 5. Generate a deterministic risk report.
 6. Generate one recommended protection strategy.
 7. Review policy limits.
-8. Run a simulated DeepBook action.
-9. Generate a local audit package.
-10. See a result screen with simulation ID and audit package ID.
+8. Prepare a DeepBook mainnet action or run a clearly labeled local simulation.
+9. Upload an audit package to Walrus mainnet, with local fallback only if upload fails.
+10. See a result screen with mainnet digest / prepared transaction summary / simulation ID and Walrus blob ID / fallback audit ID.
 
 This is the first milestone because it proves the full product story end to end.
 
@@ -449,13 +479,13 @@ Acceptance criteria:
 - UI displays asset allocation.
 - UI displays lending and LP cards.
 
-### 8.4 Phase 1 Feature 3: Wallet Connection And Balance Merge
+### 8.4 Phase 1 Feature 3: Mainnet Wallet Connection And Balance Merge
 
 Implement Sui dApp Kit provider and wallet connect button.
 
 When a wallet is connected:
 
-- Fetch SUI balance from testnet RPC.
+- Fetch SUI balance from Sui mainnet RPC.
 - Replace or merge the fixture SUI balance with the real balance.
 - Keep mock lending and LP positions for demo richness.
 
@@ -511,10 +541,11 @@ Trigger:
 Recommended action:
 
 - Allocate 5% to 10% of portfolio value, capped at policy max budget.
-- Generate a DeepBook-style simulated action:
+- Generate a DeepBook mainnet action plan:
   - market: `SUI/USDC`
   - side: `sell` or `buy protection`
-  - description: "Simulated downside protection using DeepBook Predict-style binary protection."
+  - mode: `prepare_mainnet` by default
+  - description: "Mainnet DeepBook / DeepBook Predict-style downside protection plan. Execute only after explicit wallet confirmation."
 
 Also implement fallback strategy:
 
@@ -587,11 +618,11 @@ Acceptance criteria:
 - UI blocks execution if policy check fails.
 - Policy check errors are readable.
 
-### 8.9 Phase 1 Feature 8: Simulated DeepBook Execution
+### 8.9 Phase 1 Feature 8: DeepBook Mainnet Prepare / Local Simulation
 
 Create `/api/execute`.
 
-For Phase 1, do not require real DeepBook execution.
+For Phase 1, target DeepBook mainnet but default to prepare-only mode. The system should be able to construct or describe the mainnet action without automatically submitting it. Local simulation is allowed as a fallback, but there must be no non-mainnet chain path.
 
 Input:
 
@@ -603,36 +634,39 @@ Behavior:
 
 - If policy check fails, return error.
 - If policy check passes, return:
-  - `mode: "simulation"`
-  - `status: "confirmed"`
-  - `simulationId: "sim_" + random id`
-  - pseudo digest or action hash
+  - `mode: "prepare_mainnet"` when a mainnet transaction can be prepared but not submitted
+  - `status: "prepared"`
+  - prepared transaction summary or transaction bytes if available
+  - `mode: "simulation"` and `simulationId: "sim_" + random id` only when local fallback is used
+  - pseudo digest or action hash for local simulation
 
 Acceptance criteria:
 
 - Execution button produces a result.
-- Result is deterministic enough for testing but unique per run.
-- UI clearly labels the result as simulation.
+- UI clearly distinguishes `prepare_mainnet`, `mainnet`, and `simulation`.
+- No transaction is submitted on mainnet without explicit wallet confirmation.
+- Local simulation result is deterministic enough for testing but unique per run.
 
-### 8.10 Phase 1 Feature 9: Local Audit Package
+### 8.10 Phase 1 Feature 9: Walrus Mainnet Audit Package
 
 Create `/api/audit`.
 
 For Phase 1:
 
 - Generate full `AuditPackage`.
-- Save it in memory or local file only if file writes are acceptable.
-- Return `auditId` and JSON payload.
+- Upload the package to Walrus mainnet when `WALRUS_MODE=walrus`.
+- Return Walrus blob ID / URL and JSON payload.
 
-Better local fallback:
+Local fallback:
 
-- Store audit data in browser state or localStorage.
+- If Walrus mainnet upload fails, store audit data in browser state, localStorage, memory, or local file.
 - Return an ID like `local_audit_...`.
+- Show a warning that the audit package was not uploaded to Walrus mainnet.
 
 Acceptance criteria:
 
 - Audit package contains portfolio, risk report, recommendation, policy, explanation, execution result.
-- UI displays audit ID.
+- UI displays Walrus blob ID when available, or fallback audit ID when upload fails.
 - UI can show raw JSON in a collapsible panel.
 
 ### 8.11 Phase 1 Feature 10: Result Screen
@@ -640,8 +674,8 @@ Acceptance criteria:
 After execution and audit creation, show:
 
 - Strategy status.
-- Simulation ID.
-- Audit package ID.
+- Mainnet transaction digest, prepared transaction summary, or local simulation ID.
+- Walrus blob ID or fallback audit package ID.
 - Before risk score.
 - After estimated risk score.
 - Button to view audit JSON.
@@ -649,13 +683,13 @@ After execution and audit creation, show:
 Acceptance criteria:
 
 - User can understand the whole lifecycle in under two minutes.
-- Demo is complete even without testnet funds.
+- Demo is complete without requiring the user to spend mainnet funds by default.
 
-## 9. Phase 2: Add Real Integrations On Top Of Phase 1
+## 9. Phase 2: Add Live Mainnet Integrations On Top Of Phase 1
 
 ### 9.1 Phase 2 Goal
 
-Replace or supplement Phase 1 fallbacks with real Sui ecosystem integrations while keeping the demo stable.
+Replace or supplement Phase 1 fallbacks with real Sui mainnet ecosystem integrations while keeping the demo stable.
 
 Phase 2 should not break Phase 1. Every real integration must have a fallback.
 
@@ -690,7 +724,7 @@ export type DeepBookExecutionRequest = {
 };
 
 export type DeepBookExecutionResult = {
-  mode: "simulation" | "testnet";
+  mode: "simulation" | "prepare_mainnet" | "mainnet";
   status: "prepared" | "submitted" | "confirmed" | "failed";
   digest?: string;
   simulationId?: string;
@@ -706,12 +740,14 @@ Implement:
 
 Rules:
 
-- If `NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=false`, use simulation.
-- If real execution fails, return a structured error and allow simulation fallback.
+- If `NEXT_PUBLIC_MAINNET_EXECUTION_MODE=prepare`, prepare a mainnet transaction without submitting it.
+- If `NEXT_PUBLIC_MAINNET_EXECUTION_MODE=live`, allow mainnet execution only after wallet confirmation and policy checks.
+- If real execution fails, return a structured error and allow local simulation fallback.
+- Never route the user to a non-mainnet chain environment.
 
 Acceptance criteria:
 
-- UI can switch between simulation and real testnet mode.
+- UI can switch between local simulation, mainnet prepare-only mode, and live mainnet execution.
 - Real mode failure does not break demo.
 - Result object shape is the same for both modes.
 
@@ -724,7 +760,7 @@ Add a strategy template:
 Concept:
 
 - The user wants protection if SUI falls below a selected threshold by a selected expiry.
-- Strategy uses a binary/prediction-style market or simulated equivalent.
+- Strategy uses a DeepBook Predict mainnet binary/prediction-style market when available, or a clearly labeled local simulation equivalent.
 
 UI fields:
 
@@ -761,14 +797,15 @@ Implement:
 
 Rules:
 
-- If `WALRUS_MODE=local`, use local fallback.
-- If Walrus upload fails, return local fallback and warning.
+- If `WALRUS_MODE=walrus`, upload to Walrus mainnet.
+- If `WALRUS_MODE=local`, use local fallback only for development.
+- If Walrus mainnet upload fails, return local fallback and warning.
 - Do not lose audit package data.
 
 Acceptance criteria:
 
 - UI displays whether storage mode is `local` or `walrus`.
-- If Walrus succeeds, show blob ID and URL.
+- If Walrus mainnet succeeds, show blob ID and URL.
 - If Walrus fails, show fallback ID and warning.
 
 ### 9.6 Phase 2 Feature 5: Risk Report After Strategy
@@ -824,7 +861,7 @@ The TypeScript app should optionally call this contract after execution.
 Acceptance criteria:
 
 - Move package builds.
-- Testnet publish instructions are documented.
+- Mainnet publish instructions are documented if the team decides to deploy the optional receipt contract.
 - UI can show receipt object ID if available.
 
 ## 10. UI Requirements
@@ -871,7 +908,7 @@ Required sections:
   - editable limits
   - pass/fail checks
 - Execution And Audit:
-  - execute/simulate button
+  - prepare / execute / simulate button
   - result
   - audit ID
   - JSON preview
@@ -923,9 +960,8 @@ Response:
 
 ```json
 {
-  "mode": "simulation",
-  "status": "confirmed",
-  "simulationId": "sim_123",
+  "mode": "prepare_mainnet",
+  "status": "prepared",
   "digest": "0x..."
 }
 ```
@@ -944,9 +980,9 @@ Response:
 
 ```json
 {
-  "mode": "local",
-  "id": "local_audit_123",
-  "url": null
+  "mode": "walrus",
+  "id": "walrus_blob_123",
+  "url": "https://..."
 }
 ```
 
@@ -986,9 +1022,9 @@ The final demo should follow this sequence:
 7. Show policy limits.
 8. Lower the budget to intentionally trigger a policy failure.
 9. Restore valid budget.
-10. Execute simulation or testnet transaction.
-11. Show result digest / simulation ID.
-12. Show Walrus or local audit ID.
+10. Prepare a DeepBook mainnet action, or execute a tiny mainnet transaction only with explicit wallet approval.
+11. Show mainnet digest / prepared transaction summary / local simulation ID.
+12. Show Walrus mainnet blob ID or local fallback audit ID.
 13. Open audit JSON and show the full decision trail.
 14. Show before/after estimated risk score.
 
@@ -998,14 +1034,14 @@ The project is complete when:
 
 - `npm run dev` starts the app.
 - The first screen is the RiskPilot app, not a landing page.
-- User can complete the demo without external funds.
+- User can complete the demo without spending mainnet funds by using prepare-only mode.
 - Wallet connection works when available.
 - Risk engine produces deterministic signals.
 - At least one strategy is recommended.
 - Policy checks can both pass and fail.
-- Execution simulation works.
+- Mainnet prepare-only execution works, with local simulation fallback.
 - Audit package is generated.
-- Walrus adapter or local fallback returns an ID.
+- Walrus mainnet adapter returns a blob ID, or local fallback returns an ID with a warning.
 - UI shows before/after risk.
 - Build succeeds.
 
@@ -1017,12 +1053,12 @@ If time is limited, implement in this order:
 2. Risk engine.
 3. Strategy builder.
 4. Policy review.
-5. Simulated execution.
-6. Audit package.
+5. Mainnet prepare-only DeepBook adapter.
+6. Walrus mainnet audit package.
 7. Wallet connection.
 8. AI explanation.
-9. Walrus real upload.
-10. DeepBook real execution.
+9. Local fallback paths.
+10. Live DeepBook mainnet execution.
 11. Optional Move receipt.
 
 The demo must always remain end-to-end functional. Real integrations should enhance the demo, not make it fragile.
@@ -1040,6 +1076,8 @@ The app may say:
 
 - "Estimated risk reduction."
 - "Simulation result."
+- "Prepared mainnet transaction."
+- "Mainnet execution requires wallet confirmation."
 - "Strategy recommendation."
 - "Not financial advice."
 - "Execution remains under user-approved policy limits."
@@ -1048,12 +1086,12 @@ The app may say:
 
 Use this short summary in the repository README:
 
-RiskPilot is a verifiable AI risk manager for Sui DeFi. It scans a user's Sui portfolio, detects concentration, downside, liquidation, stablecoin, and LP risks, recommends a bounded protection strategy, simulates or executes a DeepBook-style action, and stores the full decision trail as a Walrus audit package.
+RiskPilot is a verifiable AI risk manager for Sui DeFi. It scans a user's Sui mainnet portfolio, detects concentration, downside, liquidation, stablecoin, and LP risks, recommends a bounded protection strategy, prepares or executes a DeepBook mainnet action, and stores the full decision trail as a Walrus mainnet audit package.
 
 ## 18. Final Notes For The Coding Agent
 
-Build the smallest complete version first. Do not get stuck on real protocol integration before the local-first demo works. The most important hackathon story is:
+Build the smallest complete version first. The target network is mainnet throughout, but the default demo should use prepare-only mode so the product can be shown safely without forcing the user to spend funds. The most important hackathon story is:
 
-**Risk detected -> strategy recommended -> policy enforced -> action executed/simulated -> decision stored on Walrus.**
+**Risk detected -> strategy recommended -> policy enforced -> mainnet action prepared/executed -> decision stored on Walrus mainnet.**
 
 Every implementation decision should support that story.
