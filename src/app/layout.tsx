@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { Providers } from './providers';
 
-import './globals.css';
+import '@/frontend/styles/globals.css';
 
 export const metadata: Metadata = {
   title: 'RiskPilot',

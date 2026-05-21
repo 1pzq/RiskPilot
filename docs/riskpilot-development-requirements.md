@@ -226,7 +226,6 @@ src/
   app/
     page.tsx
     layout.tsx
-    globals.css
     api/
       explain/
         route.ts
@@ -234,16 +233,19 @@ src/
         route.ts
       execute/
         route.ts
-  components/
-    app-shell.tsx
-    wallet-connect.tsx
-    portfolio-overview.tsx
-    risk-score-card.tsx
-    risk-breakdown.tsx
-    strategy-panel.tsx
-    policy-review.tsx
-    audit-log-panel.tsx
-    result-panel.tsx
+  frontend/
+    styles/
+      globals.css
+    components/
+      app-shell.tsx
+      wallet-connect.tsx
+      portfolio-overview.tsx
+      risk-score-card.tsx
+      risk-breakdown.tsx
+      strategy-panel.tsx
+      policy-review.tsx
+      audit-log-panel.tsx
+      result-panel.tsx
   lib/
     sui/
       client.ts
@@ -272,6 +274,8 @@ src/
     risk-engine.test.ts
     strategy-builder.test.ts
     policy.test.ts
+assets/
+  screenshots/
 ```
 
 ## 7. Domain Models

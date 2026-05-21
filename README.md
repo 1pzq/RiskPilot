@@ -105,13 +105,15 @@ npm run build
 
 ```text
 src/app                 Next.js routes and API endpoints
-src/components          Dashboard, policy, strategy, audit, and result UI
+src/frontend/components Dashboard, policy, strategy, audit, and result UI
+src/frontend/styles     Global frontend styling
 src/lib/risk            Fixtures, scenarios, risk engine, and shared types
 src/lib/strategy        Strategy templates and policy checks
 src/lib/sui             Mainnet Sui portfolio and DeepBook adapters
 src/lib/walrus          Audit packaging and Walrus/local storage adapters
 src/test                Focused unit tests
 move                    Optional StrategyReceipt Move package
+assets/screenshots      Design QA screenshots and visual references
 ```
 
 ## Optional Move Receipt
