@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createDemoPortfolio, type DemoScenarioId } from '../lib/risk/fixtures';
 import { calculateRiskReport } from '../lib/risk/risk-engine';
+import type { PortfolioSnapshot } from '../lib/risk/types';
 import { buildStrategyRecommendation } from '../lib/strategy/strategy-builder';
 
 describe('strategy builder', () => {
@@ -69,5 +70,30 @@ describe('strategy builder', () => {
 
     expect(recommendation.type).toBe(expectedType);
     expect(recommendation.deepbookAction.mode).toBe('prepare_mainnet');
+  });
+
+  it('does not invent a trade for a connected wallet with no priced actionable risk', () => {
+    const portfolio: PortfolioSnapshot = {
+      walletAddress: '0xREAL',
+      timestamp: '2026-05-21T00:00:00.000Z',
+      assets: [],
+      lendingPositions: [],
+      liquidityPositions: [],
+      totalUsdValue: 0,
+    };
+    const report = calculateRiskReport(portfolio);
+
+    const recommendation = buildStrategyRecommendation(
+      report,
+      portfolio,
+      { maxBudgetUsd: 5 },
+      { defaultBudgetUsd: 5 },
+    );
+
+    expect(recommendation.type).toBe('wallet_review');
+    expect(recommendation.estimatedCostUsd).toBe(0);
+    expect(recommendation.deepbookAction.market).toBe('No trade');
+    expect(recommendation.deepbookAction.assetIn).toBe('N/A');
+    expect(recommendation.deepbookAction.assetOut).toBe('N/A');
   });
 });

@@ -1,15 +1,19 @@
 'use client';
 
-import { ArrowRightLeft, CalendarClock, ShieldAlert, Target } from 'lucide-react';
+import { ArrowRightLeft, BarChart3, CalendarClock, ShieldAlert, Target } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import type { DeepBookPredictSettings, StrategyRecommendation } from '@/lib/strategy/strategy-builder';
+import type { DeepBookLiveMarketSnapshot } from '@/lib/sui/deepbook-live';
 import { formatUsd } from '@/lib/utils/format';
 
 type StrategyPanelProps = {
   recommendation: StrategyRecommendation;
   predictSettings?: DeepBookPredictSettings;
   onPredictSettingsChange?: (settings: DeepBookPredictSettings) => void;
+  marketSnapshot?: DeepBookLiveMarketSnapshot | null;
+  marketSnapshotStatus?: 'idle' | 'loading' | 'ready' | 'error';
+  marketSnapshotError?: string | null;
 };
 
 const thresholds: DeepBookPredictSettings['thresholdPct'][] = [-10, -15, -20];
@@ -39,6 +43,9 @@ export function StrategyPanel({
   recommendation,
   predictSettings,
   onPredictSettingsChange,
+  marketSnapshot,
+  marketSnapshotStatus = 'idle',
+  marketSnapshotError,
 }: StrategyPanelProps) {
   const canEditPredict = recommendation.type === 'deepbook_predict_downside_binary' && predictSettings && onPredictSettingsChange;
 
@@ -70,6 +77,50 @@ export function StrategyPanel({
           <div className="metricValue">{recommendation.expectedRiskReduction}%</div>
         </div>
       </div>
+
+      {marketSnapshot ? (
+        <div className="positionBlock strategyBlock strategyMarketBlock">
+          <div className="positionLine">
+            <span>
+              <BarChart3 size={14} />
+              Live pool
+            </span>
+            <span>{marketSnapshot.poolKey}</span>
+          </div>
+          <div className="positionLine">
+            <span>Mid price</span>
+            <span>{formatUsd(marketSnapshot.midPrice)}</span>
+          </div>
+          <div className="positionLine">
+            <span>1 SUI ≈</span>
+            <span>{marketSnapshot.quoteOutForOneBase.toFixed(2)} USDC</span>
+          </div>
+          <div className="positionLine">
+            <span>1 USDC ≈</span>
+            <span>{marketSnapshot.baseOutForOneQuote.toFixed(4)} SUI</span>
+          </div>
+          <div className="positionLine">
+            <span>Pool state</span>
+            <span>{marketSnapshot.registeredPool ? 'registered' : 'unregistered'} · {marketSnapshot.whitelisted ? 'whitelisted' : 'open'}</span>
+          </div>
+          <div className="positionLine">
+            <span>Vaults</span>
+            <span>
+              {marketSnapshot.vaultBalances.base.toFixed(2)} / {marketSnapshot.vaultBalances.quote.toFixed(2)} / {marketSnapshot.vaultBalances.deep.toFixed(2)}
+            </span>
+          </div>
+          <div className="strategyNote">
+            Real DeepBook mainnet quote and pool metadata, fetched from the live SUI/USDC market.
+          </div>
+        </div>
+      ) : marketSnapshotStatus === 'loading' ? (
+        <div className="noteRow">
+          <BarChart3 size={14} />
+          <span>Loading live DeepBook mainnet data…</span>
+        </div>
+      ) : marketSnapshotError ? (
+        <div className="warningStrip inline">{marketSnapshotError}</div>
+      ) : null}
 
       <div className="positionBlock strategyBlock">
         <div className="positionLine">

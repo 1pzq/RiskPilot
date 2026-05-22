@@ -47,7 +47,7 @@ export function createDefaultPolicy(
   recommendation: Pick<StrategyRecommendation, 'estimatedCostUsd' | 'deepbookAction'>,
   now = new Date(),
 ): ExecutionPolicy {
-  const roundedCost = Math.max(1, Math.ceil(recommendation.estimatedCostUsd));
+  const roundedCost = recommendation.estimatedCostUsd <= 0 ? 0 : Math.max(1, Math.ceil(recommendation.estimatedCostUsd));
 
   return {
     maxBudgetUsd: roundedCost,
@@ -122,4 +122,3 @@ export function validateExecutionPolicy(
     errors,
   };
 }
-

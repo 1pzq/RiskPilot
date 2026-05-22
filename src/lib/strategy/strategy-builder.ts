@@ -2,6 +2,7 @@ import type { PortfolioSnapshot, RiskReport, RiskSignal } from '@/lib/risk/types
 import type { ExecutionPolicy } from './policy';
 
 export type StrategyType =
+  | 'wallet_review'
   | 'deepbook_predict_downside_binary'
   | 'sui_downside_protection'
   | 'rebalance_concentration'
@@ -61,6 +62,10 @@ function pickSignal(signals: RiskSignal[], predicate: (signal: RiskSignal) => bo
 }
 
 function buildBaseCost(totalUsdValue: number, budgetCapUsd: number): number {
+  if (totalUsdValue <= 0) {
+    return 0;
+  }
+
   const proposed = Math.ceil(totalUsdValue * 0.0625);
   return Math.max(1, Math.min(budgetCapUsd, proposed));
 }
@@ -265,6 +270,30 @@ export function buildStrategyRecommendation(
         assetOut: 'USDC',
         amountUsd: round(cost),
         description: 'Mainnet DeepBook rebalancing plan. Execute only after explicit wallet confirmation.',
+      },
+    };
+  }
+
+  if (portfolio.walletAddress !== '0xDEMO') {
+    return {
+      id: `strategy-${report.portfolioId}-wallet-review`,
+      type: 'wallet_review',
+      title: 'Wallet review only',
+      summary:
+        'No actionable priced DeFi risk was detected from the connected mainnet wallet, so RiskPilot prepares an audit record without inventing a trade.',
+      targetRiskSignalIds: [],
+      estimatedCostUsd: 0,
+      expectedRiskReduction: 0,
+      deepbookAction: {
+        mode: 'prepare_mainnet',
+        kind: 'spot',
+        market: 'No trade',
+        side: 'sell',
+        assetIn: 'N/A',
+        assetOut: 'N/A',
+        amountUsd: 0,
+        description:
+          'Connected-wallet review only. No live or prepared DeepBook trade is created because the wallet did not expose an actionable priced risk.',
       },
     };
   }

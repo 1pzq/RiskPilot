@@ -95,7 +95,7 @@ describe('Walrus audit storage', () => {
     expect(result).toEqual(
       expect.objectContaining({
         mode: 'walrus',
-        provider: 'walrus-mainnet',
+        provider: 'walrus-mainnet-publisher',
         id: 'walrus_blob_123',
         url: 'https://aggregator.walrus.mainnet.example/v1/blobs/walrus_blob_123',
       }),

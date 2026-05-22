@@ -65,6 +65,10 @@ function getStableExposure(portfolio: PortfolioSnapshot): { total: number; large
 }
 
 function scoreConcentration(portfolio: PortfolioSnapshot, topAsset: { symbol: string; usdValue: number }): RiskSignal | null {
+  if (portfolio.totalUsdValue <= 0) {
+    return null;
+  }
+
   const pct = topAsset.usdValue / portfolio.totalUsdValue;
 
   if (pct <= 0.5) {
@@ -89,6 +93,10 @@ function scoreConcentration(portfolio: PortfolioSnapshot, topAsset: { symbol: st
 }
 
 function scoreSuiDownside(portfolio: PortfolioSnapshot): RiskSignal | null {
+  if (portfolio.totalUsdValue <= 0) {
+    return null;
+  }
+
   const directSui = portfolio.assets.find((asset) => asset.symbol === 'SUI')?.usdValue ?? 0;
   const exposure = getSuiExposure(portfolio);
   const pct = exposure / portfolio.totalUsdValue;
@@ -175,6 +183,10 @@ function scoreLendingRisk(portfolio: PortfolioSnapshot): RiskSignal | null {
 }
 
 function scoreLiquidityRisk(portfolio: PortfolioSnapshot): RiskSignal | null {
+  if (portfolio.totalUsdValue <= 0) {
+    return null;
+  }
+
   const highest = portfolio.liquidityPositions.reduce<LiquidityPosition | null>((best, position) => {
     if (!best || position.usdValue > best.usdValue) {
       return position;
@@ -229,17 +241,17 @@ export function calculateRiskReport(portfolio: PortfolioSnapshot): RiskReport {
     {
       scenario: 'SUI -10%',
       estimatedLossUsd: round(getSuiExposure(portfolio) * 0.1),
-      estimatedLossPct: round((getSuiExposure(portfolio) * 0.1 / portfolio.totalUsdValue) * 100),
+      estimatedLossPct: portfolio.totalUsdValue > 0 ? round((getSuiExposure(portfolio) * 0.1 / portfolio.totalUsdValue) * 100) : 0,
     },
     {
       scenario: 'SUI -20%',
       estimatedLossUsd: round(getSuiExposure(portfolio) * 0.2),
-      estimatedLossPct: round((getSuiExposure(portfolio) * 0.2 / portfolio.totalUsdValue) * 100),
+      estimatedLossPct: portfolio.totalUsdValue > 0 ? round((getSuiExposure(portfolio) * 0.2 / portfolio.totalUsdValue) * 100) : 0,
     },
     {
       scenario: 'Stablecoin depeg -5%',
       estimatedLossUsd: round(getStableExposure(portfolio).total * 0.05),
-      estimatedLossPct: round((getStableExposure(portfolio).total * 0.05 / portfolio.totalUsdValue) * 100),
+      estimatedLossPct: portfolio.totalUsdValue > 0 ? round((getStableExposure(portfolio).total * 0.05 / portfolio.totalUsdValue) * 100) : 0,
     },
   ];
 

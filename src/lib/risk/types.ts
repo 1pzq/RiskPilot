@@ -6,6 +6,49 @@ export type AssetBalance = {
   usdValue: number;
 };
 
+export type WalletObjectKind =
+  | 'coin'
+  | 'walrus_blob'
+  | 'riskpilot_receipt'
+  | 'defi_candidate'
+  | 'package_cap'
+  | 'other';
+
+export type WalletObjectSummary = {
+  objectId: string;
+  type: string;
+  label: string;
+  kind: WalletObjectKind;
+  protocol: string;
+  role: string;
+  facts: {
+    label: string;
+    value: string;
+  }[];
+  packageId?: string;
+  module?: string;
+  version?: string;
+  previousTransaction?: string;
+  storageRebateMist?: string;
+};
+
+export type WalletScanSummary = {
+  owner: string;
+  scannedAt: string;
+  totalObjects: number;
+  coinObjects: number;
+  walrusBlobs: number;
+  receiptObjects: number;
+  defiCandidates: number;
+  packageCaps: number;
+  protocolHints: {
+    protocol: string;
+    count: number;
+    roles: string[];
+  }[];
+  sampleObjects: WalletObjectSummary[];
+};
+
 export type LendingPosition = {
   protocol: string;
   collateralSymbol: string;
@@ -31,6 +74,7 @@ export type PortfolioSnapshot = {
   lendingPositions: LendingPosition[];
   liquidityPositions: LiquidityPosition[];
   totalUsdValue: number;
+  walletScan?: WalletScanSummary;
 };
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
@@ -57,4 +101,3 @@ export type RiskReport = {
   }[];
   estimated?: boolean;
 };
-

@@ -1185,6 +1185,10 @@ button.walletButton:hover:not(:disabled) {
   .resultGrid {
     grid-template-columns: 1fr;
   }
+
+  .receiptResult > div {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1779,6 +1783,7 @@ button.walletButton:active {
   --yellow: #ffe25f;
   --orange: #ff792b;
   --purple: #7568ef;
+  --purple-soft: #e3dcff;
   --pink: #f08ac0;
   --cream: #f5efe2;
   --panel: #ffffff;
@@ -3078,6 +3083,11 @@ button.walletButton:hover:not(:disabled) {
   color: var(--ink);
 }
 
+.assetNumbers strong.assetUnpriced {
+  color: var(--muted);
+  font-size: 0.96rem;
+}
+
 .barTrack {
   height: 12px;
   border: 2px solid var(--line);
@@ -3539,7 +3549,7 @@ button.walletButton:hover:not(:disabled) {
 
 .prepareSafetyPanel {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3587,6 +3597,10 @@ button.walletButton:hover:not(:disabled) {
 
 .prepareSafetyCardMint {
   background: var(--mint);
+}
+
+.prepareSafetyCardPurple {
+  background: var(--purple-soft);
 }
 
 .prepareResultPlaceholder {
@@ -3664,6 +3678,105 @@ button.walletButton:hover:not(:disabled) {
   background: #f7fbff;
 }
 
+.receiptMintPanel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(131, 217, 159, 0.24), transparent 36%),
+    linear-gradient(315deg, rgba(117, 104, 239, 0.16), transparent 42%),
+    #fff;
+}
+
+.receiptMintPanel::after {
+  position: absolute;
+  right: -40px;
+  top: 18px;
+  width: 118px;
+  height: 118px;
+  border: 4px solid var(--line);
+  background:
+    linear-gradient(var(--blue) 2px, transparent 2px),
+    linear-gradient(90deg, var(--blue) 2px, transparent 2px),
+    rgba(255, 226, 95, 0.5);
+  background-size: 18px 18px;
+  content: '';
+  opacity: 0.32;
+  transform: rotate(13deg);
+}
+
+.receiptStampRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pixelBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 74px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 0.9rem;
+  font-weight: 950;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.pixelBadgeBlue {
+  background: var(--blue);
+}
+
+.pixelBadgeMint {
+  background: var(--mint);
+}
+
+.pixelBadgePurple {
+  color: #fff;
+  background: var(--purple);
+}
+
+.receiptMintButton {
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 12px;
+}
+
+.receiptResult {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.receiptResult > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 120px) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: var(--mint);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.receiptResult span {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.receiptResult strong {
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 .resultMetric {
   background: #fff;
 }
@@ -3679,6 +3792,314 @@ button.walletButton:hover:not(:disabled) {
 
 .jsonViewer pre {
   color: var(--ink);
+}
+
+.metricGridPortfolio {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.walletScanPanel {
+  position: relative;
+  margin: 16px 0;
+  padding: 16px;
+  border: 3px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(95, 157, 247, 0.16), transparent 36%),
+    linear-gradient(315deg, rgba(131, 217, 159, 0.16), transparent 42%),
+    #fff;
+  box-shadow: 5px 5px 0 var(--line);
+  overflow: hidden;
+}
+
+.walletScanPanel::after {
+  position: absolute;
+  top: -18px;
+  right: 28px;
+  width: 86px;
+  height: 86px;
+  border: 3px solid var(--line);
+  background:
+    linear-gradient(var(--blue) 2px, transparent 2px),
+    linear-gradient(90deg, var(--blue) 2px, transparent 2px),
+    rgba(255, 226, 95, 0.42);
+  background-size: 14px 14px;
+  content: '';
+  opacity: 0.3;
+  transform: rotate(9deg);
+}
+
+.walletScanHeader {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.walletScanHeader p {
+  max-width: 680px;
+  margin: -4px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.walletScanChips {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.walletScanChips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--blue-soft);
+  font-family: var(--font-pixel);
+  font-size: 0.72rem;
+  font-weight: 950;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.walletScanChips span:nth-child(2) {
+  background: var(--mint);
+}
+
+.walletScanChips span:nth-child(3) {
+  background: var(--purple-soft);
+}
+
+.walletScanChips span:nth-child(4) {
+  background: var(--yellow);
+}
+
+.walletProtocolHints {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.walletProtocolHints span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 2px solid var(--line);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.76rem;
+  font-weight: 820;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.walletProtocolHints strong {
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 0.72rem;
+}
+
+.walletObjectList {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+}
+
+.walletObjectRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 4px 4px 0 var(--line);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.walletObjectRow:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--line);
+}
+
+.walletObjectBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 46px;
+  height: 38px;
+  padding: 0 8px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: var(--blue);
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  font-weight: 950;
+  box-shadow:
+    3px 3px 0 var(--line),
+    inset -4px -4px 0 rgba(7, 17, 31, 0.08);
+}
+
+.walletObjectRow-walrus_blob .walletObjectBadge {
+  background: var(--mint);
+}
+
+.walletObjectRow-riskpilot_receipt .walletObjectBadge {
+  color: #fff;
+  background: var(--purple);
+}
+
+.walletObjectRow-defi_candidate .walletObjectBadge {
+  background: var(--yellow);
+}
+
+.walletObjectRow-package_cap .walletObjectBadge {
+  background: var(--orange);
+}
+
+.walletObjectMain {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.walletObjectMain strong {
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.walletObjectMain small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.walletObjectFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.walletObjectFacts span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 2px solid rgba(7, 17, 31, 0.24);
+  color: var(--muted);
+  background: rgba(245, 239, 226, 0.76);
+  font-size: 0.72rem;
+  font-weight: 820;
+}
+
+.walletObjectFacts strong {
+  margin-left: 4px;
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 0.68rem;
+}
+
+.walletSourcePanel {
+  background:
+    linear-gradient(135deg, rgba(95, 157, 247, 0.2), transparent 34%),
+    linear-gradient(315deg, rgba(126, 235, 177, 0.18), transparent 42%),
+    #fff;
+}
+
+.walletSourceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.walletSourceTile {
+  display: grid;
+  gap: 5px;
+  min-height: 104px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.walletSourceTile svg {
+  color: var(--ink);
+}
+
+.walletSourceTile span {
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.walletSourceTile strong {
+  align-self: end;
+  font-size: 1.15rem;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.walletSourceTileBlue {
+  background: var(--blue-soft);
+}
+
+.walletSourceTileMint {
+  background: rgba(126, 235, 177, 0.28);
+}
+
+.walletSourceTileYellow {
+  background: rgba(255, 226, 95, 0.46);
+}
+
+.walletSourceTilePurple {
+  background: rgba(211, 193, 255, 0.5);
+}
+
+.walletSourceList {
+  display: grid;
+  gap: 10px;
+}
+
+.walletSourceList div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 2px solid rgba(7, 17, 31, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.walletSourceList strong {
+  color: var(--ink);
+  font-weight: 920;
+}
+
+.walletSourceList span,
+.positionEmpty {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.positionEmpty {
+  padding: 12px;
+  border: 2px solid rgba(7, 17, 31, 0.16);
+  background: rgba(245, 239, 226, 0.62);
+  font-weight: 760;
 }
 
 .danger {
@@ -4066,11 +4487,26 @@ button.walletButton:hover:not(:disabled) {
   .flowGrid,
   .scenarioGrid,
   .metricGrid,
+  .metricGridPortfolio,
+  .walletSourceGrid,
   .metricGrid.compact,
     .fieldGrid,
     .twoUp,
     .resultGrid {
     grid-template-columns: 1fr;
+  }
+
+  .walletScanHeader,
+  .walletObjectRow {
+    grid-template-columns: 1fr;
+  }
+
+  .walletScanHeader {
+    flex-direction: column;
+  }
+
+  .walletObjectRow {
+    justify-items: start;
   }
 
   .stageIntroAside,

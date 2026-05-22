@@ -14,7 +14,7 @@ module riskpilot_receipt::strategy_receipt {
         execution_digest: String,
     }
 
-    public entry fun mint(
+    entry fun mint(
         strategy_id: String,
         audit_blob_id: String,
         execution_digest: String,

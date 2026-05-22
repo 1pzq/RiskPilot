@@ -54,7 +54,7 @@ export function ResultPanel({
           <h2 className="panelTitle">Prepared action archived</h2>
         </div>
         <span className={`pill ${storageResult.mode === 'walrus' ? 'pillSuccess' : 'pillWarn'}`}>
-          {storageResult.mode}
+          {storageResult.provider ?? storageResult.mode}
         </span>
       </div>
 
@@ -101,10 +101,20 @@ export function ResultPanel({
           <span>Archive</span>
           <span>{storageResult.id}</span>
         </div>
+        <div className="positionLine">
+          <span>Provider</span>
+          <span>{storageResult.provider ?? 'unknown'}</span>
+        </div>
         {storageResult.checksum ? (
           <div className="positionLine">
             <span>Checksum</span>
             <span>{storageResult.checksum.slice(0, 16)}</span>
+          </div>
+        ) : null}
+        {typeof storageResult.fallback === 'boolean' ? (
+          <div className="positionLine">
+            <span>Fallback</span>
+            <span>{storageResult.fallback ? 'yes' : 'no'}</span>
           </div>
         ) : null}
         <div className="positionLine">

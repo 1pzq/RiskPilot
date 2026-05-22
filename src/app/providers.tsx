@@ -20,7 +20,14 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networks} defaultNetwork="mainnet">
-        <WalletProvider autoConnect>{children}</WalletProvider>
+        <WalletProvider
+          autoConnect
+          slushWallet={{
+            name: 'RiskPilot',
+          }}
+        >
+          {children}
+        </WalletProvider>
       </SuiClientProvider>
     </QueryClientProvider>
   );

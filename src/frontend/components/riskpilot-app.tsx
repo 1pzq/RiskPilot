@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
 
 import { AppShell, type DemoSection } from './app-shell';
 import { AuditLogPanel } from './audit-log-panel';
@@ -9,12 +10,14 @@ import { DemoFlowPanel } from './demo-flow-panel';
 import { PortfolioOverview } from './portfolio-overview';
 import { PolicyReview } from './policy-review';
 import { ResultPanel } from './result-panel';
+import { ReceiptMintPanel } from './receipt-mint-panel';
 import { RiskBreakdown } from './risk-breakdown';
 import { RiskScoreCard } from './risk-score-card';
 import { ScenarioSelector } from './scenario-selector';
 import { StrategyPanel } from './strategy-panel';
 import { VisualMotifPanel } from './visual-motif-panel';
 import { WalletConnectButton } from './wallet-connect';
+import { WalletSourcePanel } from './wallet-source-panel';
 
 import { buildMockExplanation } from '@/lib/ai/explain';
 import {
@@ -25,7 +28,11 @@ import {
 } from '@/lib/risk/fixtures';
 import { calculateRiskReport, estimatePostStrategyRisk } from '@/lib/risk/risk-engine';
 import { MAINNET_RPC_URL } from '@/lib/sui/client';
-import { mergeWalletAssetsWithDemoPortfolio, readMainnetWalletAssets } from '@/lib/sui/portfolio';
+import {
+  buildWalletAssetsPortfolio,
+  readMainnetWalletAssets,
+  readMainnetWalletScan,
+} from '@/lib/sui/portfolio';
 import type { ExecutionPolicy } from '@/lib/strategy/policy';
 import { createDefaultPolicy, validateExecutionPolicy } from '@/lib/strategy/policy';
 import {
@@ -35,24 +42,49 @@ import {
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
 import { createAuditPackage } from '@/lib/walrus/audit-package';
 import { formatAddress } from '@/lib/utils/format';
-import type { AssetBalance } from '@/lib/risk/types';
+import type { AssetBalance, WalletScanSummary } from '@/lib/risk/types';
+import {
+  buildDeepBookLiveTransaction,
+  isLiveDeepBookEligible,
+  type DeepBookLiveMarketSnapshot,
+} from '@/lib/sui/deepbook-live';
 
 type ExplanationStatus = 'idle' | 'ready' | 'loading' | 'fallback';
 type SelectedExecutionMode = 'simulation' | 'prepare_mainnet' | 'mainnet';
 
 function selectedModeLabel(mode: SelectedExecutionMode) {
-  return mode === 'prepare_mainnet' ? 'Prepare mainnet' : 'Local simulation';
+  if (mode === 'prepare_mainnet') {
+    return 'Prepare mainnet';
+  }
+
+  if (mode === 'mainnet') {
+    return 'Live mainnet';
+  }
+
+  return 'Local simulation';
 }
 
 export function RiskPilotApp() {
   const account = useCurrentAccount();
   const client = useSuiClient();
+  const signAndExecute = useSignAndExecuteTransaction<SuiTransactionBlockResponse>({
+    execute: ({ bytes, signature }) =>
+      client.executeTransactionBlock({
+        transactionBlock: bytes,
+        signature,
+        options: {
+          showEffects: true,
+          showObjectChanges: true,
+        },
+      }),
+  });
 
   const walletAddress = account?.address ?? '0xDEMO';
   const connectionStatus = account ? `Connected ${formatAddress(account.address)}` : 'Demo mode';
-  const sourceLabel = account ? 'wallet + scenario' : 'judge scenario';
+  const sourceLabel = account ? 'mainnet wallet' : 'judge scenario';
 
   const [walletAssets, setWalletAssets] = useState<AssetBalance[] | null>(null);
+  const [walletScan, setWalletScan] = useState<WalletScanSummary | null>(null);
   const [walletWarning, setWalletWarning] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string>('');
   const [explanationMode, setExplanationMode] = useState<'mock' | 'openai'>('mock');
@@ -64,9 +96,13 @@ export function RiskPilotApp() {
   const [executionMode, setExecutionMode] = useState('pending');
   const [executionStatus, setExecutionStatus] = useState('awaiting approval');
   const [selectedExecutionMode, setSelectedExecutionMode] = useState<SelectedExecutionMode>('prepare_mainnet');
-const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_DEMO_SCENARIO_ID);
+  const [deepbookMarketSnapshot, setDeepbookMarketSnapshot] = useState<DeepBookLiveMarketSnapshot | null>(null);
+  const [deepbookMarketStatus, setDeepbookMarketStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [deepbookMarketError, setDeepbookMarketError] = useState<string | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_DEMO_SCENARIO_ID);
   const [activeSection, setActiveSection] = useState<DemoSection>('overview');
   const defaultBudgetCap = Number(process.env.NEXT_PUBLIC_DEFAULT_MAX_BUDGET_USD ?? 5);
+  const receiptPackageId = process.env.NEXT_PUBLIC_RECEIPT_PACKAGE_ID?.trim() ?? '';
   const [predictSettings, setPredictSettings] = useState<DeepBookPredictSettings>({
     thresholdPct: -10,
     expiryDays: 7,
@@ -78,8 +114,15 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
     const demoPortfolio = createDemoPortfolio(walletAddress, {
       scenarioId: selectedScenarioId,
     });
-    return account ? mergeWalletAssetsWithDemoPortfolio(demoPortfolio, walletAssets) : demoPortfolio;
-  }, [account, selectedScenarioId, walletAddress, walletAssets]);
+    const mergedPortfolio = account ? buildWalletAssetsPortfolio(demoPortfolio, walletAssets ?? []) : demoPortfolio;
+
+    return account && walletScan
+      ? {
+          ...mergedPortfolio,
+          walletScan,
+        }
+      : mergedPortfolio;
+  }, [account, selectedScenarioId, walletAddress, walletAssets, walletScan]);
 
   const riskReport = useMemo(() => calculateRiskReport(portfolio), [portfolio]);
 
@@ -122,6 +165,7 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
 
       if (!accountAddress) {
         setWalletAssets(null);
+        setWalletScan(null);
         setWalletWarning(null);
         setAuditPackage(null);
         setAuditStorage(null);
@@ -132,10 +176,41 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
 
       try {
         setWalletWarning(null);
-        const assets = await readMainnetWalletAssets(accountAddress, client);
+        setWalletAssets(null);
+        setWalletScan(null);
+        const [assetsResult, scanResult] = await Promise.allSettled([
+          readMainnetWalletAssets(accountAddress, client),
+          readMainnetWalletScan(accountAddress, client),
+        ]);
 
         if (!cancelled) {
-          setWalletAssets(assets);
+          const warnings: string[] = [];
+
+          if (assetsResult.status === 'fulfilled') {
+            setWalletAssets(assetsResult.value);
+          } else {
+            setWalletAssets(null);
+            warnings.push(
+              assetsResult.reason instanceof Error
+                ? `Mainnet balance read failed: ${assetsResult.reason.message}.`
+                : 'Mainnet balance read failed.',
+            );
+          }
+
+          if (scanResult.status === 'fulfilled') {
+            setWalletScan(scanResult.value);
+          } else {
+            setWalletScan(null);
+            warnings.push(
+              scanResult.reason instanceof Error
+                ? `Mainnet object scan failed: ${scanResult.reason.message}.`
+                : 'Mainnet object scan failed.',
+            );
+          }
+
+          setWalletWarning(
+            warnings.length > 0 ? `${warnings.join(' ')} Wallet data may be partial.` : null,
+          );
           setAuditPackage(null);
           setAuditStorage(null);
           setExecutionMode('pending');
@@ -144,10 +219,11 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
       } catch (error) {
         if (!cancelled) {
           setWalletAssets(null);
+          setWalletScan(null);
           setWalletWarning(
             error instanceof Error
-              ? `Mainnet wallet read failed: ${error.message}. Judge scenarios are still available.`
-              : 'Mainnet wallet read failed. Judge scenarios are still available.',
+              ? `Mainnet wallet read failed: ${error.message}. Wallet data may be partial.`
+              : 'Mainnet wallet read failed. Wallet data may be partial.',
           );
         }
       }
@@ -164,6 +240,65 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
     () => validateExecutionPolicy(effectivePolicy, recommendation, new Date()),
     [effectivePolicy, recommendation],
   );
+
+  const liveDeepBookEligible = useMemo(
+    () => Boolean(account) && isLiveDeepBookEligible(recommendation),
+    [account, recommendation],
+  );
+  const effectiveSelectedExecutionMode =
+    selectedExecutionMode === 'mainnet' && !liveDeepBookEligible ? 'prepare_mainnet' : selectedExecutionMode;
+
+  const loadDeepBookMarketSnapshot = useCallback(async () => {
+    const snapshotWalletAddress = account?.address ?? '0x2';
+    const response = await fetch(
+      `/api/deepbook-market?poolKey=SUI_USDC&walletAddress=${encodeURIComponent(snapshotWalletAddress)}`,
+    );
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(payload?.error ?? `DeepBook market lookup failed with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as {
+      snapshot: DeepBookLiveMarketSnapshot;
+    };
+
+    return payload.snapshot;
+  }, [account?.address]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshMarketSnapshot() {
+      setDeepbookMarketStatus('loading');
+      setDeepbookMarketError(null);
+
+      try {
+        const snapshot = await loadDeepBookMarketSnapshot();
+
+        if (!cancelled) {
+          setDeepbookMarketSnapshot(snapshot);
+          setDeepbookMarketStatus('ready');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDeepbookMarketSnapshot(null);
+          setDeepbookMarketStatus('error');
+          setDeepbookMarketError(
+            error instanceof Error
+              ? `Live DeepBook market data unavailable: ${error.message}`
+              : 'Live DeepBook market data unavailable.',
+          );
+        }
+      }
+    }
+
+    void refreshMarketSnapshot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDeepBookMarketSnapshot, recommendation.deepbookAction.market]);
 
   const refreshExplanation = useCallback(
     async (currentPolicy: ExecutionPolicy) => {
@@ -256,27 +391,7 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
 
     try {
       const currentExplanation = await refreshExplanation(policyRef.current ?? effectivePolicy);
-
-      const executeResponse = await fetch('/api/execute', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          recommendation,
-          policy: effectivePolicy,
-          policyCheck,
-          walletAddress,
-          executionMode: selectedExecutionMode,
-        }),
-      });
-
-      if (!executeResponse.ok) {
-        const payload = (await executeResponse.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
-      }
-
-      const execution = (await executeResponse.json()) as {
+      let execution: {
         mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
         status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
         digest?: string;
@@ -290,6 +405,104 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
           mainnetOnly: true;
         };
       };
+
+      if (effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookEligible) {
+        try {
+          const marketSnapshot = deepbookMarketSnapshot ?? (await loadDeepBookMarketSnapshot());
+          const liveExecution = buildDeepBookLiveTransaction(
+            account?.address ?? walletAddress,
+            recommendation,
+            marketSnapshot,
+          );
+          const liveResult = await signAndExecute.mutateAsync({ transaction: liveExecution.transaction });
+
+          execution = {
+            mode: 'mainnet',
+            status: liveResult.effects?.status?.status === 'success' ? 'confirmed' : 'submitted',
+            digest: liveResult.digest,
+            preparedTransactionSummary: liveExecution.plan.summary,
+            adapter: {
+              venue: 'DeepBook mainnet',
+              requestedMode: 'mainnet',
+              mainnetOnly: true,
+            },
+          };
+        } catch (liveError) {
+          setExecuteWarning(
+            liveError instanceof Error
+              ? `Live DeepBook execution failed, so RiskPilot fell back to prepare-only mode: ${liveError.message}`
+              : 'Live DeepBook execution failed, so RiskPilot fell back to prepare-only mode.',
+          );
+
+          const executeResponse = await fetch('/api/execute', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              recommendation,
+              policy: effectivePolicy,
+              policyCheck,
+              walletAddress,
+              executionMode: 'prepare_mainnet',
+            }),
+          });
+
+          if (!executeResponse.ok) {
+            const payload = (await executeResponse.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
+          }
+
+          execution = (await executeResponse.json()) as {
+            mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+            status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
+            digest?: string;
+            simulationId?: string;
+            error?: string;
+            preparedTransactionSummary?: string;
+            warning?: string;
+            adapter?: {
+              venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
+              requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+              mainnetOnly: true;
+            };
+          };
+        }
+      } else {
+        const executeResponse = await fetch('/api/execute', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            recommendation,
+            policy: effectivePolicy,
+            policyCheck,
+            walletAddress,
+              executionMode: effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
+          }),
+        });
+
+        if (!executeResponse.ok) {
+          const payload = (await executeResponse.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
+        }
+
+        execution = (await executeResponse.json()) as {
+          mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+          status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
+          digest?: string;
+          simulationId?: string;
+          error?: string;
+          preparedTransactionSummary?: string;
+          warning?: string;
+          adapter?: {
+            venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
+            requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+            mainnetOnly: true;
+          };
+        };
+      }
 
       if (execution.warning) {
         setExecuteWarning(execution.warning);
@@ -341,27 +554,39 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
   }, [
     estimatedAfterRisk,
     effectivePolicy,
+    effectiveSelectedExecutionMode,
     executionBusy,
+    account,
+    deepbookMarketSnapshot,
+    liveDeepBookEligible,
+    loadDeepBookMarketSnapshot,
     policyCheck,
     portfolio,
     recommendation,
     refreshExplanation,
     riskReport,
-    selectedExecutionMode,
+    signAndExecute,
     walletAddress,
   ]);
 
+  const liveModeFallbackWarning =
+    selectedExecutionMode === 'mainnet' && !liveDeepBookEligible
+      ? 'Live mainnet is only available for spot SUI/USDC or USDC/SUI swaps in this build. RiskPilot will prepare the action without live submission.'
+      : null;
   const warnings = [
     walletWarning,
     policyTouched && !policyCheck.ok ? 'Policy edits are currently blocking execution.' : null,
+    liveModeFallbackWarning,
     executeWarning,
   ].filter(Boolean) as string[];
 
   const sectionMeta: Record<DemoSection, { eyebrow: string; title: string; copy: string }> = {
     overview: {
       eyebrow: 'Stage 01',
-      title: 'Choose the story, then let the workflow unfold',
-      copy: 'A judge can start from the visual primitive cards, pick a portfolio case, and see the exact mainnet-ready context before moving deeper.',
+      title: account ? 'Read the connected wallet first' : 'Choose the story, then let the workflow unfold',
+      copy: account
+        ? 'RiskPilot uses live Sui mainnet balances and owned-object scan results for the portfolio view.'
+        : 'A judge can start from the visual primitive cards, pick a portfolio case, and see the exact mainnet-ready context before moving deeper.',
     },
     risk: {
       eyebrow: 'Stage 02',
@@ -390,15 +615,19 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
       return (
         <div className="stageGrid stageGridOverview">
           <div className="stageColumn">
-            <DemoFlowPanel />
+            <DemoFlowPanel walletConnected={Boolean(account)} />
             <VisualMotifPanel />
           </div>
           <div className="stageColumn">
-            <ScenarioSelector
-              scenarios={DEMO_SCENARIOS}
-              selectedScenarioId={selectedScenarioId}
-              onChange={handleScenarioChange}
-            />
+            {account ? (
+              <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
+            ) : (
+              <ScenarioSelector
+                scenarios={DEMO_SCENARIOS}
+                selectedScenarioId={selectedScenarioId}
+                onChange={handleScenarioChange}
+              />
+            )}
             <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
           </div>
         </div>
@@ -421,6 +650,9 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
             recommendation={recommendation}
             predictSettings={predictSettings}
             onPredictSettingsChange={handlePredictSettingsChange}
+            marketSnapshot={deepbookMarketSnapshot}
+            marketSnapshotStatus={deepbookMarketStatus}
+            marketSnapshotError={deepbookMarketError}
           />
           <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
         </div>
@@ -440,21 +672,30 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
             onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
             refreshing={explanationStatus === 'loading' || executionBusy}
           />
-          <ResultPanel
-            auditPackage={auditPackage}
-            storageResult={auditStorage}
-            executionMode={executionMode}
-            executionStatus={executionStatus}
-            riskBefore={riskReport}
-            riskAfter={estimatedAfterRisk}
-            warning={auditStorage?.warning ?? auditStorage?.error}
-          />
+          {auditPackage && auditStorage ? (
+            <>
+              <ResultPanel
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+                executionMode={executionMode}
+                executionStatus={executionStatus}
+                riskBefore={riskReport}
+                riskAfter={estimatedAfterRisk}
+                warning={auditStorage.warning ?? auditStorage.error}
+              />
+              <ReceiptMintPanel
+                key={`${auditPackage.id}-${auditStorage.id}`}
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+              />
+            </>
+          ) : null}
         </div>
       );
     }
 
     const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
-    const selectedMode = selectedModeLabel(selectedExecutionMode);
+    const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
 
     return (
       <div className="stageGrid stageGridPrepare">
@@ -466,11 +707,17 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
               {[
                 { value: 'prepare_mainnet' as const, label: 'Prepare mainnet', detail: 'default' },
                 { value: 'simulation' as const, label: 'Local simulation', detail: 'fallback' },
+                {
+                  value: 'mainnet' as const,
+                  label: 'Live mainnet',
+                  detail: liveDeepBookEligible ? 'wallet approval' : 'spot only',
+                },
               ].map((mode) => (
                 <button
-                  className={`optionChip ${selectedExecutionMode === mode.value ? 'optionChipActive' : ''}`}
+                  className={`optionChip ${effectiveSelectedExecutionMode === mode.value ? 'optionChipActive' : ''}`}
                   key={mode.value}
                   type="button"
+                  disabled={mode.value === 'mainnet' && !liveDeepBookEligible}
                   onClick={() => {
                     setSelectedExecutionMode(mode.value);
                     setAuditPackage(null);
@@ -508,6 +755,10 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
             <div className="prepareSafetyCard prepareSafetyCardMint">
               <span>Audit storage</span>
               <strong>{auditStorage ? auditStorage.mode : 'Walrus fallback-ready'}</strong>
+            </div>
+            <div className="prepareSafetyCard prepareSafetyCardPurple">
+              <span>Receipt contract</span>
+              <strong>{receiptPackageId ? 'Published on mainnet' : 'Optional'}</strong>
             </div>
           </section>
         </div>
@@ -566,23 +817,34 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
                 <span>Manual approval</span>
                 <strong>{effectivePolicy.requireManualApproval ? 'Required' : 'Not required'}</strong>
               </div>
+              <div className="ticketRow">
+                <span>Receipt package</span>
+                <strong>{receiptPackageId ? formatAddress(receiptPackageId) : 'Not configured'}</strong>
+              </div>
             </div>
 
             <p className="panelCopy">
-              The action is staged as a prepared record first. No live transaction is submitted from this demo flow.
+              The action is staged as a prepared record first. No live transaction is submitted unless live mode is explicitly eligible and selected.
             </p>
           </section>
 
           {auditPackage && auditStorage ? (
-            <ResultPanel
-              auditPackage={auditPackage}
-              storageResult={auditStorage}
-              executionMode={executionMode}
-              executionStatus={executionStatus}
-              riskBefore={riskReport}
-              riskAfter={estimatedAfterRisk}
-              warning={auditStorage?.warning ?? auditStorage?.error}
-            />
+            <>
+              <ResultPanel
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+                executionMode={executionMode}
+                executionStatus={executionStatus}
+                riskBefore={riskReport}
+                riskAfter={estimatedAfterRisk}
+                warning={auditStorage?.warning ?? auditStorage?.error}
+              />
+              <ReceiptMintPanel
+                key={`${auditPackage.id}-${auditStorage.id}`}
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+              />
+            </>
           ) : (
             <section className="panel prepareResultPlaceholder">
               <div className="panelHeader">
@@ -624,7 +886,7 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
   return (
     <AppShell
       networkBadge={`Sui mainnet · ${MAINNET_RPC_URL.replace('https://', '')}`}
-      executionBadge={selectedExecutionMode}
+      executionBadge={effectiveSelectedExecutionMode}
       walletLabel={connectionStatus}
       walletButton={<WalletConnectButton />}
       warnings={warnings}
@@ -643,7 +905,7 @@ const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEF
             <div className="stageIntroAside" aria-label="Prepare stage summary">
               <div className="stageAsideTile stageAsideTileBlue">
                 <span>Mode</span>
-                <strong>{selectedModeLabel(selectedExecutionMode)}</strong>
+                <strong>{selectedModeLabel(effectiveSelectedExecutionMode)}</strong>
               </div>
               <div className={`stageAsideTile ${policyCheck.ok ? 'stageAsideTileMint' : 'stageAsideTilePink'}`}>
                 <span>Policy</span>

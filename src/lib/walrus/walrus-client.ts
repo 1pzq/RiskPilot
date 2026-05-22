@@ -1,5 +1,13 @@
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
+
 import type { AuditPackage, AuditStorageResult } from './types';
 import { storeAuditPackageLocal } from './local-store';
+
+const execFileAsync = promisify(execFile);
 
 type WalrusUploadResponse = {
   id?: string;
@@ -13,6 +21,10 @@ type WalrusUploadResponse = {
   alreadyCertified?: {
     blobId?: string;
   };
+};
+
+type WalrusCliStoreEntry = {
+  blobStoreResult?: WalrusUploadResponse;
 };
 
 function serializeAuditPackage(auditPackage: AuditPackage): string {
@@ -46,6 +58,20 @@ function extractBlobId(payload: WalrusUploadResponse): string | undefined {
   );
 }
 
+function extractCliBlobId(payload: unknown): string | undefined {
+  if (Array.isArray(payload)) {
+    for (const entry of payload as WalrusCliStoreEntry[]) {
+      const id = entry.blobStoreResult ? extractBlobId(entry.blobStoreResult) : undefined;
+
+      if (id) {
+        return id;
+      }
+    }
+  }
+
+  return extractBlobId(payload as WalrusUploadResponse);
+}
+
 export async function storeAuditPackageWalrus(auditPackage: AuditPackage): Promise<AuditStorageResult> {
   const publisherUrl = process.env.WALRUS_PUBLISHER_URL?.trim();
   const aggregatorUrl = process.env.WALRUS_AGGREGATOR_URL?.trim();
@@ -77,7 +103,7 @@ export async function storeAuditPackageWalrus(auditPackage: AuditPackage): Promi
   return {
     mode: 'walrus',
     id,
-    provider: 'walrus-mainnet',
+    provider: 'walrus-mainnet-publisher',
     fallback: false,
     sizeBytes: Buffer.byteLength(payload, 'utf8'),
     url: uploadResponse.url ?? buildAggregatorUrl(aggregatorUrl, id),
@@ -86,6 +112,7 @@ export async function storeAuditPackageWalrus(auditPackage: AuditPackage): Promi
 
 export async function storeAuditPackage(auditPackage: AuditPackage): Promise<AuditStorageResult> {
   const mode = (process.env.WALRUS_MODE ?? 'walrus').toLowerCase();
+  const uploadMethod = (process.env.WALRUS_UPLOAD_METHOD ?? 'publisher').toLowerCase();
 
   if (mode !== 'walrus') {
     const local = await storeAuditPackageLocal(auditPackage);
@@ -96,6 +123,10 @@ export async function storeAuditPackage(auditPackage: AuditPackage): Promise<Aud
   }
 
   try {
+    if (uploadMethod === 'cli') {
+      return await storeAuditPackageWalrusCli(auditPackage);
+    }
+
     return await storeAuditPackageWalrus(auditPackage);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Walrus upload failed.';
@@ -103,10 +134,51 @@ export async function storeAuditPackage(auditPackage: AuditPackage): Promise<Aud
     return {
       ...fallback,
       error: message,
-      warning: message.includes('WALRUS_PUBLISHER_URL')
-        ? 'Walrus mainnet is not configured. Local audit fallback was used for this demo.'
-        : 'Walrus mainnet upload was unavailable. Local audit fallback was used.',
+      warning:
+        uploadMethod === 'cli'
+          ? 'Walrus CLI upload was unavailable. Local audit fallback was used.'
+          : message.includes('WALRUS_PUBLISHER_URL')
+            ? 'Walrus mainnet is not configured. Local audit fallback was used for this run.'
+            : 'Walrus mainnet upload was unavailable. Local audit fallback was used.',
       fallback: true,
     };
+  }
+}
+
+export async function storeAuditPackageWalrusCli(auditPackage: AuditPackage): Promise<AuditStorageResult> {
+  const aggregatorUrl = process.env.WALRUS_AGGREGATOR_URL?.trim();
+  const payload = serializeAuditPackage(auditPackage);
+  const tempDir = await mkdtemp(join(tmpdir(), 'riskpilot-walrus-'));
+  const tempPath = join(tempDir, `${auditPackage.id}.json`);
+
+  try {
+    await writeFile(tempPath, payload, 'utf8');
+
+    const { stdout } = await execFileAsync(
+      'walrus',
+      ['store', '--context', 'mainnet', '--epochs', '1', '--json', tempPath],
+      {
+        maxBuffer: 1024 * 1024 * 4,
+        timeout: 1000 * 60 * 6,
+      },
+    );
+
+    const parsed = JSON.parse(stdout) as unknown;
+    const id = extractCliBlobId(parsed);
+
+    if (!id) {
+      throw new Error('Walrus CLI upload succeeded but did not return a blob ID.');
+    }
+
+    return {
+      mode: 'walrus',
+      id,
+      provider: 'walrus-mainnet-cli',
+      fallback: false,
+      sizeBytes: Buffer.byteLength(payload, 'utf8'),
+      url: buildAggregatorUrl(aggregatorUrl, id),
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
 }

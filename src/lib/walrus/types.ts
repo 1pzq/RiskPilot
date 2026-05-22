@@ -36,7 +36,7 @@ export type AuditStorageResult = {
   url?: string;
   error?: string;
   warning?: string;
-  provider?: 'walrus-mainnet' | 'local-file' | 'memory';
+  provider?: 'walrus-mainnet-cli' | 'walrus-mainnet-publisher' | 'local-file' | 'memory';
   fallback?: boolean;
   checksum?: string;
   sizeBytes?: number;

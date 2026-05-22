@@ -43,7 +43,11 @@ export async function POST(request: Request) {
       });
     }
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: openaiBaseUrl || undefined,
+    });
     const model = process.env.OPENAI_MODEL ?? 'gpt-4.1-mini';
 
     const completion = await client.chat.completions.create({
@@ -91,4 +95,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

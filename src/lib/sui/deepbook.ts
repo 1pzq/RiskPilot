@@ -117,7 +117,7 @@ export async function executeDeepBookTransaction(
       return {
         ...prepareDeepBookTransaction(request, walletAddress, requestedMode),
         warning:
-          'Live mainnet submission is not wired in this demo build. A mainnet action was prepared instead.',
+          'Live mainnet submission is not wired for this action. A mainnet action was prepared instead.',
       };
     }
 
