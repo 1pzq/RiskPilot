@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDemoPortfolio } from '../lib/risk/fixtures';
 import { calculateRiskReport, estimatePostStrategyRisk } from '../lib/risk/risk-engine';
+import { buildMonitorRules } from '../lib/strategy/monitor';
 import { createDefaultPolicy, validateExecutionPolicy } from '../lib/strategy/policy';
 import { buildStrategyRecommendation } from '../lib/strategy/strategy-builder';
+import { createDeepBookMarketEvidence } from '../lib/walrus/audit-package';
 import { storeAuditPackage, storeAuditPackageWalrus } from '../lib/walrus/walrus-client';
 import type { AuditPackage } from '../lib/walrus/types';
 
@@ -17,6 +19,16 @@ function buildAuditPackage(): AuditPackage {
   const riskReport = calculateRiskReport(portfolio);
   const recommendation = buildStrategyRecommendation(riskReport, portfolio, { maxBudgetUsd: 5 }, { defaultBudgetUsd: 5 });
   const policy = createDefaultPolicy(recommendation, new Date('2026-05-20T00:00:00.000Z'));
+  const policyCheck = validateExecutionPolicy(policy, recommendation, new Date('2026-05-20T00:00:00.000Z'));
+  const monitorRules = buildMonitorRules({
+    portfolio,
+    riskReport,
+    recommendation,
+    policy,
+    policyCheck,
+    deepbookMarketStatus: 'ready',
+    now: new Date('2026-05-20T00:00:00.000Z'),
+  });
 
   return {
     id: 'audit_test',
@@ -25,8 +37,35 @@ function buildAuditPackage(): AuditPackage {
     portfolioSnapshot: portfolio,
     riskReportBefore: riskReport,
     recommendation,
+    monitorRules,
+    deepbookMarketEvidence: createDeepBookMarketEvidence({
+      snapshot: {
+        poolKey: 'SUI_USDC',
+        poolAddress: '0xPOOL',
+        baseCoin: 'SUI',
+        quoteCoin: 'USDC',
+        midPrice: 3.25,
+        quoteOutForOneBase: 3.2,
+        baseOutForOneQuote: 0.307692,
+        vaultBalances: {
+          base: 1045.12,
+          quote: 3412.88,
+          deep: 251.44,
+        },
+        tradeParams: {
+          takerFee: 0.0025,
+          makerFee: 0.0015,
+          stakeRequired: 150,
+        },
+        registeredPool: true,
+        whitelisted: true,
+        fetchedAt: '2026-05-21T00:00:00.000Z',
+      },
+      walletAddress: '0xDEMO',
+      routeStatus: 'ready',
+    }),
     policy,
-    policyCheck: validateExecutionPolicy(policy, recommendation, new Date('2026-05-20T00:00:00.000Z')),
+    policyCheck,
     aiExplanation: 'Mock explanation.',
     execution: {
       mode: 'prepare_mainnet',
@@ -44,6 +83,97 @@ afterEach(() => {
 });
 
 describe('Walrus audit storage', () => {
+  it('keeps DeepBook market evidence in the audit package payload', () => {
+    const auditPackage = buildAuditPackage();
+
+    expect(auditPackage.deepbookMarketEvidence).toMatchObject({
+      source: '/api/deepbook-market',
+      status: 'ready',
+      routeStatus: 'ready',
+      walletAddress: '0xDEMO',
+      poolKey: 'SUI_USDC',
+      baseCoin: 'SUI',
+      quoteCoin: 'USDC',
+      midPrice: 3.25,
+      quoteOutForOneBase: 3.2,
+      registeredPool: true,
+      poolStatus: 'registered',
+      fetchedAt: '2026-05-21T00:00:00.000Z',
+    });
+  });
+
+  it('keeps monitor rules in the audit package payload', () => {
+    const auditPackage = buildAuditPackage();
+
+    expect(auditPackage.monitorRules.length).toBeGreaterThanOrEqual(2);
+    expect(auditPackage.monitorRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'SUI drawdown reaches strategy threshold',
+          enabled: true,
+          recommendedAction: expect.objectContaining({
+            kind: 'prepare',
+          }),
+        }),
+        expect.objectContaining({
+          label: 'Policy expires soon',
+          recommendedAction: expect.objectContaining({
+            kind: 'review',
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it('preserves real mainnet transaction digest and effects status in the audit package', () => {
+    const auditPackage = buildAuditPackage();
+    auditPackage.execution = {
+      mode: 'mainnet',
+      status: 'confirmed',
+      digest: 'Fui3ESVAtzsVwe55tPGE4VirWgouVw68o7kGH7X6woqP',
+      effectsStatus: 'success',
+      preparedTransactionSummary: 'Live DeepBook mainnet swap: sell SUI for USDC.',
+      adapter: {
+        venue: 'DeepBook mainnet',
+        requestedMode: 'mainnet',
+        mainnetOnly: true,
+      },
+    };
+
+    expect(auditPackage.execution).toMatchObject({
+      mode: 'mainnet',
+      status: 'confirmed',
+      digest: 'Fui3ESVAtzsVwe55tPGE4VirWgouVw68o7kGH7X6woqP',
+      effectsStatus: 'success',
+      adapter: {
+        venue: 'DeepBook mainnet',
+        requestedMode: 'mainnet',
+      },
+    });
+    expect(auditPackage.deepbookMarketEvidence.poolKey).toBe('SUI_USDC');
+    expect(auditPackage.monitorRules.length).toBeGreaterThan(0);
+  });
+
+  it('records an unavailable DeepBook market evidence state when the snapshot is missing', () => {
+    const evidence = createDeepBookMarketEvidence({
+      snapshot: null,
+      walletAddress: '0x2',
+      poolKey: 'SUI_USDC',
+      routeStatus: 'error',
+      error: 'DeepBook market lookup failed',
+    });
+
+    expect(evidence).toMatchObject({
+      status: 'unavailable',
+      routeStatus: 'error',
+      poolKey: 'SUI_USDC',
+      poolStatus: 'unknown',
+      whitelistStatus: 'unknown',
+      error: 'DeepBook market lookup failed',
+    });
+    expect(evidence.fallbackReason).toContain('unavailable');
+  });
+
   it('uses local storage when explicitly configured for local development', async () => {
     process.env.WALRUS_MODE = 'local';
 

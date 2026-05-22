@@ -15,6 +15,8 @@ const BodySchema = z
     portfolioSnapshot: z.any(),
     riskReportBefore: z.any(),
     recommendation: z.any(),
+    monitorRules: z.array(z.any()),
+    deepbookMarketEvidence: z.any(),
     policy: z.any(),
     policyCheck: z.any(),
     aiExplanation: z.string(),
@@ -41,4 +43,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

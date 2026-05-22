@@ -150,10 +150,14 @@ export function AppShell({
         </div>
 
         <div className="headerMeta">
-          <span className="pill pillNeutral">{networkBadge}</span>
-          <span className="pill pillAccent">{formatExecutionBadge(executionBadge)}</span>
-          <span className="pill pillMuted">{walletLabel}</span>
-          <div className="walletSlot">{walletButton}</div>
+          <div className="statusPills">
+            <span className="pill pillNeutral">{networkBadge}</span>
+            <span className="pill pillAccent">{formatExecutionBadge(executionBadge)}</span>
+          </div>
+          <div className="walletCluster">
+            <span className="pill pillMuted">{walletLabel}</span>
+            <div className="walletSlot">{walletButton}</div>
+          </div>
         </div>
       </header>
 

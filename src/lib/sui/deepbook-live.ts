@@ -32,12 +32,50 @@ export type DeepBookLiveMarketSnapshot = {
 export type DeepBookLiveTradePlan = {
   poolKey: string;
   side: 'buy' | 'sell';
+  assetIn: 'SUI' | 'USDC';
+  assetOut: 'SUI' | 'USDC';
   amountIn: number;
   estimatedOut: number;
   minimumOut: number;
+  slippagePct: number;
   summary: string;
   marketLabel: string;
 };
+
+export type DeepBookLiveGate = {
+  hasWallet: boolean;
+  isSpotAction: boolean;
+  isSupportedPair: boolean;
+  hasPositiveAmount: boolean;
+  policyOk: boolean;
+  marketReady: boolean;
+  userSelectedLive: boolean;
+  featureEnabled: boolean;
+  eligible: boolean;
+  canSubmitLive: boolean;
+  reasons: string[];
+};
+
+export type DeepBookLiveGateInput = {
+  accountAddress?: string | null;
+  recommendation: Pick<StrategyRecommendation, 'deepbookAction'>;
+  policyOk: boolean;
+  selectedExecutionMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+  marketSnapshot: DeepBookLiveMarketSnapshot | null;
+  marketStatus?: 'idle' | 'loading' | 'ready' | 'error';
+  featureEnabled?: boolean;
+};
+
+export function isSupportedLiveSpotPair(
+  recommendation: Pick<StrategyRecommendation, 'deepbookAction'>,
+): boolean {
+  const { assetIn, assetOut } = recommendation.deepbookAction;
+
+  return (
+    (assetIn === 'SUI' && assetOut === 'USDC') ||
+    (assetIn === 'USDC' && assetOut === 'SUI')
+  );
+}
 
 function round(value: number, digits = 6): number {
   const scale = 10 ** digits;
@@ -95,16 +133,12 @@ export function buildDeepBookLiveTradePlan(
   recommendation: Pick<StrategyRecommendation, 'deepbookAction' | 'title' | 'type'>,
   marketSnapshot: DeepBookLiveMarketSnapshot,
 ): DeepBookLiveTradePlan | null {
-  if (recommendation.deepbookAction.kind !== 'spot') {
+  if (!isLiveDeepBookEligible(recommendation)) {
     return null;
   }
 
-  const assetIn = recommendation.deepbookAction.assetIn;
-  const assetOut = recommendation.deepbookAction.assetOut;
-
-  if (!((assetIn === 'SUI' && assetOut === 'USDC') || (assetIn === 'USDC' && assetOut === 'SUI'))) {
-    return null;
-  }
+  const assetIn = recommendation.deepbookAction.assetIn as 'SUI' | 'USDC';
+  const assetOut = recommendation.deepbookAction.assetOut as 'SUI' | 'USDC';
 
   const side: 'buy' | 'sell' = assetIn === 'SUI' ? 'sell' : 'buy';
   const amountIn = assetIn === 'SUI'
@@ -113,7 +147,8 @@ export function buildDeepBookLiveTradePlan(
   const estimatedOut = side === 'sell'
     ? round(amountIn * marketSnapshot.quoteOutForOneBase, 6)
     : round(amountIn * marketSnapshot.baseOutForOneQuote, 6);
-  const minimumOut = round(Math.max(0, estimatedOut * 0.98), 6);
+  const slippagePct = 2;
+  const minimumOut = round(Math.max(0, estimatedOut * (1 - slippagePct / 100)), 6);
   const marketLabel = `${marketSnapshot.baseCoin}/${marketSnapshot.quoteCoin}`;
   const summary =
     side === 'sell'
@@ -123,9 +158,12 @@ export function buildDeepBookLiveTradePlan(
   return {
     poolKey: marketSnapshot.poolKey,
     side,
+    assetIn,
+    assetOut,
     amountIn,
     estimatedOut,
     minimumOut,
+    slippagePct,
     summary,
     marketLabel,
   };
@@ -136,9 +174,82 @@ export function isLiveDeepBookEligible(
 ): boolean {
   return (
     recommendation.deepbookAction.kind === 'spot' &&
-    ((recommendation.deepbookAction.assetIn === 'SUI' && recommendation.deepbookAction.assetOut === 'USDC') ||
-      (recommendation.deepbookAction.assetIn === 'USDC' && recommendation.deepbookAction.assetOut === 'SUI'))
+    recommendation.deepbookAction.amountUsd > 0 &&
+    isSupportedLiveSpotPair(recommendation)
   );
+}
+
+export function getDeepBookLiveGate(input: DeepBookLiveGateInput): DeepBookLiveGate {
+  const hasWallet = Boolean(input.accountAddress);
+  const isSpotAction = input.recommendation.deepbookAction.kind === 'spot';
+  const isSupportedPair = isSupportedLiveSpotPair(input.recommendation);
+  const hasPositiveAmount = input.recommendation.deepbookAction.amountUsd > 0;
+  const policyOk = input.policyOk;
+  const marketReady = input.marketStatus === 'ready' && Boolean(input.marketSnapshot);
+  const userSelectedLive = input.selectedExecutionMode === 'mainnet';
+  const featureEnabled = input.featureEnabled ?? true;
+  const reasons: string[] = [];
+
+  if (!featureEnabled) {
+    reasons.push('Live DeepBook execution is disabled by configuration.');
+  }
+
+  if (!hasWallet) {
+    reasons.push('Connect a Sui mainnet wallet.');
+  }
+
+  if (!isSpotAction) {
+    reasons.push('DeepBook Predict remains prepare-only in this demo.');
+  }
+
+  if (!isSupportedPair) {
+    reasons.push('Live execution only supports spot SUI/USDC or USDC/SUI.');
+  }
+
+  if (!hasPositiveAmount) {
+    reasons.push('Live execution requires a positive trade amount.');
+  }
+
+  if (!policyOk) {
+    reasons.push('Policy checks must pass before live execution.');
+  }
+
+  if (!marketReady) {
+    reasons.push('DeepBook market snapshot must be ready.');
+  }
+
+  if (!userSelectedLive) {
+    reasons.push('Select live mainnet explicitly.');
+  }
+
+  const eligible =
+    featureEnabled &&
+    hasWallet &&
+    isSpotAction &&
+    isSupportedPair &&
+    hasPositiveAmount &&
+    policyOk &&
+    marketReady;
+
+  return {
+    hasWallet,
+    isSpotAction,
+    isSupportedPair,
+    hasPositiveAmount,
+    policyOk,
+    marketReady,
+    userSelectedLive,
+    featureEnabled,
+    eligible,
+    canSubmitLive: eligible && userSelectedLive,
+    reasons,
+  };
+}
+
+export function buildLiveDeepBookFailureWarning(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Wallet signing or Sui execution failed.';
+
+  return `Live DeepBook Spot submission failed, so RiskPilot archived a prepare-only fallback instead: ${message}`;
 }
 
 export function buildDeepBookLiveTransaction(

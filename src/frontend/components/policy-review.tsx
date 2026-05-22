@@ -64,7 +64,7 @@ export function PolicyReview({ policy, policyCheck, onChange }: PolicyReviewProp
   });
 
   return (
-    <section className="panel">
+    <section className="panel policyPanel">
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Policy gate</p>

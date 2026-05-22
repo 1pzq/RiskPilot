@@ -74,6 +74,7 @@ As of 2026-05-22:
 - DeepBook remains `prepare_mainnet` by default. Live DeepBook is still an explicit, gated path.
 - Walrus CLI mainnet upload and read have been smoke-tested. Local fallback remains available.
 - StrategyReceipt is published on Sui mainnet and receipt minting has passed a mainnet smoke test.
+- OpenAI live explanations are configured through an OpenAI-compatible Responses API gateway; `/api/explain` smoke test returned `mode: openai`.
 - `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` passed in the current implementation cycle.
 
 ## Environment Variables
@@ -90,12 +91,14 @@ NEXT_PUBLIC_MAINNET_EXECUTION_MODE=prepare
 NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=true
 ```
 
-Optional AI explanation:
+AI explanation:
 
 ```bash
 OPENAI_API_KEY=
 OPENAI_BASE_URL=
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.5
+OPENAI_API_MODE=responses
+OPENAI_REASONING_EFFORT=low
 ```
 
 Optional Walrus mainnet upload:
@@ -113,7 +116,7 @@ Optional on-chain receipt package:
 NEXT_PUBLIC_RECEIPT_PACKAGE_ID=0x3f889b1dba8796715690b5b78f6bc7ca0f248a45368649b8116f982bda847b19
 ```
 
-Use `OPENAI_BASE_URL` only when your key is from an OpenAI-compatible relay or gateway. Use `WALRUS_UPLOAD_METHOD=cli` when running the hackathon demo from a machine with the Walrus CLI configured for mainnet. Use `publisher` only if you explicitly want to target a Walrus HTTP publisher endpoint. If `OPENAI_API_KEY` is empty, the app returns a deterministic mock explanation. If Walrus upload fails, the app writes the audit package to `.riskpilot-data/audits`. Keep `.env.local` private and never commit secrets or private keys.
+Use `OPENAI_BASE_URL` only when your key is from an OpenAI-compatible relay or gateway. `OPENAI_API_MODE=responses` is the default path; set it to `chat` only for a gateway that does not support the Responses API. The current local `.env.local` has live OpenAI-compatible explanation calls configured and verified, but the key/base URL must stay private. Use `WALRUS_UPLOAD_METHOD=cli` when running the hackathon demo from a machine with the Walrus CLI configured for mainnet. Use `publisher` only if you explicitly want to target a Walrus HTTP publisher endpoint. If `OPENAI_API_KEY` is empty, the app returns a deterministic mock explanation. If OpenAI is configured but unavailable, the UI falls back to the mock explanation instead of blocking the Sui/Walrus flow. If Walrus upload fails, the app writes the audit package to `.riskpilot-data/audits`. Keep `.env.local` private and never commit secrets or private keys.
 
 ## Scripts
 

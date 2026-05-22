@@ -1,6 +1,17 @@
 'use client';
 
-import { ArrowRightLeft, BarChart3, CalendarClock, ShieldAlert, Target } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  BarChart3,
+  CalendarClock,
+  Info,
+  ListChecks,
+  RotateCcw,
+  ShieldAlert,
+  ShieldCheck,
+  Target,
+  TriangleAlert,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import type { DeepBookPredictSettings, StrategyRecommendation } from '@/lib/strategy/strategy-builder';
@@ -48,9 +59,34 @@ export function StrategyPanel({
   marketSnapshotError,
 }: StrategyPanelProps) {
   const canEditPredict = recommendation.type === 'deepbook_predict_downside_binary' && predictSettings && onPredictSettingsChange;
+  const strategyDetails = [
+    {
+      icon: <Info size={14} />,
+      label: 'Why',
+      value: recommendation.rationale,
+    },
+    {
+      icon: <Target size={14} />,
+      label: 'Applies to',
+      value: recommendation.applicability,
+    },
+    {
+      icon: <ShieldCheck size={14} />,
+      label: 'Prepare-only',
+      value: recommendation.prepareOnlyReason,
+    },
+    {
+      icon: <RotateCcw size={14} />,
+      label: 'Fallback',
+      value: recommendation.fallback,
+    },
+  ].filter((item) => item.value);
+  const displayFacts = recommendation.displayFacts ?? [];
+  const constraints = recommendation.constraints ?? [];
+  const riskTradeoffs = recommendation.riskTradeoffs ?? [];
 
   return (
-    <section className="panel">
+    <section className="panel strategyPanel">
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Recommended action</p>
@@ -78,36 +114,97 @@ export function StrategyPanel({
         </div>
       </div>
 
+      {strategyDetails.length > 0 ? (
+        <div className="positionBlock strategyBlock strategyBriefing">
+          <div className="strategyBriefGrid">
+            {strategyDetails.map((item) => (
+              <div className="strategyBriefItem" key={item.label}>
+                <span className="strategyBriefLabel">
+                  {item.icon}
+                  {item.label}
+                </span>
+                <p>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {displayFacts.length > 0 ? (
+            <div className="strategyFactGrid">
+              {displayFacts.map((fact) => (
+                <div className="strategyFact" key={`${fact.label}-${fact.value}`}>
+                  <span>{fact.label}</span>
+                  <strong>{fact.value}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {constraints.length > 0 || riskTradeoffs.length > 0 ? (
+            <div className="strategyListGrid">
+              {constraints.length > 0 ? (
+                <div className="strategyList">
+                  <span className="strategyListTitle">
+                    <ListChecks size={14} />
+                    Guardrails
+                  </span>
+                  <ul>
+                    {constraints.map((constraint) => (
+                      <li key={constraint}>{constraint}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {riskTradeoffs.length > 0 ? (
+                <div className="strategyList">
+                  <span className="strategyListTitle">
+                    <TriangleAlert size={14} />
+                    Tradeoffs
+                  </span>
+                  <ul>
+                    {riskTradeoffs.map((tradeoff) => (
+                      <li key={tradeoff}>{tradeoff}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {marketSnapshot ? (
         <div className="positionBlock strategyBlock strategyMarketBlock">
-          <div className="positionLine">
-            <span>
-              <BarChart3 size={14} />
-              Live pool
-            </span>
-            <span>{marketSnapshot.poolKey}</span>
-          </div>
-          <div className="positionLine">
-            <span>Mid price</span>
-            <span>{formatUsd(marketSnapshot.midPrice)}</span>
-          </div>
-          <div className="positionLine">
-            <span>1 SUI ≈</span>
-            <span>{marketSnapshot.quoteOutForOneBase.toFixed(2)} USDC</span>
-          </div>
-          <div className="positionLine">
-            <span>1 USDC ≈</span>
-            <span>{marketSnapshot.baseOutForOneQuote.toFixed(4)} SUI</span>
-          </div>
-          <div className="positionLine">
-            <span>Pool state</span>
-            <span>{marketSnapshot.registeredPool ? 'registered' : 'unregistered'} · {marketSnapshot.whitelisted ? 'whitelisted' : 'open'}</span>
-          </div>
-          <div className="positionLine">
-            <span>Vaults</span>
-            <span>
-              {marketSnapshot.vaultBalances.base.toFixed(2)} / {marketSnapshot.vaultBalances.quote.toFixed(2)} / {marketSnapshot.vaultBalances.deep.toFixed(2)}
-            </span>
+          <div className="strategyMarketGrid">
+            <div className="strategyFact">
+              <span>
+                <BarChart3 size={14} />
+                Live pool
+              </span>
+              <strong>{marketSnapshot.poolKey}</strong>
+            </div>
+            <div className="strategyFact">
+              <span>Mid price</span>
+              <strong>{formatUsd(marketSnapshot.midPrice)}</strong>
+            </div>
+            <div className="strategyFact">
+              <span>1 SUI ≈</span>
+              <strong>{marketSnapshot.quoteOutForOneBase.toFixed(2)} USDC</strong>
+            </div>
+            <div className="strategyFact">
+              <span>1 USDC ≈</span>
+              <strong>{marketSnapshot.baseOutForOneQuote.toFixed(4)} SUI</strong>
+            </div>
+            <div className="strategyFact">
+              <span>Pool state</span>
+              <strong>{marketSnapshot.registeredPool ? 'registered' : 'unregistered'} · {marketSnapshot.whitelisted ? 'whitelisted' : 'open'}</strong>
+            </div>
+            <div className="strategyFact">
+              <span>Vaults</span>
+              <strong>
+                {marketSnapshot.vaultBalances.base.toFixed(2)} / {marketSnapshot.vaultBalances.quote.toFixed(2)} / {marketSnapshot.vaultBalances.deep.toFixed(2)}
+              </strong>
+            </div>
           </div>
           <div className="strategyNote">
             Real DeepBook mainnet quote and pool metadata, fetched from the live SUI/USDC market.
@@ -122,7 +219,7 @@ export function StrategyPanel({
         <div className="warningStrip inline">{marketSnapshotError}</div>
       ) : null}
 
-      <div className="positionBlock strategyBlock">
+      <div className="positionBlock strategyBlock strategyActionBlock">
         <div className="positionLine">
           <span>Adapter</span>
           <span>{recommendation.deepbookAction.kind === 'predict_binary' ? 'DeepBook Predict' : 'DeepBook'}</span>

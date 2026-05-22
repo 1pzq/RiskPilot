@@ -2,7 +2,7 @@
 
 import { Boxes, Landmark, Layers3, PieChart, WalletCards } from 'lucide-react';
 
-import type { PortfolioSnapshot, WalletObjectKind } from '@/lib/risk/types';
+import type { PortfolioSnapshot, WalletObjectKind, WalletObjectSummary } from '@/lib/risk/types';
 import { formatAddress, formatCompact, formatPercent, formatUsd } from '@/lib/utils/format';
 
 type PortfolioOverviewProps = {
@@ -20,6 +20,7 @@ const assetAccent: Record<string, string> = {
 
 const objectKindLabel: Record<WalletObjectKind, string> = {
   coin: 'Coin',
+  deepbook_object: 'DeepBook',
   walrus_blob: 'Walrus',
   riskpilot_receipt: 'Receipt',
   defi_candidate: 'DeFi',
@@ -29,6 +30,7 @@ const objectKindLabel: Record<WalletObjectKind, string> = {
 
 const objectKindBadge: Record<WalletObjectKind, string> = {
   coin: 'CN',
+  deepbook_object: 'DB',
   walrus_blob: 'WAL',
   riskpilot_receipt: 'RC',
   defi_candidate: 'DFI',
@@ -36,11 +38,59 @@ const objectKindBadge: Record<WalletObjectKind, string> = {
   other: 'OBJ',
 };
 
+const objectPreviewLimit: Record<WalletObjectKind, number> = {
+  coin: 4,
+  deepbook_object: 6,
+  walrus_blob: 6,
+  riskpilot_receipt: 6,
+  defi_candidate: 6,
+  package_cap: 5,
+  other: 5,
+};
+
 export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: PortfolioOverviewProps) {
   const walletScan = portfolio.walletScan;
+  const sampleObjectCount = walletScan?.sampleObjects.length ?? 0;
+  const groupedObjects = walletScan
+    ? walletScan.sampleObjects.reduce<Partial<Record<WalletObjectKind, typeof walletScan.sampleObjects>>>(
+        (groups, object) => {
+          const group = groups[object.kind] ?? [];
+          group.push(object);
+          groups[object.kind] = group;
+          return groups;
+        },
+        {},
+      )
+    : {};
+
+  const objectGroupOrder: WalletObjectKind[] = [
+    'deepbook_object',
+    'walrus_blob',
+    'riskpilot_receipt',
+    'defi_candidate',
+    'package_cap',
+    'coin',
+    'other',
+  ];
+
+  function renderObjectFacts(object: WalletObjectSummary) {
+    const visibleFacts = object.facts.slice(0, 2);
+    const hiddenFacts = object.facts.length - visibleFacts.length;
+
+    return (
+      <div className="walletObjectFacts">
+        {visibleFacts.map((fact) => (
+          <span key={`${object.objectId}:${fact.label}`}>
+            {fact.label}: <strong>{fact.value}</strong>
+          </span>
+        ))}
+        {hiddenFacts > 0 ? <span className="walletObjectFactsMore">+{hiddenFacts} more</span> : null}
+      </div>
+    );
+  }
 
   return (
-    <section className="panel">
+    <section className={walletScan ? 'panel portfolioPanel portfolioPanelWallet' : 'panel portfolioPanel'}>
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Portfolio</p>
@@ -83,7 +133,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         </div>
       </div>
 
-      <div className="stack">
+      <div className="portfolioAssetGrid" aria-label="Wallet holdings">
         {portfolio.assets.map((asset) => {
           const isPriced = asset.usdPrice > 0 && asset.usdValue > 0;
           const share = portfolio.totalUsdValue > 0 ? asset.usdValue / portfolio.totalUsdValue : 0;
@@ -95,7 +145,9 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                   <span className="swatch" style={{ backgroundColor: assetAccent[asset.symbol] ?? 'var(--text-muted)' }} />
                   <div>
                     <div className="assetName">{asset.symbol}</div>
-                    <div className="assetMeta">{asset.coinType}</div>
+                    <div className="assetMeta assetCoinType" title={asset.coinType}>
+                      {asset.coinType}
+                    </div>
                   </div>
                 </div>
                 <div className="assetNumbers">
@@ -132,15 +184,20 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                 Mainnet object scan
               </div>
               <p>Owned Sui objects are scanned directly from mainnet and attached to the audit package.</p>
+              <p className="walletScanPreviewNote">
+                Scrollable preview showing {sampleObjectCount} of {walletScan.totalObjects} scanned objects. Key category counts stay visible above.
+              </p>
             </div>
             <span className="pill pillSuccess">real scan</span>
           </div>
 
           <div className="walletScanChips" aria-label="Wallet object counters">
             <span>{walletScan.coinObjects} coin objects</span>
+            <span>{walletScan.deepbookObjects} DeepBook objects</span>
             <span>{walletScan.walrusBlobs} Walrus blobs</span>
             <span>{walletScan.receiptObjects} receipts</span>
             <span>{walletScan.defiCandidates} DeFi candidates</span>
+            <span>{walletScan.packageCaps} package caps</span>
           </div>
 
           {walletScan.protocolHints.length > 0 ? (
@@ -154,29 +211,51 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             </div>
           ) : null}
 
-          <div className="walletObjectList">
-            {walletScan.sampleObjects.map((object) => (
-              <div className={`walletObjectRow walletObjectRow-${object.kind}`} key={object.objectId}>
-                <span className="walletObjectBadge">{objectKindBadge[object.kind]}</span>
-                <div className="walletObjectMain">
-                  <strong>{object.label}</strong>
-                  <small>
-                    {object.protocol} · {object.role} · {object.module ? `${object.module} · ` : ''}
-                    {formatAddress(object.objectId)}
-                  </small>
-                  {object.facts.length > 0 ? (
-                    <div className="walletObjectFacts">
-                      {object.facts.map((fact) => (
-                        <span key={`${object.objectId}:${fact.label}`}>
-                          {fact.label}: <strong>{fact.value}</strong>
-                        </span>
+          <div className="walletObjectListViewport" aria-label="Mainnet object preview">
+            <div className="walletObjectList">
+              {objectGroupOrder.map((kind) => {
+                const objects = groupedObjects[kind] ?? [];
+
+                if (objects.length === 0) {
+                  return null;
+                }
+
+                const previewObjects = objects.slice(0, objectPreviewLimit[kind]);
+                const hiddenPreviewCount = objects.length - previewObjects.length;
+
+                return (
+                  <div className="walletObjectGroup" key={kind}>
+                    <div className="walletObjectGroupHeader">
+                      <span>{objectKindLabel[kind]}</span>
+                      <strong>{objects.length}</strong>
+                    </div>
+                    <div className="walletObjectGroupItems">
+                      {previewObjects.map((object) => (
+                        <div className={`walletObjectRow walletObjectRow-${object.kind}`} key={object.objectId}>
+                          <span className="walletObjectBadge">{objectKindBadge[object.kind]}</span>
+                          <div className="walletObjectMain">
+                            <strong>{object.label}</strong>
+                            <small>
+                              {object.protocol} · {object.role}
+                              {object.module ? ` · ${object.module}` : ''}
+                              {' · '}
+                              {formatAddress(object.objectId)}
+                            </small>
+                            {object.facts.length > 0 ? renderObjectFacts(object) : null}
+                          </div>
+                          <span className="pill pillNeutral">{objectKindLabel[object.kind]}</span>
+                        </div>
                       ))}
                     </div>
-                  ) : null}
-                </div>
-                <span className="pill pillNeutral">{objectKindLabel[object.kind]}</span>
-              </div>
-            ))}
+                    {hiddenPreviewCount > 0 ? (
+                      <div className="walletObjectGroupFooter">
+                        Showing {previewObjects.length} of {objects.length} {objectKindLabel[kind].toLowerCase()} objects in preview.
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : null}

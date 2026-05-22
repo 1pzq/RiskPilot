@@ -54,6 +54,14 @@ export function WalletSourcePanel({ address, assets, walletScan }: WalletSourceP
           <span>{assets.length > 0 ? `${assets.length} live balance rows from Sui mainnet.` : 'Waiting for mainnet balances.'}</span>
         </div>
         <div>
+          <strong>Object scan</strong>
+          <span>
+            {walletScan
+              ? `${walletScan.deepbookObjects} DeepBook, ${walletScan.walrusBlobs} Walrus, ${walletScan.receiptObjects} receipt, ${walletScan.defiCandidates} DeFi candidate, and ${walletScan.packageCaps} package-cap objects detected.`
+              : 'Waiting for owned-object scan results.'}
+          </span>
+        </div>
+        <div>
           <strong>Unknown tokens</strong>
           <span>
             {unpricedAssets.length > 0

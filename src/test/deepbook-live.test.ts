@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildDeepBookLiveTradePlan,
+  buildLiveDeepBookFailureWarning,
+  getDeepBookLiveGate,
   isLiveDeepBookEligible,
   type DeepBookLiveMarketSnapshot,
 } from '../lib/sui/deepbook-live';
@@ -47,21 +49,112 @@ describe('DeepBook live helper', () => {
     ).toBe(true);
   });
 
-  it('does not mark predict strategies as live eligible', () => {
+  it('requires every explicit opt-in gate before entering the mainnet path', () => {
+    const recommendation = {
+      deepbookAction: {
+        mode: 'prepare_mainnet' as const,
+        kind: 'spot' as const,
+        market: 'SUI/USDC',
+        side: 'sell' as const,
+        assetIn: 'SUI',
+        assetOut: 'USDC',
+        amountUsd: 5,
+        description: 'demo',
+      },
+    };
+
     expect(
-      isLiveDeepBookEligible({
-        deepbookAction: {
-          mode: 'prepare_mainnet',
-          kind: 'predict_binary',
-          market: 'SUI downside -10% / 7D',
-          side: 'buy',
-          assetIn: 'USDC',
-          assetOut: 'SUI downside cover',
-          amountUsd: 5,
-          description: 'demo',
-        },
+      getDeepBookLiveGate({
+        accountAddress: '0xabc',
+        recommendation,
+        policyOk: true,
+        selectedExecutionMode: 'mainnet',
+        marketSnapshot,
+        marketStatus: 'ready',
       }),
+    ).toMatchObject({
+      eligible: true,
+      canSubmitLive: true,
+      hasWallet: true,
+      policyOk: true,
+      marketReady: true,
+      userSelectedLive: true,
+    });
+
+    expect(
+      getDeepBookLiveGate({
+        accountAddress: '0xabc',
+        recommendation,
+        policyOk: true,
+        selectedExecutionMode: 'prepare_mainnet',
+        marketSnapshot,
+        marketStatus: 'ready',
+      }),
+    ).toMatchObject({
+      eligible: true,
+      canSubmitLive: false,
+      userSelectedLive: false,
+    });
+  });
+
+  it('does not mark predict strategies as live eligible', () => {
+    const recommendation = {
+      deepbookAction: {
+        mode: 'prepare_mainnet' as const,
+        kind: 'predict_binary' as const,
+        market: 'SUI downside -10% / 7D',
+        side: 'buy' as const,
+        assetIn: 'USDC',
+        assetOut: 'SUI downside cover',
+        amountUsd: 5,
+        description: 'demo',
+      },
+    };
+
+    expect(isLiveDeepBookEligible(recommendation)).toBe(false);
+    expect(
+      getDeepBookLiveGate({
+        accountAddress: '0xabc',
+        recommendation,
+        policyOk: true,
+        selectedExecutionMode: 'mainnet',
+        marketSnapshot,
+        marketStatus: 'ready',
+      }).canSubmitLive,
     ).toBe(false);
+  });
+
+  it('does not allow wallet review or zero-size no-trade actions into live execution', () => {
+    const walletReviewRecommendation = {
+      deepbookAction: {
+        mode: 'prepare_mainnet' as const,
+        kind: 'spot' as const,
+        market: 'No trade',
+        side: 'sell' as const,
+        assetIn: 'N/A',
+        assetOut: 'N/A',
+        amountUsd: 0,
+        description: 'review only',
+      },
+    };
+
+    const gate = getDeepBookLiveGate({
+      accountAddress: '0xabc',
+      recommendation: walletReviewRecommendation,
+      policyOk: true,
+      selectedExecutionMode: 'mainnet',
+      marketSnapshot,
+      marketStatus: 'ready',
+    });
+
+    expect(isLiveDeepBookEligible(walletReviewRecommendation)).toBe(false);
+    expect(gate.canSubmitLive).toBe(false);
+    expect(gate.reasons).toEqual(
+      expect.arrayContaining([
+        'Live execution only supports spot SUI/USDC or USDC/SUI.',
+        'Live execution requires a positive trade amount.',
+      ]),
+    );
   });
 
   it('builds a sell plan from the live mainnet pool snapshot', () => {
@@ -89,6 +182,7 @@ describe('DeepBook live helper', () => {
     expect(plan?.amountIn).toBeCloseTo(1.538462, 5);
     expect(plan?.estimatedOut).toBeCloseTo(4.923076, 5);
     expect(plan?.minimumOut).toBeCloseTo(4.824615, 5);
+    expect(plan?.slippagePct).toBe(2);
     expect(plan?.summary).toContain('Live DeepBook mainnet swap');
   });
 
@@ -116,5 +210,14 @@ describe('DeepBook live helper', () => {
     expect(plan?.amountIn).toBe(5);
     expect(plan?.estimatedOut).toBeCloseTo(1.53846, 4);
     expect(plan?.minimumOut).toBeCloseTo(1.50769, 4);
+  });
+
+  it('builds a clear warning for live execution failure fallback', () => {
+    expect(buildLiveDeepBookFailureWarning(new Error('User rejected request'))).toContain(
+      'prepare-only fallback',
+    );
+    expect(buildLiveDeepBookFailureWarning(new Error('User rejected request'))).toContain(
+      'User rejected request',
+    );
   });
 });

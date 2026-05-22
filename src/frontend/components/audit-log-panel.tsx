@@ -24,7 +24,7 @@ export function AuditLogPanel({
   refreshing,
 }: AuditLogPanelProps) {
   return (
-    <section className="panel">
+    <section className="panel auditLogPanel">
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Decision note</p>
@@ -42,7 +42,7 @@ export function AuditLogPanel({
         <span className="pill pillAccent">{storageMode}</span>
       </div>
 
-      <p className="panelCopy">{explanation}</p>
+      <p className="panelCopy auditExplanationText">{explanation}</p>
 
       <div className="positionBlock">
         <div className="positionLine">

@@ -97,6 +97,33 @@ describe('mainnet portfolio helpers', () => {
     expect(walletPortfolio.liquidityPositions).toHaveLength(0);
   });
 
+  it('keeps unpriced connected-wallet coins from creating synthetic strategy exposure', () => {
+    const portfolio = createDemoPortfolio('0xREAL', {
+      timestamp: '2026-05-20T00:00:00.000Z',
+    });
+
+    const walletPortfolio = buildWalletAssetsPortfolio(portfolio, [
+      {
+        symbol: 'SPAM',
+        coinType: '0x123::spam::SPAM',
+        amount: 1500,
+        usdPrice: 0,
+        usdValue: 0,
+      },
+    ]);
+
+    expect(walletPortfolio.assets).toEqual([
+      expect.objectContaining({
+        symbol: 'SPAM',
+        usdPrice: 0,
+        usdValue: 0,
+      }),
+    ]);
+    expect(walletPortfolio.totalUsdValue).toBe(0);
+    expect(walletPortfolio.lendingPositions).toHaveLength(0);
+    expect(walletPortfolio.liquidityPositions).toHaveLength(0);
+  });
+
   it('reads all wallet balances through the provided mainnet client', async () => {
     const client: MainnetPortfolioClient = {
       getBalance: async () => ({ coinType: '0x2::sui::SUI', totalBalance: '0' }),
@@ -161,6 +188,102 @@ describe('mainnet portfolio helpers', () => {
         { label: 'Certified', value: 'epoch 31' },
       ]),
     );
+  });
+
+  it('extracts coin object facts without assigning a fake USD value', () => {
+    const summary = summarizeOwnedObject({
+      data: {
+        objectId: '0xcoin',
+        type: '0x2::coin::Coin<0x123::spam::SPAM>',
+        content: {
+          dataType: 'moveObject',
+          fields: {
+            balance: '999999',
+          },
+        },
+        version: '1',
+        digest: 'coin_digest',
+      },
+    });
+
+    expect(summary).toMatchObject({
+      kind: 'coin',
+      label: 'SPAM coin object',
+      protocol: 'Sui',
+      role: 'Coin balance',
+      facts: expect.arrayContaining([
+        { label: 'Coin type', value: '0x123::spam::SPAM' },
+        { label: 'Atomic balance', value: '999999' },
+      ]),
+    });
+  });
+
+  it('classifies DeepBook balance manager objects with useful facts', () => {
+    const summary = summarizeOwnedObject({
+      data: {
+        objectId: '0xdeepbook',
+        type: '0xdee9::balance_manager::BalanceManager',
+        content: {
+          dataType: 'moveObject',
+          fields: {
+            id: {
+              id: '0xdeepbook',
+            },
+            owner: '0xowner',
+            open_orders: ['0xorder1', '0xorder2'],
+          },
+        },
+        version: '7',
+        digest: 'deepbook_digest',
+      },
+    });
+
+    expect(summary).toMatchObject({
+      kind: 'deepbook_object',
+      label: 'DeepBook Balance Manager',
+      protocol: 'DeepBook',
+      role: 'DeepBook balance manager',
+      module: 'balance_manager',
+      facts: expect.arrayContaining([
+        { label: 'Module', value: 'balance_manager' },
+        { label: 'Struct', value: 'BalanceManager' },
+        { label: 'Manager', value: '0xdeepbook' },
+        { label: 'Owner', value: '0xowner' },
+        { label: 'Orders', value: '0xorder1, 0xorder2' },
+      ]),
+    });
+  });
+
+  it('extracts package cap facts for publisher and upgrade authority objects', () => {
+    const summary = summarizeOwnedObject({
+      data: {
+        objectId: '0xcap',
+        type: '0x2::package::UpgradeCap',
+        content: {
+          dataType: 'moveObject',
+          fields: {
+            package: '0xpackage',
+            version: 4,
+            policy: 0,
+          },
+        },
+        version: '9',
+        digest: 'cap_digest',
+      },
+    });
+
+    expect(summary).toMatchObject({
+      kind: 'package_cap',
+      label: 'Move package cap',
+      protocol: 'Sui',
+      role: 'Package authority',
+      facts: expect.arrayContaining([
+        { label: 'Cap type', value: 'UpgradeCap' },
+        { label: 'Package', value: '0xpackage' },
+        { label: 'Policy', value: '0' },
+        { label: 'Cap version', value: '4' },
+      ]),
+    });
   });
 
   it('extracts receipt facts from parsed Move object content', () => {
@@ -229,6 +352,14 @@ describe('mainnet portfolio helpers', () => {
         data: [
           {
             data: {
+              objectId: '0xdeepbook',
+              type: '0xdee9::balance_manager::BalanceManager',
+              version: '1',
+              digest: 'deepbook_digest',
+            },
+          },
+          {
+            data: {
               objectId: '0xcoin',
               type: '0x2::coin::Coin<0x2::sui::SUI>',
               version: '1',
@@ -257,16 +388,18 @@ describe('mainnet portfolio helpers', () => {
 
     const scan = await readMainnetWalletScan('0xREAL', client);
 
-    expect(scan.totalObjects).toBe(3);
+    expect(scan.totalObjects).toBe(4);
     expect(scan.coinObjects).toBe(1);
+    expect(scan.deepbookObjects).toBe(1);
     expect(scan.receiptObjects).toBe(1);
     expect(scan.defiCandidates).toBe(1);
     expect(scan.protocolHints).toEqual(
       expect.arrayContaining([
+        { protocol: 'DeepBook', count: 1, roles: ['DeepBook balance manager'] },
         { protocol: 'RiskPilot', count: 1, roles: ['Audit receipt'] },
         { protocol: 'Cetus', count: 1, roles: ['Liquidity position'] },
       ]),
     );
-    expect(scan.sampleObjects[0]?.kind).not.toBe('coin');
+    expect(scan.sampleObjects[0]?.kind).toBe('deepbook_object');
   });
 });

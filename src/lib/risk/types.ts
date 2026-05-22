@@ -8,6 +8,7 @@ export type AssetBalance = {
 
 export type WalletObjectKind =
   | 'coin'
+  | 'deepbook_object'
   | 'walrus_blob'
   | 'riskpilot_receipt'
   | 'defi_candidate'
@@ -37,6 +38,7 @@ export type WalletScanSummary = {
   scannedAt: string;
   totalObjects: number;
   coinObjects: number;
+  deepbookObjects: number;
   walrusBlobs: number;
   receiptObjects: number;
   defiCandidates: number;

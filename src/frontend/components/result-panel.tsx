@@ -33,6 +33,10 @@ function executionIdentifierLabel(mode: string): string {
   return 'Digest';
 }
 
+function resultTitle(mode: string): string {
+  return mode === 'mainnet' ? 'Mainnet transaction archived' : 'Prepared action archived';
+}
+
 export function ResultPanel({
   auditPackage,
   storageResult,
@@ -51,7 +55,7 @@ export function ResultPanel({
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Prepared result</p>
-          <h2 className="panelTitle">Prepared action archived</h2>
+          <h2 className="panelTitle">{resultTitle(auditPackage.execution.mode)}</h2>
         </div>
         <span className={`pill ${storageResult.mode === 'walrus' ? 'pillSuccess' : 'pillWarn'}`}>
           {storageResult.provider ?? storageResult.mode}
@@ -88,15 +92,32 @@ export function ResultPanel({
         </div>
       </div>
 
-      <div className="positionBlock">
+      <div className="positionBlock resultDetails">
         <div className="positionLine">
           <span>Venue</span>
           <span>{auditPackage.execution.adapter?.venue ?? 'DeepBook mainnet'}</span>
         </div>
         <div className="positionLine">
+          <span>Market evidence</span>
+          <span>
+            {auditPackage.deepbookMarketEvidence.status === 'ready'
+              ? `${auditPackage.deepbookMarketEvidence.poolKey} @ ${auditPackage.deepbookMarketEvidence.midPrice ?? 'n/a'}`
+              : `Unavailable: ${auditPackage.deepbookMarketEvidence.error ?? auditPackage.deepbookMarketEvidence.fallbackReason ?? 'not loaded'}`}
+          </span>
+        </div>
+        <div className="positionLine">
           <span>{executionIdentifierLabel(auditPackage.execution.mode)}</span>
           <span>{auditPackage.execution.digest ?? auditPackage.execution.simulationId ?? 'pending'}</span>
         </div>
+        {auditPackage.execution.effectsStatus ? (
+          <div className="positionLine">
+            <span>Sui effects</span>
+            <span>
+              {auditPackage.execution.effectsStatus}
+              {auditPackage.execution.effectsError ? ` · ${auditPackage.execution.effectsError}` : ''}
+            </span>
+          </div>
+        ) : null}
         <div className="positionLine">
           <span>Archive</span>
           <span>{storageResult.id}</span>
@@ -135,7 +156,11 @@ export function ResultPanel({
 
       <div className="noteRow">
         <FileJson2 size={14} />
-        <span>Prepared action details and estimated post-risk are recorded without live submission.</span>
+        <span>
+          {auditPackage.execution.mode === 'mainnet'
+            ? 'Real mainnet transaction digest, effects status, audit evidence, and estimated post-risk are recorded.'
+            : 'Prepared action details and estimated post-risk are recorded without live submission.'}
+        </span>
       </div>
     </section>
   );

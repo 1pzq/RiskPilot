@@ -67,6 +67,11 @@ const PRICE_MAP: Record<string, number> = {
   CETUS: 0.2,
 };
 
+const DEEPBOOK_PACKAGE_IDS = new Set([
+  '0x000000000000000000000000000000000000000000000000000000000000dee9',
+  '0xdee9',
+]);
+
 const KNOWN_COIN_TYPES: Record<string, { symbol: string; decimals: number }> = {
   [SUI_COIN_TYPE]: { symbol: 'SUI', decimals: 9 },
   '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC': {
@@ -131,7 +136,7 @@ type ProtocolHint = {
 };
 
 const PROTOCOL_KEYWORDS: { protocol: string; keywords: string[] }[] = [
-  { protocol: 'DeepBook', keywords: ['deepbook', 'deep_book', 'balance_manager', 'order', 'orderbook'] },
+  { protocol: 'DeepBook', keywords: ['deepbook', 'deep_book', 'balance_manager', 'order', 'orderbook', 'pool_registry'] },
   { protocol: 'Cetus', keywords: ['cetus', 'clmm', 'tick', 'tick_lower', 'tick_upper'] },
   { protocol: 'Scallop', keywords: ['scallop', 'obligation', 'borrow', 'collateral'] },
   { protocol: 'Navi', keywords: ['navi', 'incentive_v2', 'lending_market', 'borrow_balance'] },
@@ -142,6 +147,18 @@ const PROTOCOL_KEYWORDS: { protocol: string; keywords: string[] }[] = [
   { protocol: 'Haedal', keywords: ['haedal'] },
   { protocol: 'Bucket', keywords: ['bucket'] },
 ];
+
+function isDeepBookType(type: string, fields?: unknown): boolean {
+  const parsed = parseMoveType(type);
+  const searchText = `${type} ${JSON.stringify(fields ?? {})}`.toLowerCase();
+
+  return (
+    Boolean(parsed?.packageId && DEEPBOOK_PACKAGE_IDS.has(parsed.packageId.toLowerCase())) ||
+    ['deepbook', 'deep_book', 'balance_manager', 'order', 'orderbook', 'pool_registry'].some((keyword) =>
+      searchText.includes(keyword),
+    )
+  );
+}
 
 function classifyRoleFromType(type: string): string {
   const lowerType = type.toLowerCase();
@@ -159,11 +176,15 @@ function classifyRoleFromType(type: string): string {
   }
 
   if (lowerType.includes('balance_manager')) {
-    return 'Trading account';
+    return 'DeepBook balance manager';
+  }
+
+  if (lowerType.includes('pool_registry')) {
+    return 'DeepBook pool registry';
   }
 
   if (lowerType.includes('order')) {
-    return 'Order state';
+    return 'DeepBook order state';
   }
 
   if (lowerType.includes('obligation') || lowerType.includes('borrow') || lowerType.includes('collateral')) {
@@ -194,6 +215,10 @@ function classifyRoleFromType(type: string): string {
 }
 
 function classifyProtocolFromType(type: string, kind: WalletObjectKind, fields: unknown): ProtocolHint {
+  if (kind === 'deepbook_object') {
+    return { protocol: 'DeepBook', role: classifyRoleFromType(type) };
+  }
+
   if (kind === 'walrus_blob') {
     return { protocol: 'Walrus', role: 'Audit storage' };
   }
@@ -222,9 +247,13 @@ function classifyProtocolFromType(type: string, kind: WalletObjectKind, fields: 
   return { protocol: kind === 'defi_candidate' ? 'Unknown DeFi' : 'Sui', role: classifyRoleFromType(type) };
 }
 
-function walletObjectKindFromType(type: string): WalletObjectKind {
+function walletObjectKindFromType(type: string, fields?: unknown): WalletObjectKind {
   if (extractCoinTypeFromObjectType(type)) {
     return 'coin';
+  }
+
+  if (isDeepBookType(type, fields)) {
+    return 'deepbook_object';
   }
 
   if (type.endsWith('::blob::Blob')) {
@@ -264,6 +293,16 @@ function walletObjectLabel(type: string, kind: WalletObjectKind): string {
   if (kind === 'coin') {
     const coinType = extractCoinTypeFromObjectType(type);
     return coinType ? `${fallbackSymbolFromCoinType(coinType)} coin object` : 'Coin object';
+  }
+
+  if (kind === 'deepbook_object') {
+    const parsed = parseMoveType(type);
+
+    if (parsed?.struct) {
+      return `DeepBook ${humanizeMoveName(parsed.struct)}`;
+    }
+
+    return 'DeepBook object';
   }
 
   if (kind === 'walrus_blob') {
@@ -371,6 +410,64 @@ function buildObjectFacts(
   fields: unknown,
 ): WalletObjectSummary['facts'] {
   const facts: WalletObjectSummary['facts'] = [];
+  const parsed = parseMoveType(type);
+
+  if (kind === 'coin') {
+    const coinType = extractCoinTypeFromObjectType(type);
+    const balance =
+      nestedField(fields, ['balance']) ??
+      nestedField(fields, ['balance', 'value']) ??
+      nestedField(fields, ['value']);
+
+    if (coinType) {
+      facts.push({ label: 'Coin type', value: shortFactValue(coinType, 54) });
+    }
+
+    if (balance) {
+      facts.push({ label: 'Atomic balance', value: shortFactValue(balance) });
+    }
+
+    return facts;
+  }
+
+  if (kind === 'deepbook_object') {
+    const balanceManagerId =
+      nestedField(fields, ['balance_manager_id']) ??
+      nestedField(fields, ['manager_id']) ??
+      nestedField(fields, ['id']);
+    const owner = nestedField(fields, ['owner']) ?? nestedField(fields, ['account_owner']);
+    const poolId = nestedField(fields, ['pool_id']) ?? nestedField(fields, ['pool', 'id']);
+    const openOrders =
+      nestedField(fields, ['open_orders']) ??
+      nestedField(fields, ['orders']) ??
+      nestedField(fields, ['order_ids']);
+
+    if (parsed?.module) {
+      facts.push({ label: 'Module', value: parsed.module });
+    }
+
+    if (parsed?.struct) {
+      facts.push({ label: 'Struct', value: parsed.struct });
+    }
+
+    if (balanceManagerId) {
+      facts.push({ label: 'Manager', value: shortFactValue(balanceManagerId) });
+    }
+
+    if (owner) {
+      facts.push({ label: 'Owner', value: shortFactValue(owner) });
+    }
+
+    if (poolId) {
+      facts.push({ label: 'Pool', value: shortFactValue(poolId) });
+    }
+
+    if (openOrders) {
+      facts.push({ label: 'Orders', value: shortFactValue(openOrders) });
+    }
+
+    return facts;
+  }
 
   if (kind === 'riskpilot_receipt') {
     const strategyId = nestedField(fields, ['strategy_id']);
@@ -420,8 +517,34 @@ function buildObjectFacts(
     return facts;
   }
 
+  if (kind === 'package_cap') {
+    const packageId =
+      nestedField(fields, ['package']) ??
+      nestedField(fields, ['package_id']) ??
+      nestedField(fields, ['id']);
+    const policy = nestedField(fields, ['policy']);
+    const capVersion = nestedField(fields, ['version']);
+
+    if (parsed?.struct) {
+      facts.push({ label: 'Cap type', value: parsed.struct });
+    }
+
+    if (packageId) {
+      facts.push({ label: 'Package', value: shortFactValue(packageId) });
+    }
+
+    if (policy) {
+      facts.push({ label: 'Policy', value: shortFactValue(policy) });
+    }
+
+    if (capVersion) {
+      facts.push({ label: 'Cap version', value: capVersion });
+    }
+
+    return facts;
+  }
+
   if (kind === 'defi_candidate') {
-    const parsed = parseMoveType(type);
     const positionId =
       nestedField(fields, ['position_id']) ??
       nestedField(fields, ['position', 'id']) ??
@@ -484,10 +607,10 @@ export function summarizeOwnedObject(response: OwnedObjectResponseLike): WalletO
     return null;
   }
 
-  const kind = walletObjectKindFromType(type);
-  const parsed = parseMoveType(type);
   const fields =
     object.content?.dataType === 'moveObject' && object.content.fields ? object.content.fields : undefined;
+  const kind = walletObjectKindFromType(type, fields);
+  const parsed = parseMoveType(type);
   const protocolHint = classifyProtocolFromType(type, kind, fields);
 
   return {
@@ -527,6 +650,28 @@ function buildProtocolHints(summaries: WalletObjectSummary[]): WalletScanSummary
       roles: Array.from(value.roles).sort(),
     }))
     .sort((left, right) => right.count - left.count || left.protocol.localeCompare(right.protocol));
+}
+
+const walletObjectKindRank: Record<WalletObjectKind, number> = {
+  deepbook_object: 0,
+  walrus_blob: 1,
+  riskpilot_receipt: 2,
+  defi_candidate: 3,
+  package_cap: 4,
+  coin: 5,
+  other: 6,
+};
+
+function sortWalletObjectSummaries(summaries: WalletObjectSummary[]): WalletObjectSummary[] {
+  return summaries.slice().sort((left, right) => {
+    const kindRank = walletObjectKindRank[left.kind] - walletObjectKindRank[right.kind];
+
+    if (kindRank !== 0) {
+      return kindRank;
+    }
+
+    return left.protocol.localeCompare(right.protocol) || left.label.localeCompare(right.label);
+  });
 }
 
 function decimalsForCoin(coinType: string, metadata?: CoinMetadataLike | null): number {
@@ -707,21 +852,20 @@ export async function readMainnetWalletScan(
     cursor = page.hasNextPage ? page.nextCursor : null;
   } while (cursor && summaries.length < 200);
 
-  const nonCoinFirst = summaries
-    .filter((item) => item.kind !== 'coin')
-    .concat(summaries.filter((item) => item.kind === 'coin'));
+  const sortedSummaries = sortWalletObjectSummaries(summaries);
 
   return {
     owner,
     scannedAt: new Date().toISOString(),
     totalObjects: summaries.length,
     coinObjects: summaries.filter((item) => item.kind === 'coin').length,
+    deepbookObjects: summaries.filter((item) => item.kind === 'deepbook_object').length,
     walrusBlobs: summaries.filter((item) => item.kind === 'walrus_blob').length,
     receiptObjects: summaries.filter((item) => item.kind === 'riskpilot_receipt').length,
     defiCandidates: summaries.filter((item) => item.kind === 'defi_candidate').length,
     packageCaps: summaries.filter((item) => item.kind === 'package_cap').length,
     protocolHints: buildProtocolHints(summaries),
-    sampleObjects: nonCoinFirst.slice(0, 8),
+    sampleObjects: sortedSummaries.slice(0, 10),
   };
 }
 

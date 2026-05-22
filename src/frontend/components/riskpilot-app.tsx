@@ -15,6 +15,7 @@ import { RiskBreakdown } from './risk-breakdown';
 import { RiskScoreCard } from './risk-score-card';
 import { ScenarioSelector } from './scenario-selector';
 import { StrategyPanel } from './strategy-panel';
+import { MonitorPanel } from './monitor-panel';
 import { VisualMotifPanel } from './visual-motif-panel';
 import { WalletConnectButton } from './wallet-connect';
 import { WalletSourcePanel } from './wallet-source-panel';
@@ -35,17 +36,20 @@ import {
 } from '@/lib/sui/portfolio';
 import type { ExecutionPolicy } from '@/lib/strategy/policy';
 import { createDefaultPolicy, validateExecutionPolicy } from '@/lib/strategy/policy';
+import { buildMonitorRules, type MonitorRule } from '@/lib/strategy/monitor';
 import {
   buildStrategyRecommendation,
   type DeepBookPredictSettings,
 } from '@/lib/strategy/strategy-builder';
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
-import { createAuditPackage } from '@/lib/walrus/audit-package';
-import { formatAddress } from '@/lib/utils/format';
+import { createAuditPackage, createDeepBookMarketEvidence } from '@/lib/walrus/audit-package';
+import { formatAddress, formatUsd } from '@/lib/utils/format';
 import type { AssetBalance, WalletScanSummary } from '@/lib/risk/types';
 import {
+  buildDeepBookLiveTradePlan,
   buildDeepBookLiveTransaction,
-  isLiveDeepBookEligible,
+  buildLiveDeepBookFailureWarning,
+  getDeepBookLiveGate,
   type DeepBookLiveMarketSnapshot,
 } from '@/lib/sui/deepbook-live';
 
@@ -62,6 +66,12 @@ function selectedModeLabel(mode: SelectedExecutionMode) {
   }
 
   return 'Local simulation';
+}
+
+function formatTradeAmount(value: number, asset: string): string {
+  return `${value.toLocaleString(undefined, {
+    maximumFractionDigits: asset === 'USDC' ? 2 : 6,
+  })} ${asset}`;
 }
 
 export function RiskPilotApp() {
@@ -101,8 +111,10 @@ export function RiskPilotApp() {
   const [deepbookMarketError, setDeepbookMarketError] = useState<string | null>(null);
   const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_DEMO_SCENARIO_ID);
   const [activeSection, setActiveSection] = useState<DemoSection>('overview');
+  const [monitorRuleEnabledOverrides, setMonitorRuleEnabledOverrides] = useState<Record<string, boolean>>({});
   const defaultBudgetCap = Number(process.env.NEXT_PUBLIC_DEFAULT_MAX_BUDGET_USD ?? 5);
   const receiptPackageId = process.env.NEXT_PUBLIC_RECEIPT_PACKAGE_ID?.trim() ?? '';
+  const liveDeepBookFeatureEnabled = (process.env.NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL ?? 'true').toLowerCase() !== 'false';
   const [predictSettings, setPredictSettings] = useState<DeepBookPredictSettings>({
     thresholdPct: -10,
     expiryDays: 7,
@@ -241,10 +253,68 @@ export function RiskPilotApp() {
     [effectivePolicy, recommendation],
   );
 
-  const liveDeepBookEligible = useMemo(
-    () => Boolean(account) && isLiveDeepBookEligible(recommendation),
-    [account, recommendation],
+  const defaultMonitorRules = useMemo(
+    () =>
+      buildMonitorRules({
+        portfolio,
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyCheck,
+        walletScan: portfolio.walletScan ?? walletScan,
+        deepbookMarketStatus,
+        deepbookMarketError,
+      }),
+    [
+      deepbookMarketError,
+      deepbookMarketStatus,
+      effectivePolicy,
+      policyCheck,
+      portfolio,
+      recommendation,
+      riskReport,
+      walletScan,
+    ],
   );
+
+  const monitorRules = useMemo<MonitorRule[]>(
+    () =>
+      defaultMonitorRules.map((rule) => ({
+        ...rule,
+        enabled: monitorRuleEnabledOverrides[rule.id] ?? rule.enabled,
+      })),
+    [defaultMonitorRules, monitorRuleEnabledOverrides],
+  );
+
+  const liveTradePlan = useMemo(
+    () =>
+      deepbookMarketSnapshot
+        ? buildDeepBookLiveTradePlan(recommendation, deepbookMarketSnapshot)
+        : null,
+    [deepbookMarketSnapshot, recommendation],
+  );
+  const liveDeepBookGate = useMemo(
+    () =>
+      getDeepBookLiveGate({
+        accountAddress: account?.address,
+        recommendation,
+        policyOk: policyCheck.ok,
+        selectedExecutionMode,
+        marketSnapshot: deepbookMarketSnapshot,
+        marketStatus: deepbookMarketStatus,
+        featureEnabled: liveDeepBookFeatureEnabled,
+      }),
+    [
+      account?.address,
+      deepbookMarketSnapshot,
+      deepbookMarketStatus,
+      liveDeepBookFeatureEnabled,
+      policyCheck.ok,
+      recommendation,
+      selectedExecutionMode,
+    ],
+  );
+  const liveDeepBookEligible = liveDeepBookGate.eligible;
   const effectiveSelectedExecutionMode =
     selectedExecutionMode === 'mainnet' && !liveDeepBookEligible ? 'prepare_mainnet' : selectedExecutionMode;
 
@@ -381,6 +451,18 @@ export function RiskPilotApp() {
     setExecuteWarning('');
   }, []);
 
+  const handleMonitorRuleToggle = useCallback((ruleId: string, enabled: boolean) => {
+    setMonitorRuleEnabledOverrides((current) => ({
+      ...current,
+      [ruleId]: enabled,
+    }));
+    setAuditPackage(null);
+    setAuditStorage(null);
+    setExecutionMode('pending');
+    setExecutionStatus('awaiting approval');
+    setExecuteWarning('');
+  }, []);
+
   const prepareAndArchive = useCallback(async () => {
     if (!policyCheck.ok || executionBusy) {
       return;
@@ -391,35 +473,50 @@ export function RiskPilotApp() {
 
     try {
       const currentExplanation = await refreshExplanation(policyRef.current ?? effectivePolicy);
-      let execution: {
-        mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-        status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
-        digest?: string;
-        simulationId?: string;
-        error?: string;
-        preparedTransactionSummary?: string;
-        warning?: string;
-        adapter?: {
-          venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
-          requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-          mainnetOnly: true;
-        };
-      };
+      let auditMarketSnapshot = deepbookMarketSnapshot;
+      let execution: AuditPackage['execution'];
 
       if (effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookEligible) {
         try {
-          const marketSnapshot = deepbookMarketSnapshot ?? (await loadDeepBookMarketSnapshot());
+          const marketSnapshot = deepbookMarketSnapshot;
+
+          if (!account?.address || !marketSnapshot) {
+            throw new Error('Live DeepBook execution requires a connected wallet and ready market snapshot.');
+          }
+
+          auditMarketSnapshot = marketSnapshot;
           const liveExecution = buildDeepBookLiveTransaction(
-            account?.address ?? walletAddress,
+            account.address,
             recommendation,
             marketSnapshot,
           );
           const liveResult = await signAndExecute.mutateAsync({ transaction: liveExecution.transaction });
+          const effectsStatus = liveResult.effects?.status?.status;
+          const effectsError = liveResult.effects?.status?.error;
+          const liveStatus =
+            effectsStatus === 'success'
+              ? 'confirmed'
+              : effectsStatus === 'failure'
+                ? 'failed'
+                : 'submitted';
+
+          if (liveStatus === 'failed') {
+            setExecuteWarning(
+              `Live DeepBook Spot transaction was submitted but failed on Sui mainnet: ${effectsError ?? 'effects status failure'}`,
+            );
+          }
 
           execution = {
             mode: 'mainnet',
-            status: liveResult.effects?.status?.status === 'success' ? 'confirmed' : 'submitted',
+            status: liveStatus,
             digest: liveResult.digest,
+            effectsStatus,
+            effectsError,
+            error: liveStatus === 'failed' ? effectsError : undefined,
+            warning:
+              liveStatus === 'failed'
+                ? `Submitted real Sui mainnet transaction failed: ${effectsError ?? 'effects status failure'}`
+                : undefined,
             preparedTransactionSummary: liveExecution.plan.summary,
             adapter: {
               venue: 'DeepBook mainnet',
@@ -428,11 +525,8 @@ export function RiskPilotApp() {
             },
           };
         } catch (liveError) {
-          setExecuteWarning(
-            liveError instanceof Error
-              ? `Live DeepBook execution failed, so RiskPilot fell back to prepare-only mode: ${liveError.message}`
-              : 'Live DeepBook execution failed, so RiskPilot fell back to prepare-only mode.',
-          );
+          const liveWarning = buildLiveDeepBookFailureWarning(liveError);
+          setExecuteWarning(liveWarning);
 
           const executeResponse = await fetch('/api/execute', {
             method: 'POST',
@@ -453,19 +547,10 @@ export function RiskPilotApp() {
             throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
           }
 
-          execution = (await executeResponse.json()) as {
-            mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-            status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
-            digest?: string;
-            simulationId?: string;
-            error?: string;
-            preparedTransactionSummary?: string;
-            warning?: string;
-            adapter?: {
-              venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
-              requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-              mainnetOnly: true;
-            };
+          const prepareFallback = (await executeResponse.json()) as AuditPackage['execution'];
+          execution = {
+            ...prepareFallback,
+            warning: [liveWarning, prepareFallback.warning].filter(Boolean).join(' '),
           };
         }
       } else {
@@ -479,7 +564,7 @@ export function RiskPilotApp() {
             policy: effectivePolicy,
             policyCheck,
             walletAddress,
-              executionMode: effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
+            executionMode: effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
           }),
         });
 
@@ -488,20 +573,7 @@ export function RiskPilotApp() {
           throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
         }
 
-        execution = (await executeResponse.json()) as {
-          mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-          status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
-          digest?: string;
-          simulationId?: string;
-          error?: string;
-          preparedTransactionSummary?: string;
-          warning?: string;
-          adapter?: {
-            venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
-            requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
-            mainnetOnly: true;
-          };
-        };
+        execution = (await executeResponse.json()) as AuditPackage['execution'];
       }
 
       if (execution.warning) {
@@ -513,6 +585,14 @@ export function RiskPilotApp() {
         portfolioSnapshot: portfolio,
         riskReportBefore: riskReport,
         recommendation,
+        monitorRules,
+        deepbookMarketEvidence: createDeepBookMarketEvidence({
+          snapshot: auditMarketSnapshot,
+          walletAddress: account?.address ?? '0x2',
+          poolKey: 'SUI_USDC',
+          routeStatus: deepbookMarketStatus,
+          error: deepbookMarketError,
+        }),
         policy: effectivePolicy,
         policyCheck,
         aiExplanation: currentExplanation,
@@ -557,9 +637,11 @@ export function RiskPilotApp() {
     effectiveSelectedExecutionMode,
     executionBusy,
     account,
+    deepbookMarketError,
     deepbookMarketSnapshot,
+    deepbookMarketStatus,
     liveDeepBookEligible,
-    loadDeepBookMarketSnapshot,
+    monitorRules,
     policyCheck,
     portfolio,
     recommendation,
@@ -570,8 +652,10 @@ export function RiskPilotApp() {
   ]);
 
   const liveModeFallbackWarning =
-    selectedExecutionMode === 'mainnet' && !liveDeepBookEligible
-      ? 'Live mainnet is only available for spot SUI/USDC or USDC/SUI swaps in this build. RiskPilot will prepare the action without live submission.'
+    selectedExecutionMode === 'mainnet' && !liveDeepBookGate.canSubmitLive
+      ? `Live mainnet is blocked: ${liveDeepBookGate.reasons
+          .filter((reason) => reason !== 'Select live mainnet explicitly.')
+          .join(' ')} RiskPilot will prepare the action without live submission.`
       : null;
   const warnings = [
     walletWarning,
@@ -601,17 +685,32 @@ export function RiskPilotApp() {
     audit: {
       eyebrow: 'Stage 04',
       title: 'Explain and archive the agent decision',
-      copy: 'RiskPilot keeps the agent legible with a short explanation, storage status, and audit trail preview.',
+      copy: 'RiskPilot keeps the agent legible with a short explanation, watch rules, storage status, and audit trail preview.',
     },
     prepare: {
       eyebrow: 'Stage 05',
-      title: 'Prepare the action without live submission',
-      copy: 'This final stage keeps execution mode, the CTA, and the prepared result in one controlled place.',
+      title: 'Prepare by default, submit Spot only by opt-in',
+      copy: 'This final stage keeps prepare-only as the default while exposing a wallet-signed DeepBook Spot path only when every live gate is green.',
     },
   };
 
   function renderActiveSection() {
     if (activeSection === 'overview') {
+      if (account) {
+        return (
+          <div className="stageGrid stageGridOverview stageGridConnectedWallet">
+            <div className="stageColumn stageColumnWalletContext">
+              <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
+              <DemoFlowPanel walletConnected />
+              <VisualMotifPanel />
+            </div>
+            <div className="stageColumn stageColumnWalletPortfolio">
+              <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="stageGrid stageGridOverview">
           <div className="stageColumn">
@@ -619,15 +718,11 @@ export function RiskPilotApp() {
             <VisualMotifPanel />
           </div>
           <div className="stageColumn">
-            {account ? (
-              <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
-            ) : (
-              <ScenarioSelector
-                scenarios={DEMO_SCENARIOS}
-                selectedScenarioId={selectedScenarioId}
-                onChange={handleScenarioChange}
-              />
-            )}
+            <ScenarioSelector
+              scenarios={DEMO_SCENARIOS}
+              selectedScenarioId={selectedScenarioId}
+              onChange={handleScenarioChange}
+            />
             <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
           </div>
         </div>
@@ -645,7 +740,7 @@ export function RiskPilotApp() {
 
     if (activeSection === 'strategy') {
       return (
-        <div className="stageGrid">
+        <div className="stageGrid stageGridStrategy">
           <StrategyPanel
             recommendation={recommendation}
             predictSettings={predictSettings}
@@ -661,7 +756,7 @@ export function RiskPilotApp() {
 
     if (activeSection === 'audit') {
       return (
-        <div className="stageGrid">
+        <div className="stageGrid stageGridAudit">
           <AuditLogPanel
             explanation={explanation}
             explanationMode={explanationMode}
@@ -672,6 +767,7 @@ export function RiskPilotApp() {
             onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
             refreshing={explanationStatus === 'loading' || executionBusy}
           />
+          <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} />
           {auditPackage && auditStorage ? (
             <>
               <ResultPanel
@@ -696,6 +792,13 @@ export function RiskPilotApp() {
 
     const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
     const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
+    const liveSubmitSelected = effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookGate.canSubmitLive;
+    const liveGateReasons = liveDeepBookGate.reasons.filter(
+      (reason) => reason !== 'Select live mainnet explicitly.',
+    );
+    const prepareButtonLabel = liveSubmitSelected
+      ? 'Submit real Sui mainnet transaction and archive'
+      : 'Prepare and archive action';
 
     return (
       <div className="stageGrid stageGridPrepare">
@@ -709,8 +812,8 @@ export function RiskPilotApp() {
                 { value: 'simulation' as const, label: 'Local simulation', detail: 'fallback' },
                 {
                   value: 'mainnet' as const,
-                  label: 'Live mainnet',
-                  detail: liveDeepBookEligible ? 'wallet approval' : 'spot only',
+                  label: 'Live Spot mainnet',
+                  detail: liveDeepBookEligible ? 'real tx opt-in' : 'SUI/USDC only',
                 },
               ].map((mode) => (
                 <button
@@ -734,23 +837,76 @@ export function RiskPilotApp() {
             </div>
           </div>
 
+          {liveSubmitSelected && liveTradePlan ? (
+            <section className="liveExecutionPreview" aria-label="Live DeepBook Spot safety preview">
+              <div className="panelHeader">
+                <div>
+                  <p className="eyebrow">Live Spot opt-in</p>
+                  <h2 className="panelTitle">Real Sui mainnet transaction preview</h2>
+                </div>
+                <span className="pill pillDanger">real submit</span>
+              </div>
+
+              <div className="ticketRows">
+                <div className="ticketRow">
+                  <span>Market</span>
+                  <strong>{liveTradePlan.marketLabel}</strong>
+                </div>
+                <div className="ticketRow">
+                  <span>Side</span>
+                  <strong>{liveTradePlan.side}</strong>
+                </div>
+                <div className="ticketRow">
+                  <span>Amount in</span>
+                  <strong>{formatTradeAmount(liveTradePlan.amountIn, liveTradePlan.assetIn)}</strong>
+                </div>
+                <div className="ticketRow">
+                  <span>Estimated out</span>
+                  <strong>{formatTradeAmount(liveTradePlan.estimatedOut, liveTradePlan.assetOut)}</strong>
+                </div>
+                <div className="ticketRow">
+                  <span>Minimum out</span>
+                  <strong>
+                    {formatTradeAmount(liveTradePlan.minimumOut, liveTradePlan.assetOut)} · {liveTradePlan.slippagePct}% max slippage
+                  </strong>
+                </div>
+                <div className="ticketRow">
+                  <span>Wallet</span>
+                  <strong>{account ? formatAddress(account.address) : 'Not connected'}</strong>
+                </div>
+              </div>
+
+              <div className="warningStrip inline">
+                This button submits a real Sui mainnet DeepBook Spot transaction. Your connected wallet must sign and confirm it.
+              </div>
+            </section>
+          ) : selectedExecutionMode === 'mainnet' && liveGateReasons.length > 0 ? (
+            <div className="warningStrip inline">
+              Live Spot mainnet is blocked: {liveGateReasons.join(' ')}
+            </div>
+          ) : liveDeepBookEligible && liveTradePlan ? (
+            <div className="noteRow">
+              <span>Live Spot mainnet is available for this SUI/USDC route, but it only runs after selecting Live Spot mainnet and confirming in the wallet.</span>
+            </div>
+          ) : null}
+
           <button
             className="button buttonPrimary prepareButton"
             type="button"
             onClick={() => void prepareAndArchive()}
             disabled={!policyCheck.ok || executionBusy}
           >
-            {executionBusy ? 'Preparing…' : 'Prepare and archive action'}
+            {executionBusy ? 'Preparing…' : prepareButtonLabel}
           </button>
 
           <section className="prepareSafetyPanel" aria-label="Prepare safety locks">
             <div className="prepareSafetyCard prepareSafetyCardBlue">
-              <span>No live submit</span>
-              <strong>Prepared record only</strong>
+              <span>{liveSubmitSelected ? 'Live submit' : 'No live submit'}</span>
+              <strong>{liveSubmitSelected ? 'Wallet-signed mainnet tx' : 'Prepared record only'}</strong>
             </div>
             <div className="prepareSafetyCard prepareSafetyCardYellow">
               <span>Mainnet path</span>
-              <strong>Sui + DeepBook context</strong>
+              <strong>{liveSubmitSelected ? 'DeepBook Spot only' : 'Sui + DeepBook context'}</strong>
             </div>
             <div className="prepareSafetyCard prepareSafetyCardMint">
               <span>Audit storage</span>
@@ -811,7 +967,7 @@ export function RiskPilotApp() {
               </div>
               <div className="ticketRow">
                 <span>Budget</span>
-                <strong>${effectivePolicy.maxBudgetUsd.toFixed(2)}</strong>
+                <strong>{formatUsd(effectivePolicy.maxBudgetUsd)}</strong>
               </div>
               <div className="ticketRow">
                 <span>Manual approval</span>
@@ -824,7 +980,9 @@ export function RiskPilotApp() {
             </div>
 
             <p className="panelCopy">
-              The action is staged as a prepared record first. No live transaction is submitted unless live mode is explicitly eligible and selected.
+              {liveSubmitSelected
+                ? 'Live Spot mode is selected. The CTA submits a real Sui mainnet transaction only after the connected wallet signs it, then archives the result.'
+                : 'The action is staged as a prepared record first. No live transaction is submitted unless live mode is explicitly eligible and selected.'}
             </p>
           </section>
 
