@@ -14,15 +14,6 @@ export type PolicyCheckResult = {
   errors: string[];
 };
 
-export type PolicyInput = {
-  maxBudgetUsd: number;
-  maxSingleTradeUsd: number;
-  allowedAssets: string;
-  allowedMarkets: string;
-  expiresAt: string;
-  requireManualApproval: boolean;
-};
-
 function normalizeList(values: string[]): string[] {
   return values
     .map((value) => value.trim())
@@ -56,28 +47,6 @@ export function createDefaultPolicy(
     allowedMarkets: [recommendation.deepbookAction.market],
     expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
     requireManualApproval: true,
-  };
-}
-
-export function policyToInput(policy: ExecutionPolicy): PolicyInput {
-  return {
-    maxBudgetUsd: policy.maxBudgetUsd,
-    maxSingleTradeUsd: policy.maxSingleTradeUsd,
-    allowedAssets: joinListInput(policy.allowedAssets),
-    allowedMarkets: joinListInput(policy.allowedMarkets),
-    expiresAt: policy.expiresAt,
-    requireManualApproval: policy.requireManualApproval,
-  };
-}
-
-export function inputToPolicy(input: PolicyInput): ExecutionPolicy {
-  return {
-    maxBudgetUsd: Number(input.maxBudgetUsd),
-    maxSingleTradeUsd: Number(input.maxSingleTradeUsd),
-    allowedAssets: splitListInput(input.allowedAssets),
-    allowedMarkets: splitListInput(input.allowedMarkets),
-    expiresAt: input.expiresAt,
-    requireManualApproval: Boolean(input.requireManualApproval),
   };
 }
 

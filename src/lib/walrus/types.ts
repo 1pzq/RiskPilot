@@ -2,6 +2,8 @@ import type { ExecutionPolicy, PolicyCheckResult } from '@/lib/strategy/policy';
 import type { PortfolioSnapshot, RiskReport } from '@/lib/risk/types';
 import type { StrategyRecommendation } from '@/lib/strategy/strategy-builder';
 import type { MonitorRule } from '@/lib/strategy/monitor';
+import type { AgentCouncilDecision } from '@/lib/agents/decision-council';
+import type { IncidentRoomDecision } from '@/lib/agents/incident-room';
 
 export type DeepBookMarketEvidence = {
   source: '/api/deepbook-market';
@@ -45,6 +47,8 @@ export type AuditPackage = {
   deepbookMarketEvidence: DeepBookMarketEvidence;
   policy: ExecutionPolicy;
   policyCheck: PolicyCheckResult;
+  agentCouncil?: AgentCouncilDecision;
+  incidentRoom?: IncidentRoomDecision;
   aiExplanation: string;
   execution: {
     mode: 'simulation' | 'prepare_mainnet' | 'mainnet';

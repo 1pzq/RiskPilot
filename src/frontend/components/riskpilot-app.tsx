@@ -3,10 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
+import Link from 'next/link';
 
 import { AppShell, type DemoSection } from './app-shell';
+import { AgentCouncilPanel } from './agent-council-panel';
 import { AuditLogPanel } from './audit-log-panel';
+import { AuditPackageExplorer } from './audit-package-explorer';
 import { DemoFlowPanel } from './demo-flow-panel';
+import { EvidenceTimeline } from './evidence-timeline';
+import { IncidentRoomPanel } from './incident-room-panel';
 import { PortfolioOverview } from './portfolio-overview';
 import { PolicyReview } from './policy-review';
 import { ResultPanel } from './result-panel';
@@ -19,8 +24,12 @@ import { MonitorPanel } from './monitor-panel';
 import { VisualMotifPanel } from './visual-motif-panel';
 import { WalletConnectButton } from './wallet-connect';
 import { WalletSourcePanel } from './wallet-source-panel';
+import { WhatIfSimulatorPanel } from './what-if-simulator-panel';
+import { WhatIfStrategyDiff } from './what-if-strategy-diff';
 
 import { buildMockExplanation } from '@/lib/ai/explain';
+import { buildAgentCouncilDecision, type AgentCouncilDecision } from '@/lib/agents/decision-council';
+import { buildIncidentRoomDecision, type IncidentRoomDecision } from '@/lib/agents/incident-room';
 import {
   DEFAULT_DEMO_SCENARIO_ID,
   DEMO_SCENARIOS,
@@ -28,6 +37,11 @@ import {
   type DemoScenarioId,
 } from '@/lib/risk/fixtures';
 import { calculateRiskReport, estimatePostStrategyRisk } from '@/lib/risk/risk-engine';
+import { buildWhatIfSimulation } from '@/lib/risk/what-if-engine';
+import {
+  DEFAULT_WHAT_IF_SCENARIO_ID,
+  type WhatIfScenarioId,
+} from '@/lib/risk/what-if-scenarios';
 import { MAINNET_RPC_URL } from '@/lib/sui/client';
 import {
   buildWalletAssetsPortfolio,
@@ -74,7 +88,12 @@ function formatTradeAmount(value: number, asset: string): string {
   })} ${asset}`;
 }
 
-export function RiskPilotApp() {
+type RiskPilotAppProps = {
+  initialJudgeDemo?: boolean;
+  initialSection?: DemoSection;
+};
+
+export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overview' }: RiskPilotAppProps) {
   const account = useCurrentAccount();
   const client = useSuiClient();
   const signAndExecute = useSignAndExecuteTransaction<SuiTransactionBlockResponse>({
@@ -105,12 +124,26 @@ export function RiskPilotApp() {
   const [auditStorage, setAuditStorage] = useState<AuditStorageResult | null>(null);
   const [executionMode, setExecutionMode] = useState('pending');
   const [executionStatus, setExecutionStatus] = useState('awaiting approval');
+  const [aiAgentCouncil, setAiAgentCouncil] = useState<AgentCouncilDecision | null>(null);
+  const [, setAgentCouncilStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
+  const [, setAiIncidentRoom] = useState<IncidentRoomDecision | null>(null);
+  const [, setIncidentRoomStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
+  const [aiWhatIfAgentCouncil, setAiWhatIfAgentCouncil] = useState<AgentCouncilDecision | null>(null);
+  const [whatIfAgentCouncilStatus, setWhatIfAgentCouncilStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
+  const [aiWhatIfIncidentRoom, setAiWhatIfIncidentRoom] = useState<IncidentRoomDecision | null>(null);
+  const [whatIfIncidentRoomStatus, setWhatIfIncidentRoomStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
   const [selectedExecutionMode, setSelectedExecutionMode] = useState<SelectedExecutionMode>('prepare_mainnet');
   const [deepbookMarketSnapshot, setDeepbookMarketSnapshot] = useState<DeepBookLiveMarketSnapshot | null>(null);
   const [deepbookMarketStatus, setDeepbookMarketStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [deepbookMarketError, setDeepbookMarketError] = useState<string | null>(null);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(DEFAULT_DEMO_SCENARIO_ID);
-  const [activeSection, setActiveSection] = useState<DemoSection>('overview');
+  const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(
+    initialJudgeDemo ? 'leveraged_lending_user' : DEFAULT_DEMO_SCENARIO_ID,
+  );
+  const [selectedWhatIfScenarioId, setSelectedWhatIfScenarioId] = useState<WhatIfScenarioId>(
+    initialJudgeDemo ? 'sui_drawdown_15' : DEFAULT_WHAT_IF_SCENARIO_ID,
+  );
+  const [activeSection, setActiveSection] = useState<DemoSection>(initialSection);
+  const [judgeDemoActive, setJudgeDemoActive] = useState(initialJudgeDemo);
   const [monitorRuleEnabledOverrides, setMonitorRuleEnabledOverrides] = useState<Record<string, boolean>>({});
   const defaultBudgetCap = Number(process.env.NEXT_PUBLIC_DEFAULT_MAX_BUDGET_USD ?? 5);
   const receiptPackageId = process.env.NEXT_PUBLIC_RECEIPT_PACKAGE_ID?.trim() ?? '';
@@ -137,6 +170,10 @@ export function RiskPilotApp() {
   }, [account, selectedScenarioId, walletAddress, walletAssets, walletScan]);
 
   const riskReport = useMemo(() => calculateRiskReport(portfolio), [portfolio]);
+  const whatIfSimulation = useMemo(
+    () => buildWhatIfSimulation(portfolio, selectedWhatIfScenarioId),
+    [portfolio, selectedWhatIfScenarioId],
+  );
 
   const recommendation = useMemo(
     () =>
@@ -152,6 +189,20 @@ export function RiskPilotApp() {
       ),
     [defaultBudgetCap, portfolio, predictSettings, riskReport],
   );
+  const whatIfRecommendation = useMemo(
+    () =>
+      buildStrategyRecommendation(
+        whatIfSimulation.simulatedRiskReport,
+        whatIfSimulation.simulatedPortfolio,
+        { maxBudgetUsd: defaultBudgetCap },
+        {
+          defaultBudgetUsd: defaultBudgetCap,
+          allowDeepBookPredict: !account,
+          predictSettings,
+        },
+      ),
+    [account, defaultBudgetCap, predictSettings, whatIfSimulation],
+  );
 
   const estimatedAfterRisk = useMemo(
     () => estimatePostStrategyRisk(riskReport, recommendation.expectedRiskReduction),
@@ -164,10 +215,37 @@ export function RiskPilotApp() {
     () => (policyTouched ? policy : createDefaultPolicy(recommendation)),
     [policy, policyTouched, recommendation],
   );
+  const whatIfPolicy = useMemo(() => {
+    const basePolicy = createDefaultPolicy(whatIfRecommendation);
+
+    if (!whatIfSimulation.policyOverride) {
+      return basePolicy;
+    }
+
+    return {
+      ...basePolicy,
+      maxBudgetUsd: Math.max(0, basePolicy.maxBudgetUsd * (whatIfSimulation.policyOverride.maxBudgetMultiplier ?? 1)),
+      maxSingleTradeUsd: Math.max(
+        0,
+        basePolicy.maxSingleTradeUsd * (whatIfSimulation.policyOverride.maxSingleTradeMultiplier ?? 1),
+      ),
+    };
+  }, [whatIfRecommendation, whatIfSimulation.policyOverride]);
 
   useEffect(() => {
     policyRef.current = effectivePolicy;
   }, [effectivePolicy]);
+
+  const resetAiPreviewState = useCallback(() => {
+    setAiAgentCouncil(null);
+    setAgentCouncilStatus('idle');
+    setAiIncidentRoom(null);
+    setIncidentRoomStatus('idle');
+    setAiWhatIfAgentCouncil(null);
+    setWhatIfAgentCouncilStatus('idle');
+    setAiWhatIfIncidentRoom(null);
+    setWhatIfIncidentRoomStatus('idle');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +259,7 @@ export function RiskPilotApp() {
         setWalletWarning(null);
         setAuditPackage(null);
         setAuditStorage(null);
+        resetAiPreviewState();
         setExecutionMode('pending');
         setExecutionStatus('awaiting approval');
         return;
@@ -225,6 +304,7 @@ export function RiskPilotApp() {
           );
           setAuditPackage(null);
           setAuditStorage(null);
+          resetAiPreviewState();
           setExecutionMode('pending');
           setExecutionStatus('awaiting approval');
         }
@@ -246,11 +326,15 @@ export function RiskPilotApp() {
     return () => {
       cancelled = true;
     };
-  }, [account, client]);
+  }, [account, client, resetAiPreviewState]);
 
   const policyCheck = useMemo(
     () => validateExecutionPolicy(effectivePolicy, recommendation, new Date()),
     [effectivePolicy, recommendation],
+  );
+  const whatIfPolicyCheck = useMemo(
+    () => validateExecutionPolicy(whatIfPolicy, whatIfRecommendation, new Date()),
+    [whatIfPolicy, whatIfRecommendation],
   );
 
   const defaultMonitorRules = useMemo(
@@ -317,6 +401,451 @@ export function RiskPilotApp() {
   const liveDeepBookEligible = liveDeepBookGate.eligible;
   const effectiveSelectedExecutionMode =
     selectedExecutionMode === 'mainnet' && !liveDeepBookEligible ? 'prepare_mainnet' : selectedExecutionMode;
+
+  const deepbookMarketEvidencePreview = useMemo(
+    () =>
+      createDeepBookMarketEvidence({
+        snapshot: deepbookMarketSnapshot,
+        walletAddress: account?.address ?? '0x2',
+        poolKey: 'SUI_USDC',
+        routeStatus: deepbookMarketStatus,
+        error: deepbookMarketError,
+      }),
+    [account?.address, deepbookMarketError, deepbookMarketSnapshot, deepbookMarketStatus],
+  );
+  const whatIfDeepbookMarketEvidencePreview = useMemo(() => {
+    const override = whatIfSimulation.marketOverride;
+
+    if (override?.deepbookStatus === 'unavailable') {
+      return createDeepBookMarketEvidence({
+        snapshot: null,
+        walletAddress: account?.address ?? '0x2',
+        poolKey: 'SUI_USDC',
+        routeStatus: override.routeStatus ?? 'error',
+        error: override.fallbackReason ?? 'What-if DeepBook evidence unavailable.',
+      });
+    }
+
+    return {
+      ...deepbookMarketEvidencePreview,
+      routeStatus: override?.routeStatus ?? deepbookMarketEvidencePreview.routeStatus,
+      fallbackReason: override?.fallbackReason ?? deepbookMarketEvidencePreview.fallbackReason,
+    };
+  }, [account?.address, deepbookMarketEvidencePreview, whatIfSimulation.marketOverride]);
+
+  const deterministicAgentCouncilDecision = useMemo(
+    () =>
+      buildAgentCouncilDecision({
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyCheck,
+        monitorRules,
+        deepbookMarketEvidence: auditPackage?.deepbookMarketEvidence ?? deepbookMarketEvidencePreview,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: Boolean(auditPackage && auditStorage),
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: liveDeepBookGate,
+      }),
+    [
+      account,
+      auditPackage,
+      auditStorage,
+      deepbookMarketEvidencePreview,
+      effectivePolicy,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      policyCheck,
+      receiptPackageId,
+      recommendation,
+      riskReport,
+    ],
+  );
+  const agentCouncilDecision = aiAgentCouncil ?? deterministicAgentCouncilDecision;
+
+  const deterministicIncidentRoomDecision = useMemo(
+    () =>
+      buildIncidentRoomDecision({
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyCheck,
+        monitorRules,
+        deepbookMarketEvidence: auditPackage?.deepbookMarketEvidence ?? deepbookMarketEvidencePreview,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: Boolean(auditPackage && auditStorage),
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: liveDeepBookGate,
+        agentCouncil: agentCouncilDecision,
+      }),
+    [
+      account,
+      agentCouncilDecision,
+      auditPackage,
+      auditStorage,
+      deepbookMarketEvidencePreview,
+      effectivePolicy,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      policyCheck,
+      receiptPackageId,
+      recommendation,
+      riskReport,
+    ],
+  );
+  const whatIfAgentCouncilDecision = useMemo(
+    () =>
+      buildAgentCouncilDecision({
+        riskReport: whatIfSimulation.simulatedRiskReport,
+        recommendation: whatIfRecommendation,
+        policy: whatIfPolicy,
+        policyCheck: whatIfPolicyCheck,
+        monitorRules,
+        deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: false,
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: {
+          ...liveDeepBookGate,
+          canSubmitLive: false,
+          eligible: false,
+          reasons: ['What-if preview does not authorize live submission.', ...liveDeepBookGate.reasons],
+        },
+      }),
+    [
+      account,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      receiptPackageId,
+      whatIfDeepbookMarketEvidencePreview,
+      whatIfPolicy,
+      whatIfPolicyCheck,
+      whatIfRecommendation,
+      whatIfSimulation.simulatedRiskReport,
+    ],
+  );
+  const activeWhatIfAgentCouncilDecision = aiWhatIfAgentCouncil ?? whatIfAgentCouncilDecision;
+  const whatIfIncidentRoomDecision = useMemo(
+    () =>
+      buildIncidentRoomDecision({
+        riskReport: whatIfSimulation.simulatedRiskReport,
+        recommendation: whatIfRecommendation,
+        policy: whatIfPolicy,
+        policyCheck: whatIfPolicyCheck,
+        monitorRules,
+        deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: false,
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: {
+          ...liveDeepBookGate,
+          canSubmitLive: false,
+          eligible: false,
+          reasons: ['What-if preview does not authorize live submission.', ...liveDeepBookGate.reasons],
+        },
+        agentCouncil: whatIfAgentCouncilDecision,
+      }),
+    [
+      account,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      receiptPackageId,
+      whatIfAgentCouncilDecision,
+      whatIfDeepbookMarketEvidencePreview,
+      whatIfPolicy,
+      whatIfPolicyCheck,
+      whatIfRecommendation,
+      whatIfSimulation.simulatedRiskReport,
+    ],
+  );
+  const activeWhatIfIncidentRoomDecision = aiWhatIfIncidentRoom ?? whatIfIncidentRoomDecision;
+
+  const buildAgentCouncilRequest = useCallback(
+    (input?: { deepbookMarketEvidence?: typeof deepbookMarketEvidencePreview; auditArchived?: boolean }) => ({
+      riskReport,
+      recommendation,
+      policy: effectivePolicy,
+      policyCheck,
+      monitorRules,
+      deepbookMarketEvidence: input?.deepbookMarketEvidence ?? deepbookMarketEvidencePreview,
+      explanationMode,
+      walletConnected: Boolean(account),
+      auditArchived: input?.auditArchived ?? Boolean(auditPackage && auditStorage),
+      receiptEnabled: Boolean(receiptPackageId),
+      liveGate: liveDeepBookGate,
+    }),
+    [
+      account,
+      auditPackage,
+      auditStorage,
+      deepbookMarketEvidencePreview,
+      effectivePolicy,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      policyCheck,
+      receiptPackageId,
+      recommendation,
+      riskReport,
+    ],
+  );
+
+  const refreshAgentCouncil = useCallback(
+    async (input?: {
+      deepbookMarketEvidence?: typeof deepbookMarketEvidencePreview;
+      auditArchived?: boolean;
+      fallback?: AgentCouncilDecision;
+    }) => {
+      const fallbackDecision = input?.fallback ?? deterministicAgentCouncilDecision;
+      setAgentCouncilStatus('loading');
+
+      try {
+        const response = await fetch('/api/agent-council', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(buildAgentCouncilRequest(input)),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Agent council endpoint returned ${response.status}`);
+        }
+
+        const payload = (await response.json()) as { decision: AgentCouncilDecision };
+        setAiAgentCouncil(payload.decision);
+        setAgentCouncilStatus(payload.decision.mode === 'openai' ? 'ready' : 'fallback');
+        return payload.decision;
+      } catch (error) {
+        const warning = error instanceof Error ? error.message : 'AI council unavailable.';
+        const nextFallback = {
+          ...fallbackDecision,
+          warning: `AI council fallback used: ${warning}`,
+        };
+        setAiAgentCouncil(nextFallback);
+        setAgentCouncilStatus('fallback');
+        return nextFallback;
+      }
+    },
+    [buildAgentCouncilRequest, deterministicAgentCouncilDecision],
+  );
+
+  const buildIncidentRoomRequest = useCallback(
+    (input?: {
+      deepbookMarketEvidence?: typeof deepbookMarketEvidencePreview;
+      auditArchived?: boolean;
+      agentCouncil?: AgentCouncilDecision;
+    }) => ({
+      riskReport,
+      recommendation,
+      policy: effectivePolicy,
+      policyCheck,
+      monitorRules,
+      deepbookMarketEvidence: input?.deepbookMarketEvidence ?? deepbookMarketEvidencePreview,
+      explanationMode,
+      walletConnected: Boolean(account),
+      auditArchived: input?.auditArchived ?? Boolean(auditPackage && auditStorage),
+      receiptEnabled: Boolean(receiptPackageId),
+      liveGate: liveDeepBookGate,
+      agentCouncil: input?.agentCouncil ?? agentCouncilDecision,
+    }),
+    [
+      account,
+      agentCouncilDecision,
+      auditPackage,
+      auditStorage,
+      deepbookMarketEvidencePreview,
+      effectivePolicy,
+      explanationMode,
+      liveDeepBookGate,
+      monitorRules,
+      policyCheck,
+      receiptPackageId,
+      recommendation,
+      riskReport,
+    ],
+  );
+
+  const refreshIncidentRoom = useCallback(
+    async (input?: {
+      deepbookMarketEvidence?: typeof deepbookMarketEvidencePreview;
+      auditArchived?: boolean;
+      agentCouncil?: AgentCouncilDecision;
+      fallback?: IncidentRoomDecision;
+    }) => {
+      const fallbackDecision = input?.fallback ?? deterministicIncidentRoomDecision;
+      setIncidentRoomStatus('loading');
+
+      try {
+        const response = await fetch('/api/incident-room', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(buildIncidentRoomRequest(input)),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Incident room endpoint returned ${response.status}`);
+        }
+
+        const payload = (await response.json()) as { incidentRoom: IncidentRoomDecision };
+        setAiIncidentRoom(payload.incidentRoom);
+        setIncidentRoomStatus(payload.incidentRoom.mode === 'openai' ? 'ready' : 'fallback');
+        return payload.incidentRoom;
+      } catch (error) {
+        const warning = error instanceof Error ? error.message : 'AI incident room unavailable.';
+        const nextFallback = {
+          ...fallbackDecision,
+          warning: `AI incident room fallback used: ${warning}`,
+        };
+        setAiIncidentRoom(nextFallback);
+        setIncidentRoomStatus('fallback');
+        return nextFallback;
+      }
+    },
+    [buildIncidentRoomRequest, deterministicIncidentRoomDecision],
+  );
+
+  const whatIfLiveGate = useMemo(
+    () => ({
+      ...liveDeepBookGate,
+      canSubmitLive: false,
+      eligible: false,
+      reasons: ['What-if preview does not authorize live submission.', ...liveDeepBookGate.reasons],
+    }),
+    [liveDeepBookGate],
+  );
+
+  const buildWhatIfAgentCouncilRequest = useCallback(
+    () => ({
+      riskReport: whatIfSimulation.simulatedRiskReport,
+      recommendation: whatIfRecommendation,
+      policy: whatIfPolicy,
+      policyCheck: whatIfPolicyCheck,
+      monitorRules,
+      deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
+      explanationMode,
+      walletConnected: Boolean(account),
+      auditArchived: false,
+      receiptEnabled: Boolean(receiptPackageId),
+      liveGate: whatIfLiveGate,
+    }),
+    [
+      account,
+      explanationMode,
+      monitorRules,
+      receiptPackageId,
+      whatIfDeepbookMarketEvidencePreview,
+      whatIfLiveGate,
+      whatIfPolicy,
+      whatIfPolicyCheck,
+      whatIfRecommendation,
+      whatIfSimulation.simulatedRiskReport,
+    ],
+  );
+
+  const refreshWhatIfAgentCouncil = useCallback(async () => {
+    setWhatIfAgentCouncilStatus('loading');
+
+    try {
+      const response = await fetch('/api/agent-council', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(buildWhatIfAgentCouncilRequest()),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Agent council endpoint returned ${response.status}`);
+      }
+
+      const payload = (await response.json()) as { decision: AgentCouncilDecision };
+      setAiWhatIfAgentCouncil(payload.decision);
+      setWhatIfAgentCouncilStatus(payload.decision.mode === 'openai' ? 'ready' : 'fallback');
+      return payload.decision;
+    } catch (error) {
+      const warning = error instanceof Error ? error.message : 'AI council unavailable.';
+      const nextFallback = {
+        ...whatIfAgentCouncilDecision,
+        warning: `AI council fallback used: ${warning}`,
+      };
+      setAiWhatIfAgentCouncil(nextFallback);
+      setWhatIfAgentCouncilStatus('fallback');
+      return nextFallback;
+    }
+  }, [buildWhatIfAgentCouncilRequest, whatIfAgentCouncilDecision]);
+
+  const buildWhatIfIncidentRoomRequest = useCallback(
+    (agentCouncil: AgentCouncilDecision) => ({
+      riskReport: whatIfSimulation.simulatedRiskReport,
+      recommendation: whatIfRecommendation,
+      policy: whatIfPolicy,
+      policyCheck: whatIfPolicyCheck,
+      monitorRules,
+      deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
+      explanationMode,
+      walletConnected: Boolean(account),
+      auditArchived: false,
+      receiptEnabled: Boolean(receiptPackageId),
+      liveGate: whatIfLiveGate,
+      agentCouncil,
+    }),
+    [
+      account,
+      explanationMode,
+      monitorRules,
+      receiptPackageId,
+      whatIfDeepbookMarketEvidencePreview,
+      whatIfLiveGate,
+      whatIfPolicy,
+      whatIfPolicyCheck,
+      whatIfRecommendation,
+      whatIfSimulation.simulatedRiskReport,
+    ],
+  );
+
+  const refreshWhatIfIncidentRoom = useCallback(async () => {
+    setWhatIfIncidentRoomStatus('loading');
+
+    try {
+      const refreshedCouncil = await refreshWhatIfAgentCouncil();
+      const response = await fetch('/api/incident-room', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(buildWhatIfIncidentRoomRequest(refreshedCouncil)),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Incident room endpoint returned ${response.status}`);
+      }
+
+      const payload = (await response.json()) as { incidentRoom: IncidentRoomDecision };
+      setAiWhatIfIncidentRoom(payload.incidentRoom);
+      setWhatIfIncidentRoomStatus(payload.incidentRoom.mode === 'openai' ? 'ready' : 'fallback');
+      return payload.incidentRoom;
+    } catch (error) {
+      const warning = error instanceof Error ? error.message : 'AI incident room unavailable.';
+      const nextFallback = {
+        ...whatIfIncidentRoomDecision,
+        warning: `AI incident room fallback used: ${warning}`,
+      };
+      setAiWhatIfIncidentRoom(nextFallback);
+      setWhatIfIncidentRoomStatus('fallback');
+      return nextFallback;
+    }
+  }, [buildWhatIfIncidentRoomRequest, refreshWhatIfAgentCouncil, whatIfIncidentRoomDecision]);
 
   const loadDeepBookMarketSnapshot = useCallback(async () => {
     const snapshotWalletAddress = account?.address ?? '0x2';
@@ -425,30 +954,71 @@ export function RiskPilotApp() {
       setPolicyTouched(true);
       setAuditPackage(null);
       setAuditStorage(null);
+      resetAiPreviewState();
       setExecutionMode('pending');
       setExecutionStatus('awaiting approval');
       setExecuteWarning('');
     },
-    [setPolicy],
+    [resetAiPreviewState, setPolicy],
   );
 
   const handlePredictSettingsChange = useCallback((nextSettings: DeepBookPredictSettings) => {
     setPredictSettings(nextSettings);
     setAuditPackage(null);
     setAuditStorage(null);
+    resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
-  }, []);
+  }, [resetAiPreviewState]);
 
   const handleScenarioChange = useCallback((scenarioId: DemoScenarioId) => {
     setSelectedScenarioId(scenarioId);
     setPolicyTouched(false);
     setAuditPackage(null);
     setAuditStorage(null);
+    resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
+  }, [resetAiPreviewState]);
+
+  const startJudgeDemo = useCallback(() => {
+    setJudgeDemoActive(true);
+    setSelectedScenarioId('leveraged_lending_user');
+    setSelectedWhatIfScenarioId('sui_drawdown_15');
+    setPolicyTouched(false);
+    setAuditPackage(null);
+    setAuditStorage(null);
+    resetAiPreviewState();
+    setExecutionMode('pending');
+    setExecutionStatus('awaiting approval');
+    setExecuteWarning('');
+    setActiveSection('risk');
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('stage', 'risk');
+    url.searchParams.set('demo', 'judge');
+    url.hash = 'risk-dashboard';
+    window.history.replaceState(null, '', url);
+    window.requestAnimationFrame(() => {
+      document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [resetAiPreviewState]);
+
+  const exitJudgeDemo = useCallback(() => {
+    setJudgeDemoActive(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('demo');
+    window.history.replaceState(null, '', url);
+  }, []);
+
+  const handleWhatIfScenarioChange = useCallback((scenarioId: WhatIfScenarioId) => {
+    setSelectedWhatIfScenarioId(scenarioId);
+    setAiWhatIfAgentCouncil(null);
+    setWhatIfAgentCouncilStatus('idle');
+    setAiWhatIfIncidentRoom(null);
+    setWhatIfIncidentRoomStatus('idle');
   }, []);
 
   const handleMonitorRuleToggle = useCallback((ruleId: string, enabled: boolean) => {
@@ -458,10 +1028,11 @@ export function RiskPilotApp() {
     }));
     setAuditPackage(null);
     setAuditStorage(null);
+    resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
-  }, []);
+  }, [resetAiPreviewState]);
 
   const prepareAndArchive = useCallback(async () => {
     if (!policyCheck.ok || executionBusy) {
@@ -580,21 +1151,63 @@ export function RiskPilotApp() {
         setExecuteWarning(execution.warning);
       }
 
+      const deepbookMarketEvidence = createDeepBookMarketEvidence({
+        snapshot: auditMarketSnapshot,
+        walletAddress: account?.address ?? '0x2',
+        poolKey: 'SUI_USDC',
+        routeStatus: deepbookMarketStatus,
+        error: deepbookMarketError,
+      });
+      const finalAgentCouncil = buildAgentCouncilDecision({
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyCheck,
+        monitorRules,
+        deepbookMarketEvidence,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: true,
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: liveDeepBookGate,
+      });
+      const archivedAgentCouncil = await refreshAgentCouncil({
+        deepbookMarketEvidence,
+        auditArchived: true,
+        fallback: finalAgentCouncil,
+      });
+      const finalIncidentRoom = buildIncidentRoomDecision({
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyCheck,
+        monitorRules,
+        deepbookMarketEvidence,
+        explanationMode,
+        walletConnected: Boolean(account),
+        auditArchived: true,
+        receiptEnabled: Boolean(receiptPackageId),
+        liveGate: liveDeepBookGate,
+        agentCouncil: archivedAgentCouncil,
+      });
+      const archivedIncidentRoom = await refreshIncidentRoom({
+        deepbookMarketEvidence,
+        auditArchived: true,
+        agentCouncil: archivedAgentCouncil,
+        fallback: finalIncidentRoom,
+      });
+
       const auditPayload = createAuditPackage({
         walletAddress,
         portfolioSnapshot: portfolio,
         riskReportBefore: riskReport,
         recommendation,
         monitorRules,
-        deepbookMarketEvidence: createDeepBookMarketEvidence({
-          snapshot: auditMarketSnapshot,
-          walletAddress: account?.address ?? '0x2',
-          poolKey: 'SUI_USDC',
-          routeStatus: deepbookMarketStatus,
-          error: deepbookMarketError,
-        }),
+        deepbookMarketEvidence,
         policy: effectivePolicy,
         policyCheck,
+        agentCouncil: archivedAgentCouncil,
+        incidentRoom: archivedIncidentRoom,
         aiExplanation: currentExplanation,
         execution,
         riskReportAfter: estimatedAfterRisk,
@@ -640,12 +1253,17 @@ export function RiskPilotApp() {
     deepbookMarketError,
     deepbookMarketSnapshot,
     deepbookMarketStatus,
+    explanationMode,
     liveDeepBookEligible,
+    liveDeepBookGate,
     monitorRules,
     policyCheck,
     portfolio,
+    receiptPackageId,
     recommendation,
     refreshExplanation,
+    refreshAgentCouncil,
+    refreshIncidentRoom,
     riskReport,
     signAndExecute,
     walletAddress,
@@ -663,6 +1281,9 @@ export function RiskPilotApp() {
     liveModeFallbackWarning,
     executeWarning,
   ].filter(Boolean) as string[];
+  const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
+  const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
+  const liveSubmitSelected = effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookGate.canSubmitLive;
 
   const sectionMeta: Record<DemoSection, { eyebrow: string; title: string; copy: string }> = {
     overview: {
@@ -694,6 +1315,34 @@ export function RiskPilotApp() {
     },
   };
 
+  const stageCue: Record<DemoSection, { proof: string; evidence: string; boundary: string }> = {
+    overview: {
+      proof: account ? 'Live wallet context' : 'Judge scenario context',
+      evidence: account ? 'Mainnet balances + owned-object scan' : 'Curated portfolio cases with deterministic risk',
+      boundary: account ? 'No synthetic demo positions after connect' : 'Wallet connection remains optional',
+    },
+    risk: {
+      proof: 'Deterministic risk map',
+      evidence: `Score ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals · what-if preview ready`,
+      boundary: 'What-if changes preview state only',
+    },
+    strategy: {
+      proof: 'Bounded action route',
+      evidence: `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} estimated cost`,
+      boundary: policyCheck.ok ? 'Policy gate is open' : 'Policy gate is blocking execution',
+    },
+    audit: {
+      proof: 'Agentic decision trail',
+      evidence: `${activeWhatIfIncidentRoomDecision.tasks.length} room tasks · ${activeWhatIfAgentCouncilDecision.agents.length} council agents`,
+      boundary: 'Preview room is separate from real archive payload',
+    },
+    prepare: {
+      proof: 'Mainnet prepare desk',
+      evidence: auditStorage ? `${auditStorage.mode} archive ready` : 'Walrus/local archive target pending',
+      boundary: liveSubmitSelected ? 'Real submit requires wallet approval' : 'Prepare-only is the default',
+    },
+  };
+
   function renderActiveSection() {
     if (activeSection === 'overview') {
       if (account) {
@@ -702,10 +1351,10 @@ export function RiskPilotApp() {
             <div className="stageColumn stageColumnWalletContext">
               <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
               <DemoFlowPanel walletConnected />
-              <VisualMotifPanel />
             </div>
             <div className="stageColumn stageColumnWalletPortfolio">
               <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
+              <VisualMotifPanel />
             </div>
           </div>
         );
@@ -731,9 +1380,24 @@ export function RiskPilotApp() {
 
     if (activeSection === 'risk') {
       return (
-        <div className="stageGrid">
-          <RiskScoreCard report={riskReport} />
-          <RiskBreakdown signals={riskReport.signals} />
+        <div className="stageGrid stageGridRisk">
+          <div className="stageColumn riskPrimaryColumn">
+            <RiskScoreCard report={riskReport} />
+            <WhatIfSimulatorPanel
+              simulation={whatIfSimulation}
+              selectedScenarioId={selectedWhatIfScenarioId}
+              onScenarioChange={handleWhatIfScenarioChange}
+            />
+          </div>
+          <div className="stageColumn riskSignalColumn">
+            <RiskBreakdown signals={riskReport.signals} />
+            <WhatIfStrategyDiff
+              simulation={whatIfSimulation}
+              baseRecommendation={recommendation}
+              simulatedRecommendation={whatIfRecommendation}
+              simulatedPolicyCheck={whatIfPolicyCheck}
+            />
+          </div>
         </div>
       );
     }
@@ -741,15 +1405,25 @@ export function RiskPilotApp() {
     if (activeSection === 'strategy') {
       return (
         <div className="stageGrid stageGridStrategy">
-          <StrategyPanel
-            recommendation={recommendation}
-            predictSettings={predictSettings}
-            onPredictSettingsChange={handlePredictSettingsChange}
-            marketSnapshot={deepbookMarketSnapshot}
-            marketSnapshotStatus={deepbookMarketStatus}
-            marketSnapshotError={deepbookMarketError}
-          />
-          <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
+          <div className="stageColumn strategyPrimaryColumn">
+            <StrategyPanel
+              recommendation={recommendation}
+              predictSettings={predictSettings}
+              onPredictSettingsChange={handlePredictSettingsChange}
+              marketSnapshot={deepbookMarketSnapshot}
+              marketSnapshotStatus={deepbookMarketStatus}
+              marketSnapshotError={deepbookMarketError}
+            />
+          </div>
+          <div className="stageColumn strategyPreviewColumn">
+            <WhatIfStrategyDiff
+              simulation={whatIfSimulation}
+              baseRecommendation={recommendation}
+              simulatedRecommendation={whatIfRecommendation}
+              simulatedPolicyCheck={whatIfPolicyCheck}
+            />
+            <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
+          </div>
         </div>
       );
     }
@@ -757,42 +1431,69 @@ export function RiskPilotApp() {
     if (activeSection === 'audit') {
       return (
         <div className="stageGrid stageGridAudit">
-          <AuditLogPanel
-            explanation={explanation}
-            explanationMode={explanationMode}
-            explanationStatus={explanationStatus}
-            storageMode={auditStorage?.mode ?? 'pending'}
-            storageId={auditStorage?.id ?? ''}
-            storageUrl={auditStorage?.url}
-            onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
-            refreshing={explanationStatus === 'loading' || executionBusy}
-          />
-          <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} />
-          {auditPackage && auditStorage ? (
-            <>
-              <ResultPanel
-                auditPackage={auditPackage}
-                storageResult={auditStorage}
-                executionMode={executionMode}
-                executionStatus={executionStatus}
+          <div className="whatIfAuditPreview">
+            <span className="pill pillAccent">what-if preview</span>
+            <strong>{whatIfSimulation.scenario.label}</strong>
+            <p>
+              Incident Room and council preview use simulated risk. Prepare/archive still uses the real wallet or judge scenario.
+            </p>
+          </div>
+          <div className="stageColumn auditPrimaryColumn">
+            <AuditLogPanel
+              explanation={explanation}
+              explanationMode={explanationMode}
+              explanationStatus={explanationStatus}
+              storageMode={auditStorage?.mode ?? 'pending'}
+              storageId={auditStorage?.id ?? ''}
+              storageUrl={auditStorage?.url}
+              onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
+              refreshing={explanationStatus === 'loading' || executionBusy}
+            />
+            <AgentCouncilPanel
+              decision={activeWhatIfAgentCouncilDecision}
+              refreshing={whatIfAgentCouncilStatus === 'loading'}
+            />
+            <button
+              className="button buttonGhost auditRefreshButton"
+              type="button"
+              onClick={() => void refreshWhatIfAgentCouncil()}
+              disabled={whatIfAgentCouncilStatus === 'loading'}
+            >
+              {whatIfAgentCouncilStatus === 'loading' ? 'Refreshing what-if council' : 'Refresh what-if council'}
+            </button>
+            <EvidenceTimeline steps={activeWhatIfAgentCouncilDecision.evidenceTimeline} />
+          </div>
+          <div className="stageColumn auditCommandColumn">
+            <IncidentRoomPanel
+              incidentRoom={activeWhatIfIncidentRoomDecision}
+              refreshing={whatIfIncidentRoomStatus === 'loading'}
+              onRefresh={() => void refreshWhatIfIncidentRoom()}
+            />
+            <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} />
+            {auditPackage && auditStorage ? (
+              <>
+                <AuditPackageExplorer auditPackage={auditPackage} storageResult={auditStorage} />
+                <ResultPanel
+                  auditPackage={auditPackage}
+                  storageResult={auditStorage}
+                  executionMode={executionMode}
+                  executionStatus={executionStatus}
                 riskBefore={riskReport}
                 riskAfter={estimatedAfterRisk}
                 warning={auditStorage.warning ?? auditStorage.error}
               />
               <ReceiptMintPanel
                 key={`${auditPackage.id}-${auditStorage.id}`}
-                auditPackage={auditPackage}
-                storageResult={auditStorage}
-              />
-            </>
-          ) : null}
+                  auditPackage={auditPackage}
+                  storageResult={auditStorage}
+                />
+              </>
+            ) : null}
+          </div>
         </div>
       );
     }
 
-    const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
-    const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
-    const liveSubmitSelected = effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookGate.canSubmitLive;
     const liveGateReasons = liveDeepBookGate.reasons.filter(
       (reason) => reason !== 'Select live mainnet explicitly.',
     );
@@ -988,6 +1689,7 @@ export function RiskPilotApp() {
 
           {auditPackage && auditStorage ? (
             <>
+              <AuditPackageExplorer auditPackage={auditPackage} storageResult={auditStorage} />
               <ResultPanel
                 auditPackage={auditPackage}
                 storageResult={auditStorage}
@@ -1057,6 +1759,37 @@ export function RiskPilotApp() {
             <p className="eyebrow">{sectionMeta[activeSection].eyebrow}</p>
             <h2>{sectionMeta[activeSection].title}</h2>
             <p>{sectionMeta[activeSection].copy}</p>
+            <div className="stageCue" aria-label="Demo proof points">
+              <div className="stageCueItem stageCueProof">
+                <span>Proof</span>
+                <strong>{stageCue[activeSection].proof}</strong>
+              </div>
+              <div className="stageCueItem stageCueEvidence">
+                <span>Evidence</span>
+                <strong>{stageCue[activeSection].evidence}</strong>
+              </div>
+              <div className="stageCueItem stageCueBoundary">
+                <span>Boundary</span>
+                <strong>{stageCue[activeSection].boundary}</strong>
+              </div>
+            </div>
+            <div className="judgeDemoCue" aria-label="One-click judge demo mode">
+              <div>
+                <span>{judgeDemoActive ? 'Judge demo active' : 'Completeness mode'}</span>
+                <strong>
+                  {judgeDemoActive
+                    ? 'Risk stage is primed with leveraged lending + SUI -15% what-if.'
+                    : 'One click primes the highest-signal demo path without submitting or archiving.'}
+                </strong>
+              </div>
+              <Link
+                className="button buttonGhost"
+                href="/?stage=risk&demo=judge#risk-dashboard"
+                onClick={judgeDemoActive ? exitJudgeDemo : startJudgeDemo}
+              >
+                {judgeDemoActive ? 'Exit demo cue' : 'Start judge demo'}
+              </Link>
+            </div>
           </div>
 
           {activeSection === 'prepare' ? (

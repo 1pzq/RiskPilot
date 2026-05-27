@@ -1,6 +1,8 @@
 # RiskPilot Strategy Receipt
 
-Optional Sui mainnet receipt package for recording a user's RiskPilot strategy decision after the web app prepares or executes a strategy.
+Optional Sui mainnet receipt package for recording a user's RiskPilot strategy decision after the web app archives a prepared strategy.
+
+Minting a receipt is an explicit post-archive action. It does not mean RiskPilot auto-executed a trade, and it does not change the app's default `prepare_mainnet` posture.
 
 This package is intentionally not required for the web demo. The app remains fully usable without Sui CLI, a published package ID, or gas funds.
 

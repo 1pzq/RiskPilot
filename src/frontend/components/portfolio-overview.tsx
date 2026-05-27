@@ -50,7 +50,10 @@ const objectPreviewLimit: Record<WalletObjectKind, number> = {
 
 export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: PortfolioOverviewProps) {
   const walletScan = portfolio.walletScan;
+  const isMainnetWallet = sourceLabel === 'mainnet wallet';
   const sampleObjectCount = walletScan?.sampleObjects.length ?? 0;
+  const visibleProtocolHints = walletScan?.protocolHints.slice(0, 6) ?? [];
+  const hiddenProtocolHintCount = (walletScan?.protocolHints.length ?? 0) - visibleProtocolHints.length;
   const groupedObjects = walletScan
     ? walletScan.sampleObjects.reduce<Partial<Record<WalletObjectKind, typeof walletScan.sampleObjects>>>(
         (groups, object) => {
@@ -72,6 +75,24 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
     'coin',
     'other',
   ];
+  const objectKindTotal: Record<WalletObjectKind, number> = {
+    coin: walletScan?.coinObjects ?? 0,
+    deepbook_object: walletScan?.deepbookObjects ?? 0,
+    walrus_blob: walletScan?.walrusBlobs ?? 0,
+    riskpilot_receipt: walletScan?.receiptObjects ?? 0,
+    defi_candidate: walletScan?.defiCandidates ?? 0,
+    package_cap: walletScan?.packageCaps ?? 0,
+    other: Math.max(
+      0,
+      (walletScan?.totalObjects ?? 0) -
+        ((walletScan?.coinObjects ?? 0) +
+          (walletScan?.deepbookObjects ?? 0) +
+          (walletScan?.walrusBlobs ?? 0) +
+          (walletScan?.receiptObjects ?? 0) +
+          (walletScan?.defiCandidates ?? 0) +
+          (walletScan?.packageCaps ?? 0)),
+    ),
+  };
 
   function renderObjectFacts(object: WalletObjectSummary) {
     const visibleFacts = object.facts.slice(0, 2);
@@ -90,7 +111,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
   }
 
   return (
-    <section className={walletScan ? 'panel portfolioPanel portfolioPanelWallet' : 'panel portfolioPanel'}>
+    <section className={isMainnetWallet ? 'panel portfolioPanel portfolioPanelWallet' : 'panel portfolioPanel'}>
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Portfolio</p>
@@ -202,60 +223,72 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
 
           {walletScan.protocolHints.length > 0 ? (
             <div className="walletProtocolHints" aria-label="Protocol hints">
-              {walletScan.protocolHints.map((hint) => (
-                <span key={hint.protocol}>
-                  <strong>{hint.protocol}</strong>
-                  {hint.count} · {hint.roles.join(', ')}
-                </span>
-              ))}
+              {visibleProtocolHints.map((hint) => {
+                const visibleRoles = hint.roles.slice(0, 3);
+                const hiddenRoles = hint.roles.length - visibleRoles.length;
+
+                return (
+                  <span key={hint.protocol}>
+                    <strong>{hint.protocol}</strong>
+                    {hint.count} · {visibleRoles.join(', ')}
+                    {hiddenRoles > 0 ? `, +${hiddenRoles}` : ''}
+                  </span>
+                );
+              })}
+              {hiddenProtocolHintCount > 0 ? <span className="walletProtocolHintsMore">+{hiddenProtocolHintCount} protocols</span> : null}
             </div>
           ) : null}
 
           <div className="walletObjectListViewport" aria-label="Mainnet object preview">
-            <div className="walletObjectList">
-              {objectGroupOrder.map((kind) => {
-                const objects = groupedObjects[kind] ?? [];
+            {sampleObjectCount > 0 ? (
+              <div className="walletObjectList">
+                {objectGroupOrder.map((kind) => {
+                  const objects = groupedObjects[kind] ?? [];
 
-                if (objects.length === 0) {
-                  return null;
-                }
+                  if (objects.length === 0) {
+                    return null;
+                  }
 
-                const previewObjects = objects.slice(0, objectPreviewLimit[kind]);
-                const hiddenPreviewCount = objects.length - previewObjects.length;
+                  const previewObjects = objects.slice(0, objectPreviewLimit[kind]);
+                  const groupTotal = objectKindTotal[kind];
+                  const hiddenPreviewCount = Math.max(0, groupTotal - previewObjects.length);
 
-                return (
-                  <div className="walletObjectGroup" key={kind}>
-                    <div className="walletObjectGroupHeader">
-                      <span>{objectKindLabel[kind]}</span>
-                      <strong>{objects.length}</strong>
-                    </div>
-                    <div className="walletObjectGroupItems">
-                      {previewObjects.map((object) => (
-                        <div className={`walletObjectRow walletObjectRow-${object.kind}`} key={object.objectId}>
-                          <span className="walletObjectBadge">{objectKindBadge[object.kind]}</span>
-                          <div className="walletObjectMain">
-                            <strong>{object.label}</strong>
-                            <small>
-                              {object.protocol} · {object.role}
-                              {object.module ? ` · ${object.module}` : ''}
-                              {' · '}
-                              {formatAddress(object.objectId)}
-                            </small>
-                            {object.facts.length > 0 ? renderObjectFacts(object) : null}
-                          </div>
-                          <span className="pill pillNeutral">{objectKindLabel[object.kind]}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {hiddenPreviewCount > 0 ? (
-                      <div className="walletObjectGroupFooter">
-                        Showing {previewObjects.length} of {objects.length} {objectKindLabel[kind].toLowerCase()} objects in preview.
+                  return (
+                    <div className="walletObjectGroup" key={kind}>
+                      <div className="walletObjectGroupHeader">
+                        <span>{objectKindLabel[kind]}</span>
+                        <strong>{groupTotal}</strong>
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+                      <div className="walletObjectGroupItems">
+                        {previewObjects.map((object) => (
+                          <div className={`walletObjectRow walletObjectRow-${object.kind}`} key={object.objectId}>
+                            <span className="walletObjectBadge">{objectKindBadge[object.kind]}</span>
+                            <div className="walletObjectMain">
+                              <strong>{object.label}</strong>
+                              <small>
+                                {object.protocol} · {object.role}
+                                {object.module ? ` · ${object.module}` : ''}
+                                {' · '}
+                                {formatAddress(object.objectId)}
+                              </small>
+                              {object.facts.length > 0 ? renderObjectFacts(object) : null}
+                            </div>
+                            <span className="pill pillNeutral">{objectKindLabel[object.kind]}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {hiddenPreviewCount > 0 ? (
+                        <div className="walletObjectGroupFooter">
+                          Showing {previewObjects.length} of {groupTotal} {objectKindLabel[kind].toLowerCase()} objects in preview.
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="walletObjectEmpty">No previewable owned objects returned in this scan.</div>
+            )}
           </div>
         </div>
       ) : null}

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { buildAgentCouncilDecision } from '../lib/agents/decision-council';
+import { buildIncidentRoomDecision } from '../lib/agents/incident-room';
 import { createDemoPortfolio } from '../lib/risk/fixtures';
 import { calculateRiskReport, estimatePostStrategyRisk } from '../lib/risk/risk-engine';
 import { buildMonitorRules } from '../lib/strategy/monitor';
@@ -29,6 +31,57 @@ function buildAuditPackage(): AuditPackage {
     deepbookMarketStatus: 'ready',
     now: new Date('2026-05-20T00:00:00.000Z'),
   });
+  const deepbookMarketEvidence = createDeepBookMarketEvidence({
+    snapshot: {
+      poolKey: 'SUI_USDC',
+      poolAddress: '0xPOOL',
+      baseCoin: 'SUI',
+      quoteCoin: 'USDC',
+      midPrice: 3.25,
+      quoteOutForOneBase: 3.2,
+      baseOutForOneQuote: 0.307692,
+      vaultBalances: {
+        base: 1045.12,
+        quote: 3412.88,
+        deep: 251.44,
+      },
+      tradeParams: {
+        takerFee: 0.0025,
+        makerFee: 0.0015,
+        stakeRequired: 150,
+      },
+      registeredPool: true,
+      whitelisted: true,
+      fetchedAt: '2026-05-21T00:00:00.000Z',
+    },
+    walletAddress: '0xDEMO',
+    routeStatus: 'ready',
+  });
+  const agentCouncil = buildAgentCouncilDecision({
+    riskReport,
+    recommendation,
+    policy,
+    policyCheck,
+    monitorRules,
+    deepbookMarketEvidence,
+    explanationMode: 'mock',
+    walletConnected: false,
+    auditArchived: true,
+    receiptEnabled: true,
+  });
+  const incidentRoom = buildIncidentRoomDecision({
+    riskReport,
+    recommendation,
+    policy,
+    policyCheck,
+    monitorRules,
+    deepbookMarketEvidence,
+    explanationMode: 'mock',
+    walletConnected: false,
+    auditArchived: true,
+    receiptEnabled: true,
+    agentCouncil,
+  });
 
   return {
     id: 'audit_test',
@@ -38,34 +91,11 @@ function buildAuditPackage(): AuditPackage {
     riskReportBefore: riskReport,
     recommendation,
     monitorRules,
-    deepbookMarketEvidence: createDeepBookMarketEvidence({
-      snapshot: {
-        poolKey: 'SUI_USDC',
-        poolAddress: '0xPOOL',
-        baseCoin: 'SUI',
-        quoteCoin: 'USDC',
-        midPrice: 3.25,
-        quoteOutForOneBase: 3.2,
-        baseOutForOneQuote: 0.307692,
-        vaultBalances: {
-          base: 1045.12,
-          quote: 3412.88,
-          deep: 251.44,
-        },
-        tradeParams: {
-          takerFee: 0.0025,
-          makerFee: 0.0015,
-          stakeRequired: 150,
-        },
-        registeredPool: true,
-        whitelisted: true,
-        fetchedAt: '2026-05-21T00:00:00.000Z',
-      },
-      walletAddress: '0xDEMO',
-      routeStatus: 'ready',
-    }),
+    deepbookMarketEvidence,
     policy,
     policyCheck,
+    agentCouncil,
+    incidentRoom,
     aiExplanation: 'Mock explanation.',
     execution: {
       mode: 'prepare_mainnet',
@@ -123,6 +153,47 @@ describe('Walrus audit storage', () => {
         }),
       ]),
     );
+  });
+
+  it('keeps the agent council and evidence timeline in the audit package payload', () => {
+    const auditPackage = buildAuditPackage();
+
+    expect(auditPackage.agentCouncil).toMatchObject({
+      mode: 'deterministic_fallback',
+      posture: 'prepare_ready',
+      agents: expect.arrayContaining([
+        expect.objectContaining({ id: 'risk_analyst' }),
+        expect.objectContaining({ id: 'policy_guard' }),
+        expect.objectContaining({ id: 'manager' }),
+      ]),
+    });
+    expect(auditPackage.agentCouncil?.evidenceTimeline).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'wallet-scan', evidenceRef: 'portfolioSnapshot' }),
+        expect.objectContaining({ id: 'deepbook', evidenceRef: 'deepbookMarketEvidence' }),
+        expect.objectContaining({ id: 'walrus', status: 'complete' }),
+      ]),
+    );
+  });
+
+  it('keeps the incident room task board and consensus in the audit package payload', () => {
+    const auditPackage = buildAuditPackage();
+
+    expect(auditPackage.incidentRoom).toMatchObject({
+      mode: 'deterministic_fallback',
+      posture: 'prepare_ready',
+      sourceCouncilId: auditPackage.agentCouncil?.id,
+      tasks: expect.arrayContaining([
+        expect.objectContaining({ id: 'manager', locked: true }),
+        expect.objectContaining({ id: 'liquidity_scout', evidenceRefs: expect.arrayContaining(['deepbookMarketEvidence']) }),
+        expect.objectContaining({ id: 'audit_agent' }),
+      ]),
+      consensus: expect.arrayContaining([
+        expect.objectContaining({ id: 'policy-consensus', evidenceRef: 'policyCheck' }),
+        expect.objectContaining({ id: 'market-consensus', evidenceRef: 'deepbookMarketEvidence' }),
+      ]),
+    });
+    expect(auditPackage.incidentRoom?.evidenceTimeline).toEqual(auditPackage.agentCouncil?.evidenceTimeline);
   });
 
   it('preserves real mainnet transaction digest and effects status in the audit package', () => {

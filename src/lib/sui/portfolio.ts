@@ -789,22 +789,6 @@ export function buildWalletAssetsPortfolio(
   };
 }
 
-export function mergeWalletSuiBalance(portfolio: PortfolioSnapshot, walletSuiBalance: number | null): PortfolioSnapshot {
-  if (walletSuiBalance == null) {
-    return portfolio;
-  }
-
-  return mergeWalletAssetsWithDemoPortfolio(portfolio, [
-    {
-      symbol: 'SUI',
-      coinType: SUI_COIN_TYPE,
-      amount: walletSuiBalance,
-      usdPrice: DEMO_SUI_PRICE_USD,
-      usdValue: walletSuiBalance * DEMO_SUI_PRICE_USD,
-    },
-  ]);
-}
-
 export async function readMainnetWalletAssets(
   owner: string,
   client: MainnetPortfolioClient = createMainnetSuiClient(),
@@ -867,15 +851,4 @@ export async function readMainnetWalletScan(
     protocolHints: buildProtocolHints(summaries),
     sampleObjects: sortedSummaries.slice(0, 10),
   };
-}
-
-export async function readMainnetSuiBalance(owner: string): Promise<number> {
-  const client = createMainnetSuiClient();
-  const balance = await client.getBalance({ owner, coinType: SUI_COIN_TYPE });
-
-  return Number(balance.totalBalance) / 1_000_000_000;
-}
-
-export function describePortfolioSource(walletAddress: string): 'demo' | 'wallet-merged' {
-  return walletAddress === '0xDEMO' ? 'demo' : 'wallet-merged';
 }

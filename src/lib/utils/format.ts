@@ -74,30 +74,3 @@ export function formatDateTime(iso: string): string {
     timeStyle: 'short',
   }).format(date);
 }
-
-export function toDatetimeLocalValue(iso: string): string {
-  const date = new Date(iso);
-
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const pad = (value: number) => `${value}`.padStart(2, '0');
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-export function fromDatetimeLocalValue(value: string): string {
-  if (!value) {
-    return '';
-  }
-
-  const date = new Date(value);
-  return date.toISOString();
-}
-

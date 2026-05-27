@@ -54,7 +54,22 @@ const BodySchema = z.object({
   }),
   walletAddress: z.string(),
   executionMode: z.enum(['simulation', 'prepare_mainnet', 'mainnet']).optional(),
-});
+})
+  .passthrough();
+
+function hasWhatIfPreviewMarker(value: unknown): boolean {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (record.previewOnly === true || record.source === 'what_if_preview') {
+    return true;
+  }
+
+  return Object.values(record).some((entry) => hasWhatIfPreviewMarker(entry));
+}
 
 export async function POST(request: Request) {
   try {
@@ -65,6 +80,15 @@ export async function POST(request: Request) {
       walletAddress: string;
       executionMode?: 'simulation' | 'prepare_mainnet' | 'mainnet';
     };
+
+    if (hasWhatIfPreviewMarker(body)) {
+      return NextResponse.json(
+        {
+          error: 'What-if preview payloads cannot be submitted for execution.',
+        },
+        { status: 400 },
+      );
+    }
 
     const serverPolicyCheck = validateExecutionPolicy(body.policy, body.recommendation, new Date());
 

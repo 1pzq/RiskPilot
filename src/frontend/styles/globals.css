@@ -228,15 +228,6 @@ summary {
   margin: 0 auto;
 }
 
-.mainGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.leftColumn,
-.rightColumn,
 .stack {
   display: grid;
   gap: 18px;
@@ -281,46 +272,6 @@ summary {
 
 .panel:hover::before {
   opacity: 1;
-}
-
-.leftColumn > :nth-child(1) {
-  animation-delay: 80ms;
-}
-
-.leftColumn > :nth-child(2) {
-  animation-delay: 150ms;
-}
-
-.leftColumn > :nth-child(3) {
-  animation-delay: 220ms;
-}
-
-.leftColumn > :nth-child(4) {
-  animation-delay: 290ms;
-}
-
-.leftColumn > :nth-child(5) {
-  animation-delay: 360ms;
-}
-
-.rightColumn > :nth-child(1) {
-  animation-delay: 180ms;
-}
-
-.rightColumn > :nth-child(2) {
-  animation-delay: 250ms;
-}
-
-.rightColumn > :nth-child(3) {
-  animation-delay: 320ms;
-}
-
-.rightColumn > :nth-child(4) {
-  animation-delay: 390ms;
-}
-
-.rightColumn > :nth-child(5) {
-  animation-delay: 460ms;
 }
 
 .panelHeader {
@@ -536,6 +487,20 @@ button.walletButton:hover:not(:disabled) {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.flowStep em {
+  justify-self: start;
+  padding: 4px 7px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--line);
 }
 
 .flowStep strong {
@@ -1304,13 +1269,6 @@ button.walletButton:hover:not(:disabled) {
   margin-bottom: 12px;
 }
 
-.resultDetails {
-  max-height: clamp(240px, 34vh, 420px);
-  padding-right: 6px;
-  overflow: auto;
-  scrollbar-gutter: stable;
-}
-
 .resultMetric {
   padding: 12px;
   border: 1px solid var(--border);
@@ -1473,10 +1431,6 @@ button.walletButton:hover:not(:disabled) {
 }
 
 @media (max-width: 1120px) {
-  .mainGrid {
-    grid-template-columns: 1fr;
-  }
-
   .flowGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2760,8 +2714,7 @@ body::after {
   box-shadow: 0 7px 0 rgba(7, 17, 31, 0.92);
 }
 
-.overflowNav a,
-.overflowNav button {
+.overflowNav a {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -2786,7 +2739,7 @@ body::after {
     transform 160ms ease;
 }
 
-.overflowNav button::before {
+.overflowNav a::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -2798,7 +2751,7 @@ body::after {
   transition: opacity 160ms ease;
 }
 
-.overflowNav button::after {
+.overflowNav a::after {
   position: absolute;
   right: 14px;
   bottom: -3px;
@@ -2814,34 +2767,31 @@ body::after {
     transform 160ms ease;
 }
 
-.overflowNav a:first-child,
 .overflowNav a:hover,
-.overflowNav button:hover,
-.overflowNav button.active {
+.overflowNav a.active {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 42%),
     var(--blue);
   transform: translateY(-2px);
 }
 
-.overflowNav button:hover::before,
-.overflowNav button.active::before,
-.overflowNav button.active::after {
+.overflowNav a:hover::before,
+.overflowNav a.active::before,
+.overflowNav a.active::after {
   opacity: 1;
 }
 
-.overflowNav button.active::after {
+.overflowNav a.active::after {
   transform: translateY(0);
 }
 
-.overflowNav a:last-child,
-.overflowNav button:last-child {
+.overflowNav a:last-child {
   background:
     linear-gradient(135deg, rgba(117, 104, 239, 0.12), transparent 42%),
     #fff;
 }
 
-.overflowNav button.active:last-child {
+.overflowNav a.active:last-child {
   color: var(--ink);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 42%),
@@ -2890,19 +2840,19 @@ body::after {
   opacity: 0.34;
 }
 
-.overflowNav button.active .navBit,
-.overflowNav button:hover .navBit {
+.overflowNav a.active .navBit {
   opacity: 1;
 }
 
-.overflowNav button.active:last-child .navStep,
-.overflowNav button.active:last-child .navBit {
+.overflowNav a.active:last-child .navStep,
+.overflowNav a.active:last-child .navBit {
   color: var(--ink);
 }
 
 .workspaceDeck {
   display: grid;
   gap: 20px;
+  min-width: 0;
 }
 
 .stageIntro {
@@ -2912,6 +2862,7 @@ body::after {
   border: 3px solid var(--line);
   background: var(--cream);
   box-shadow: 9px 9px 0 var(--line);
+  min-width: 0;
 }
 
 .stageIntro h2,
@@ -2938,6 +2889,86 @@ body::after {
 .stageIntroText {
   display: grid;
   gap: 7px;
+}
+
+.stageCue {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.stageCueItem {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 11px 12px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.stageCueItem span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.stageCueItem strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 940;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.stageCueProof {
+  background: var(--blue-soft);
+}
+
+.stageCueEvidence {
+  background: var(--mint);
+}
+
+.stageCueBoundary {
+  background: var(--yellow);
+}
+
+.judgeDemoCue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.judgeDemoCue div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.judgeDemoCue span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.judgeDemoCue strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.25;
 }
 
 .stageIntroPrepare {
@@ -3007,6 +3038,7 @@ body::after {
 
 .stageSurface {
   animation: deckSwap 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  min-width: 0;
 }
 
 .stageGrid {
@@ -3014,10 +3046,15 @@ body::after {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr);
   gap: 24px;
   align-items: start;
+  min-width: 0;
 }
 
 .stageGridOverview {
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.stageGridRisk {
+  grid-template-columns: minmax(0, 0.96fr) minmax(390px, 0.9fr);
 }
 
 .stageGridStrategy {
@@ -3025,7 +3062,9 @@ body::after {
 }
 
 .stageGridAudit {
-  grid-template-columns: minmax(0, 0.98fr) minmax(360px, 0.9fr);
+  grid-template-columns: minmax(430px, 0.9fr) minmax(520px, 1.1fr);
+  gap: 18px;
+  align-items: start;
 }
 
 .stageGridConnectedWallet {
@@ -3034,7 +3073,11 @@ body::after {
 }
 
 .stageColumnWalletContext,
-.stageColumnWalletPortfolio {
+.stageColumnWalletPortfolio,
+.riskPrimaryColumn,
+.riskSignalColumn,
+.strategyPrimaryColumn,
+.strategyPreviewColumn {
   min-width: 0;
 }
 
@@ -3046,6 +3089,16 @@ body::after {
 .stageColumn {
   display: grid;
   gap: 22px;
+}
+
+.auditPrimaryColumn,
+.auditCommandColumn {
+  min-width: 0;
+  gap: 18px;
+}
+
+.auditRefreshButton {
+  width: 100%;
 }
 
 .preparePrimaryColumn,
@@ -3162,13 +3215,6 @@ button.walletButtonDisconnect {
   padding: 0 0 46px;
 }
 
-.mainGrid {
-  grid-template-columns: minmax(0, 1fr) minmax(390px, 0.86fr);
-  gap: 24px;
-}
-
-.leftColumn,
-.rightColumn,
 .stack {
   gap: 22px;
 }
@@ -3213,6 +3259,14 @@ button.walletButtonDisconnect {
   font-family: var(--font-display);
   font-size: 1.32rem;
   font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.warningList span,
+.metricValue,
+.assetName,
+.assetNumbers strong {
+  overflow-wrap: anywhere;
 }
 
 .panelCopy,
@@ -3259,6 +3313,803 @@ button.walletButtonDisconnect {
 
 .monitorAction strong {
   color: var(--ink);
+}
+
+.whatIfPanel {
+  background:
+    linear-gradient(135deg, rgba(255, 218, 94, 0.22), transparent 36%),
+    linear-gradient(315deg, rgba(95, 157, 247, 0.14), transparent 42%),
+    #fff;
+}
+
+.whatIfPresetGroup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.whatIfScenarioBrief {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-soft);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.whatIfScenarioBrief p {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.whatIfProjectionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.whatIfProjectionGrid .metricCard {
+  display: grid;
+  gap: 8px;
+  min-height: 140px;
+  align-content: start;
+  border: 3px solid var(--line);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.whatIfProjectionGrid .metricValue {
+  font-size: clamp(1.25rem, 2vw, 1.82rem);
+  line-height: 1;
+}
+
+.whatIfImpactRows {
+  margin-bottom: 12px;
+}
+
+.whatIfImpactRows .ticketRow strong {
+  overflow-wrap: anywhere;
+}
+
+.whatIfNotes {
+  display: grid;
+  gap: 8px;
+}
+
+.whatIfNotes span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--yellow);
+  font-size: 0.84rem;
+  font-weight: 820;
+  line-height: 1.3;
+}
+
+.whatIfStrategyDiffPanel {
+  background:
+    linear-gradient(135deg, rgba(131, 217, 159, 0.2), transparent 36%),
+    linear-gradient(315deg, rgba(255, 226, 95, 0.2), transparent 42%),
+    #fff;
+}
+
+.whatIfDiffHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: var(--paper-soft);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.whatIfDiffHeader p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 820;
+  line-height: 1.34;
+}
+
+.whatIfDiffGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.whatIfDiffColumn,
+.whatIfDiffArrow {
+  border: 3px solid var(--line);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.whatIfDiffColumn {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  min-height: 122px;
+  padding: 12px;
+  background: #fff;
+}
+
+.whatIfDiffColumnHot {
+  background: var(--yellow);
+}
+
+.whatIfDiffColumn span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.whatIfDiffColumn strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.16;
+}
+
+.whatIfDiffColumn small {
+  color: var(--muted);
+  font-weight: 850;
+  line-height: 1.22;
+}
+
+.whatIfDiffArrow {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  background: var(--blue);
+}
+
+.whatIfDiffRows {
+  margin-bottom: 12px;
+}
+
+.whatIfDiffRows .ticketRow strong {
+  overflow-wrap: anywhere;
+}
+
+.whatIfDiffNotes {
+  display: grid;
+  gap: 8px;
+}
+
+.whatIfDiffNotes span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 2px solid var(--line);
+  background: var(--blue-soft);
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 820;
+  line-height: 1.3;
+}
+
+.riskBreakdownPanelEmpty {
+  background:
+    linear-gradient(135deg, rgba(126, 235, 177, 0.22), transparent 38%),
+    linear-gradient(315deg, rgba(95, 157, 247, 0.14), transparent 42%),
+    #fff;
+}
+
+.riskEmptyState {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: var(--paper-soft);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.riskEmptyState > strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.riskEmptyState p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 780;
+  line-height: 1.38;
+}
+
+.riskEmptyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.riskEmptyGrid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
+.riskEmptyGrid span {
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 0.66rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.riskEmptyGrid strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 950;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.whatIfAuditPreview {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: var(--yellow);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.whatIfAuditPreview strong {
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 950;
+}
+
+.whatIfAuditPreview p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.incidentRoomPanel {
+  background:
+    linear-gradient(135deg, rgba(255, 218, 94, 0.26), transparent 34%),
+    linear-gradient(315deg, rgba(95, 157, 247, 0.16), transparent 42%),
+    #fff;
+}
+
+.incidentBriefing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: var(--mint);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.incidentBriefing p {
+  margin: 0;
+  font-weight: 870;
+  line-height: 1.42;
+}
+
+.incidentCommand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.incidentCommand div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.incidentCommand span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 920;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incidentCommand strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 940;
+  line-height: 1.34;
+}
+
+.incidentLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(220px, 0.74fr);
+  gap: 14px;
+}
+
+.incidentTaskBoard,
+.incidentSidecar,
+.incidentConsensusGrid,
+.incidentHandoffStream {
+  display: grid;
+  gap: 12px;
+}
+
+.incidentTask {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.incidentTaskHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.incidentTaskHeader > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.incidentTaskHeader > div span {
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.incidentTaskHeader strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.incidentTask p,
+.incidentTask li,
+.incidentConsensus p,
+.incidentHandoff p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.incidentTask ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.incidentEvidenceRefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.incidentEvidenceRefs span,
+.incidentHandoffLine {
+  padding: 8px 10px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-soft);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.28;
+}
+
+.incidentHandoffLine {
+  background: var(--blue-soft);
+}
+
+.incidentConsensus,
+.incidentHandoff {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.incidentConsensus > div,
+.incidentHandoffRoute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.incidentConsensus strong,
+.incidentHandoffRoute span {
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 920;
+  text-transform: capitalize;
+}
+
+.incidentConsensus small,
+.incidentHandoff small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incidentConsensusAgree {
+  background: var(--mint);
+}
+
+.incidentConsensusWatch {
+  background: var(--yellow);
+}
+
+.incidentConsensusBlocked {
+  background: #ffe0e7;
+}
+
+.agentCouncilPanel {
+  background:
+    linear-gradient(135deg, rgba(95, 157, 247, 0.18), transparent 36%),
+    linear-gradient(315deg, rgba(131, 217, 159, 0.16), transparent 42%),
+    #fff;
+}
+
+.auditPackageExplorerPanel {
+  background:
+    linear-gradient(135deg, rgba(95, 157, 247, 0.15), transparent 36%),
+    linear-gradient(315deg, rgba(255, 226, 95, 0.2), transparent 42%),
+    #fff;
+}
+
+.packageExplorerGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.packageExplorerCard {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  min-height: 132px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.packageExplorerCard span {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.packageExplorerCard strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 950;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.packageExplorerCard small {
+  color: var(--ink);
+  font-weight: 760;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.packageExplorerCardBlue {
+  background: var(--blue-soft);
+}
+
+.packageExplorerCardMint {
+  background: var(--mint);
+}
+
+.packageExplorerCardYellow {
+  background: var(--yellow);
+}
+
+.packageExplorerCardPurple {
+  background: var(--purple-soft);
+}
+
+.packageExplorerRows .ticketRow strong {
+  overflow-wrap: anywhere;
+}
+
+.packageExplorerBoundary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-soft);
+  font-size: 0.84rem;
+  font-weight: 820;
+  line-height: 1.34;
+}
+
+.councilSummary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: var(--yellow);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.councilSummary p {
+  margin: 0;
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.councilGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.councilAgent {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.councilAgentHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.councilAgentHeader > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.councilAgentHeader span:first-child {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 920;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.councilAgentHeader strong {
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 950;
+}
+
+.councilAgent p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.38;
+  font-weight: 760;
+}
+
+.confidenceTrack {
+  height: 12px;
+  border: 2px solid var(--line);
+  background: var(--paper-soft);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.confidenceTrack span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--mint));
+}
+
+.councilEvidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.councilEvidence span,
+.councilHandoff {
+  padding: 8px 10px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-soft);
+  font-size: 0.82rem;
+  font-weight: 780;
+  line-height: 1.3;
+}
+
+.councilHandoff {
+  background: var(--blue-soft);
+}
+
+.councilAgentStatusWatch {
+  background: #fff8dd;
+}
+
+.councilAgentStatusBlocked {
+  background: #ffe0e7;
+}
+
+.councilAgentStatusReady {
+  background: #e3f7ea;
+}
+
+.evidenceTimelinePanel {
+  background: var(--cream);
+}
+
+.timelineList {
+  position: relative;
+  display: grid;
+  gap: 12px;
+}
+
+.timelineList::before {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 20px;
+  width: 3px;
+  background: var(--line);
+  content: '';
+}
+
+.timelineStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.timelineMarker {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  width: 42px;
+  min-height: 54px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.timelineMarker span {
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  font-weight: 950;
+}
+
+.timelineStepBody {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.timelineStepHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timelineStepHeader strong {
+  color: var(--ink);
+  font-weight: 950;
+}
+
+.timelineStepHeader span,
+.timelineStepBody small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 920;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timelineStepBody p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.35;
+  font-weight: 760;
+}
+
+.timelineStepComplete .timelineMarker,
+.timelineStepComplete .timelineStepBody {
+  background: var(--mint);
+}
+
+.timelineStepPending .timelineMarker,
+.timelineStepPending .timelineStepBody {
+  background: var(--blue-soft);
+}
+
+.timelineStepWarning .timelineMarker,
+.timelineStepWarning .timelineStepBody {
+  background: var(--yellow);
+}
+
+.timelineStepBlocked .timelineMarker,
+.timelineStepBlocked .timelineStepBody {
+  background: #ffe0e7;
+}
+
+@media (max-width: 980px) {
+  .incidentLayout,
+  .incidentCommand {
+    grid-template-columns: 1fr;
+  }
+
+  .whatIfProjectionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .packageExplorerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .whatIfPresetGroup {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .monitorToggle {
@@ -3403,6 +4254,14 @@ button.walletButton:hover:not(:disabled) {
   background: #fff1c2;
 }
 
+.flowStep:nth-child(5) {
+  background: #ffe0e7;
+}
+
+.flowStep:nth-child(6) {
+  background: var(--paper-soft);
+}
+
 .flowStep:hover,
 .scenarioButton:hover,
 .scenarioButtonActive,
@@ -3437,6 +4296,14 @@ button.walletButton:hover:not(:disabled) {
 
 .flowStep:nth-child(4) .flowStepIcon {
   background: var(--yellow);
+}
+
+.flowStep:nth-child(5) .flowStepIcon {
+  background: #ffc5d3;
+}
+
+.flowStep:nth-child(6) .flowStepIcon {
+  background: var(--cream);
 }
 
 .flowStep span,
@@ -4168,6 +5035,337 @@ button.walletButton:hover:not(:disabled) {
   background: #f7fbff;
 }
 
+.evidenceExplorer {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin-top: 14px;
+}
+
+.evidenceExplorerHeader {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background:
+    linear-gradient(var(--blue) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blue) 1px, transparent 1px),
+    #fff;
+  background-size: 30px 30px;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.evidenceExplorerHeader h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1.1;
+}
+
+.evidenceExplorerStamp {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 4px;
+  min-width: 120px;
+  padding: 10px 12px;
+  border: 3px solid var(--line);
+  background: var(--yellow);
+  box-shadow: 4px 4px 0 var(--line);
+  transform: rotate(1.5deg);
+}
+
+.evidenceExplorerStamp span,
+.evidenceExplorerStamp strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.evidenceExplorerStamp span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.evidenceExplorerStamp strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.1;
+}
+
+.evidenceExplorerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+
+.evidenceCard {
+  display: grid;
+  align-content: start;
+  align-self: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.evidenceCardWide {
+  grid-column: 1 / -1;
+  background:
+    linear-gradient(135deg, rgba(95, 157, 247, 0.2), transparent 34%),
+    #fff;
+}
+
+.evidenceCardHeader,
+.evidenceCardHeader > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.evidenceCardHeader {
+  justify-content: space-between;
+}
+
+.evidenceCardHeader h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
+.evidenceIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: var(--blue-soft);
+  box-shadow: 3px 3px 0 var(--line);
+  flex: 0 0 auto;
+}
+
+.evidenceBadge {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.evidenceBadge .pill {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evidenceRiskGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evidenceScoreBlock {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 98px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: var(--blue-soft);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.evidenceScoreAfter {
+  background: var(--mint);
+}
+
+.evidenceScoreDelta {
+  background: var(--yellow);
+}
+
+.evidenceScoreBlock span,
+.evidenceScoreBlock small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.evidenceScoreBlock strong {
+  color: var(--ink);
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.evidenceSignalStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evidenceSignal {
+  display: inline-flex;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-soft);
+  font-size: 0.78rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.evidenceSignalMedium {
+  background: var(--yellow);
+}
+
+.evidenceSignalHigh,
+.evidenceSignalCritical {
+  color: #fff;
+  background: var(--danger);
+}
+
+.evidenceRows {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.evidenceRow {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 2px solid rgba(7, 17, 31, 0.16);
+  background: var(--paper-soft);
+}
+
+.evidenceRow span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.evidenceRow strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.3;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.evidenceList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.evidenceMuted,
+.evidenceLead,
+.evidenceWarning {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.evidenceMuted {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.evidenceLead {
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.evidenceWarning {
+  padding: 9px 10px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: #ffe0e7;
+  font-size: 0.82rem;
+  font-weight: 820;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.evidenceAgentList,
+.evidenceConsensusList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.evidenceAgentRow,
+.evidenceConsensusRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 2px solid var(--line);
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.evidenceAgentRow strong,
+.evidenceConsensusRow strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.evidenceAgentRow small,
+.evidenceConsensusRow small {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+
+.evidenceMiniGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evidenceMiniGrid span {
+  min-width: 0;
+  padding: 8px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--mint);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
 .receiptMintPanel {
   position: relative;
   overflow: hidden;
@@ -4293,7 +5491,7 @@ button.walletButton:hover:not(:disabled) {
 }
 
 .portfolioPanelWallet .portfolioAssetGrid {
-  max-height: clamp(220px, 32vh, 330px);
+  max-height: clamp(160px, 28vh, 320px);
   padding: 2px 8px 8px 2px;
   overflow: auto;
   scrollbar-gutter: stable;
@@ -4416,13 +5614,19 @@ button.walletButton:hover:not(:disabled) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-height: clamp(72px, 12vh, 150px);
   margin: 0 0 12px;
+  padding: 2px 8px 6px 2px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .walletProtocolHints span {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  max-width: 100%;
+  min-width: 0;
   min-height: 32px;
   padding: 6px 9px;
   border: 2px solid var(--line);
@@ -4430,13 +5634,20 @@ button.walletButton:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.86);
   font-size: 0.76rem;
   font-weight: 820;
+  overflow-wrap: anywhere;
   box-shadow: 3px 3px 0 var(--line);
 }
 
 .walletProtocolHints strong {
+  min-width: 0;
   color: var(--ink);
   font-family: var(--font-pixel);
   font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.walletProtocolHintsMore {
+  background: var(--yellow);
 }
 
 .walletObjectList {
@@ -4449,10 +5660,18 @@ button.walletButton:hover:not(:disabled) {
 .walletObjectListViewport {
   position: relative;
   z-index: 1;
-  max-height: clamp(280px, 38vh, 430px);
+  max-height: clamp(180px, 30vh, 360px);
   padding: 2px 8px 8px 2px;
   overflow: auto;
   scrollbar-gutter: stable;
+}
+
+.walletObjectEmpty {
+  padding: 12px;
+  border: 2px dashed rgba(7, 17, 31, 0.32);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.76);
+  font-weight: 820;
 }
 
 .walletObjectGroup {
@@ -4690,6 +5909,10 @@ button.walletButton:hover:not(:disabled) {
 .walletSourceList {
   display: grid;
   gap: 8px;
+  max-height: clamp(180px, 26vh, 320px);
+  padding-right: 8px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .walletSourceList div {
@@ -4883,10 +6106,6 @@ button.walletButton:hover:not(:disabled) {
       linear-gradient(90deg, rgba(255, 226, 95, 0.12), transparent 45%, rgba(95, 157, 247, 0.1));
   }
 
-  .mainGrid {
-    grid-template-columns: 1fr;
-  }
-
   .stageIntroPrepare {
     grid-template-columns: 1fr;
   }
@@ -4896,12 +6115,28 @@ button.walletButton:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
+  .stageGridAudit {
+    grid-template-columns: 1fr;
+  }
+
+  .auditCommandColumn {
+    order: 2;
+  }
+
   .flowGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stageCue {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 760px) {
+  html {
+    overflow-x: hidden;
+  }
+
   .appShell {
     padding: 0;
   }
@@ -5040,8 +6275,7 @@ button.walletButton:hover:not(:disabled) {
     padding-bottom: 2px;
   }
 
-  .overflowNav a,
-  .overflowNav button {
+  .overflowNav a {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px;
     min-height: 62px;
@@ -5069,8 +6303,15 @@ button.walletButton:hover:not(:disabled) {
 
   .topBar,
   .shellBody {
+    width: calc(100% - 24px);
     margin-left: 12px;
     margin-right: 12px;
+  }
+
+  .stageIntro,
+  .stageSurface {
+    width: 100%;
+    max-width: 100%;
   }
 
   .stageIntro {
@@ -5116,25 +6357,60 @@ button.walletButton:hover:not(:disabled) {
   .panel,
   .executionModeControl {
     padding: 16px;
-    box-shadow: 6px 6px 0 var(--line);
+    box-shadow: 4px 4px 0 var(--line);
   }
 
   .panel:hover,
   .executionModeControl:hover {
     transform: none;
-    box-shadow: 6px 6px 0 var(--line);
+    box-shadow: 4px 4px 0 var(--line);
+  }
+
+  .stageIntro,
+  .whatIfScenarioBrief,
+  .whatIfProjectionGrid .metricCard,
+  .whatIfAuditPreview,
+  .button {
+    box-shadow: 4px 4px 0 var(--line);
+  }
+
+  .whatIfImpactRows .ticketRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .judgeDemoCue,
+  .whatIfDiffGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .judgeDemoCue .button {
+    width: 100%;
+  }
+
+  .whatIfDiffArrow {
+    min-height: 42px;
   }
 
   .flowGrid,
+  .stageCue,
   .scenarioGrid,
   .metricGrid,
   .metricGridPortfolio,
+  .evidenceExplorerGrid,
+  .evidenceRiskGrid,
+  .evidenceMiniGrid,
+  .whatIfPresetGroup,
+  .whatIfProjectionGrid,
+  .packageExplorerGrid,
+  .incidentLayout,
   .portfolioAssetGrid,
   .walletSourceGrid,
+  .riskEmptyGrid,
   .metricGrid.compact,
-    .fieldGrid,
-    .twoUp,
-    .resultGrid {
+  .fieldGrid,
+  .twoUp,
+  .resultGrid {
     grid-template-columns: 1fr;
   }
 
@@ -5202,8 +6478,42 @@ button.walletButton:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
-  .resultDetails {
-    max-height: min(30vh, 260px);
+  .evidenceExplorerHeader,
+  .evidenceCardHeader,
+  .evidenceCardHeader > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .evidenceExplorerStamp {
+    justify-items: start;
+    width: 100%;
+    min-width: 0;
+    transform: none;
+  }
+
+  .evidenceExplorerStamp span,
+  .evidenceExplorerStamp strong {
+    text-align: left;
+  }
+
+  .evidenceBadge {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .evidenceBadge .pill {
+    max-width: 100%;
+  }
+
+  .evidenceRow,
+  .evidenceAgentRow,
+  .evidenceConsensusRow {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceRow strong {
+    text-align: left;
   }
 
   .jsonViewer pre {

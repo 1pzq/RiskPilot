@@ -14,6 +14,14 @@ type WalletSourcePanelProps = {
 export function WalletSourcePanel({ address, assets, walletScan }: WalletSourcePanelProps) {
   const pricedValue = assets.reduce((sum, asset) => sum + asset.usdValue, 0);
   const unpricedAssets = assets.filter((asset) => asset.usdPrice <= 0 || asset.usdValue <= 0);
+  const visibleUnpricedAssets = unpricedAssets.slice(0, 5);
+  const hiddenUnpricedCount = unpricedAssets.length - visibleUnpricedAssets.length;
+  const unpricedAssetSummary =
+    unpricedAssets.length > 0
+      ? `${visibleUnpricedAssets.map((asset) => `${formatCompact(asset.amount)} ${asset.symbol}`).join(', ')}${
+          hiddenUnpricedCount > 0 ? `, +${hiddenUnpricedCount} more` : ''
+        } shown without USD value.`
+      : 'Every displayed coin has a known local price.';
 
   return (
     <section className="panel walletSourcePanel">
@@ -63,11 +71,7 @@ export function WalletSourcePanel({ address, assets, walletScan }: WalletSourceP
         </div>
         <div>
           <strong>Unknown tokens</strong>
-          <span>
-            {unpricedAssets.length > 0
-              ? `${unpricedAssets.map((asset) => `${formatCompact(asset.amount)} ${asset.symbol}`).join(', ')} shown without USD value.`
-              : 'Every displayed coin has a known local price.'}
-          </span>
+          <span>{unpricedAssetSummary}</span>
         </div>
         <div>
           <strong>Position policy</strong>

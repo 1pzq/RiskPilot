@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { BadgeInfo } from 'lucide-react';
 
 import { PixelIcon, type PixelIconName } from './pixel-icon';
@@ -48,8 +48,17 @@ export function AppShell({
   onSectionChange,
   children,
 }: AppShellProps) {
-  function selectSection(section: DemoSection) {
+  function sectionHref(section: DemoSection): string {
+    return `/?stage=${section}#risk-dashboard`;
+  }
+
+  function selectSection(event: MouseEvent<HTMLAnchorElement>, section: DemoSection) {
+    event.preventDefault();
     onSectionChange(section);
+    const url = new URL(window.location.href);
+    url.searchParams.set('stage', section);
+    url.hash = 'risk-dashboard';
+    window.history.replaceState(null, '', url);
     window.requestAnimationFrame(() => {
       document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -123,11 +132,12 @@ export function AppShell({
       <nav className="overflowNav" aria-label="Demo stages">
         {demoSections.map((section) => {
           return (
-            <button
+            <a
+              aria-current={activeSection === section.id ? 'step' : undefined}
               className={activeSection === section.id ? 'active' : ''}
+              href={sectionHref(section.id)}
               key={section.id}
-              type="button"
-              onClick={() => selectSection(section.id)}
+              onClick={(event) => selectSection(event, section.id)}
             >
               <PixelIcon name={section.icon as PixelIconName} className="navPixelIcon" />
               <span className="navText">
@@ -135,7 +145,7 @@ export function AppShell({
                 <strong>{section.label}</strong>
               </span>
               <span className="navBit" aria-hidden="true" />
-            </button>
+            </a>
           );
         })}
       </nav>
