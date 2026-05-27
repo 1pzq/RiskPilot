@@ -2,7 +2,7 @@
 
 Read this first before changing Sui, Walrus, wallet, execution, AI, or cleanup-related files.
 
-Last handoff update: 2026-05-27 after Project Cleanup + Documentation Reset.
+Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
 
 ## Do Not Reset
 
@@ -26,6 +26,7 @@ Last handoff update: 2026-05-27 after Project Cleanup + Documentation Reset.
 - Live DeepBook is explicit opt-in only, gated to eligible spot SUI/USDC or USDC/SUI routes, and requires wallet approval.
 - DeepBook Predict-style protection remains prepare-only.
 - Walrus archive uses mainnet CLI or configured endpoints when available; local fallback is explicit and labeled.
+- Walrus CLI archive now stores blobs with `--permanent` so default Walrus read/status verification is stronger than the deletable default.
 - StrategyReceipt mint is optional and post-archive. It is not proof of automatic trade execution.
 
 ## Implemented Surfaces
@@ -65,6 +66,8 @@ Last handoff update: 2026-05-27 after Project Cleanup + Documentation Reset.
 - Walrus default context: `mainnet`
 - Walrus CLI path/version: `/Users/puzhiqiu/.local/bin/walrus`, `walrus 1.48.1-9c5590a81e29`
 - Last verified Walrus blob from browser prepare/archive smoke test: `fYbZaxhANwoma1ZRxqm8VWL1bMByeg8CkiMKRxtmeCY`
+- Latest verified permanent Walrus probe blob: `8dz45tQS48HQ54shZz2u1ncPrH9DnCue0VcpRMmrJL0`
+- Latest permanent Walrus probe status tx: `34SXDY9ZQqraYzP6p4QjxS4Sxe4skL6R9ksDEDdPweZw`
 - Last receipt mint smoke tx: `Fui3ESVAtzsVwe55tPGE4VirWgouVw68o7kGH7X6woqP`
 - Last receipt mint smoke object: `0x3c0b842ee005037d79f534c396da96eebb614ee37fd2aeb65ff8fbac64a6fd4b`
 
@@ -84,6 +87,7 @@ Last handoff update: 2026-05-27 after Project Cleanup + Documentation Reset.
 
 - `README.md`: public project entry, quick start, safety defaults, structure, latest verification expectations.
 - `docs/judge-walkthrough.md`: canonical 30-second / 3-minute judge demo script.
+- `docs/mainnet-verification.md`: latest mainnet verification report and evidence.
 - `docs/project-introduction.md`: bilingual pitch and product explanation.
 - `docs/runtime-state.md`: maintainer handoff only.
 - `move/README.md`: optional StrategyReceipt package notes.
@@ -98,6 +102,16 @@ Last handoff update: 2026-05-27 after Project Cleanup + Documentation Reset.
 - Added explicit pending Evidence Timeline styling.
 - Updated README and project introduction so docs no longer duplicate long implementation history.
 - Updated `move/README.md` to clarify that StrategyReceipt is optional post-archive proof, not proof of automatic execution.
+
+## Latest Mainnet Verification Summary
+
+- Automated checks passed after verification changes: `npm run lint`, `npm run typecheck`, `npm test` (19 files / 82 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
+- DeepBook mainnet `SUI_USDC` market evidence returned a registered pool at `0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407`.
+- UI prepare/archive successfully produced Walrus mainnet blob `U5zAF1mDIVr0eM4nMe1gdWL5lqoVweJDZ-YTESFcL2s` for audit `audit_aw9pyh`; this pre-permanent blob required `walrus read --skip-consistency-check` because default status verification hit a deletable/quorum warning.
+- Walrus CLI storage was changed to `--permanent`; permanent probe blob `8dz45tQS48HQ54shZz2u1ncPrH9DnCue0VcpRMmrJL0` passed default `walrus read` and `walrus blob-status`, with certified status tx `34SXDY9ZQqraYzP6p4QjxS4Sxe4skL6R9ksDEDdPweZw`.
+- Connected-wallet Chrome verification passed for address `0xc495...8e94`: 3 balance rows, 34 owned objects, 1 DeFi candidate, no synthetic lending/LP insertion, unpriced SPAM did not create an invented trade.
+- Current connected wallet produced a DeepBook Predict-style prepare-only recommendation; `Live Spot mainnet` was correctly disabled because the route was not eligible spot SUI/USDC.
+- `/api/execute` and `/api/audit` both rejected What-if preview payloads with HTTP 400.
 
 ## Verification Expectations
 

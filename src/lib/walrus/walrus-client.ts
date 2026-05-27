@@ -156,7 +156,7 @@ export async function storeAuditPackageWalrusCli(auditPackage: AuditPackage): Pr
 
     const { stdout } = await execFileAsync(
       'walrus',
-      ['store', '--context', 'mainnet', '--epochs', '1', '--json', tempPath],
+      buildWalrusCliStoreArgs(tempPath),
       {
         maxBuffer: 1024 * 1024 * 4,
         timeout: 1000 * 60 * 6,
@@ -181,4 +181,8 @@ export async function storeAuditPackageWalrusCli(auditPackage: AuditPackage): Pr
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+}
+
+export function buildWalrusCliStoreArgs(tempPath: string): string[] {
+  return ['store', '--context', 'mainnet', '--epochs', '1', '--permanent', '--json', tempPath];
 }

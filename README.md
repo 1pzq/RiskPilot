@@ -54,6 +54,7 @@ http://localhost:3000
 Useful links:
 
 - Judge walkthrough: [`docs/judge-walkthrough.md`](docs/judge-walkthrough.md)
+- Mainnet verification report: [`docs/mainnet-verification.md`](docs/mainnet-verification.md)
 - Project introduction / pitch: [`docs/project-introduction.md`](docs/project-introduction.md)
 - Maintainer runtime state: [`docs/runtime-state.md`](docs/runtime-state.md)
 - Optional receipt package: [`move/README.md`](move/README.md)
@@ -140,6 +141,7 @@ move                    Optional StrategyReceipt Move package
 As of the latest cleanup pass:
 
 - `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` are the required release checks.
+- The latest mainnet verification pass is recorded in [`docs/mainnet-verification.md`](docs/mainnet-verification.md), including DeepBook evidence, Walrus archive/readback evidence, connected-wallet notes, and preview guard checks.
 - Browser smoke should cover Overview, Risk, Strategy, Audit, and Prepare on both `localhost:3000` and `127.0.0.1:3000`.
 - Connected-wallet manual verification has previously passed in a normal wallet-capable browser; automation browsers may not expose Slush/provider popups.
 - Do not reset Sui or Walrus configs. See [`docs/runtime-state.md`](docs/runtime-state.md) before touching local chain/storage setup.

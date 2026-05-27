@@ -8,7 +8,7 @@ import { buildMonitorRules } from '../lib/strategy/monitor';
 import { createDefaultPolicy, validateExecutionPolicy } from '../lib/strategy/policy';
 import { buildStrategyRecommendation } from '../lib/strategy/strategy-builder';
 import { createDeepBookMarketEvidence } from '../lib/walrus/audit-package';
-import { storeAuditPackage, storeAuditPackageWalrus } from '../lib/walrus/walrus-client';
+import { buildWalrusCliStoreArgs, storeAuditPackage, storeAuditPackageWalrus } from '../lib/walrus/walrus-client';
 import type { AuditPackage } from '../lib/walrus/types';
 
 const originalFetch = globalThis.fetch;
@@ -113,6 +113,19 @@ afterEach(() => {
 });
 
 describe('Walrus audit storage', () => {
+  it('stores CLI audit blobs as permanent mainnet blobs', () => {
+    expect(buildWalrusCliStoreArgs('/tmp/audit.json')).toEqual([
+      'store',
+      '--context',
+      'mainnet',
+      '--epochs',
+      '1',
+      '--permanent',
+      '--json',
+      '/tmp/audit.json',
+    ]);
+  });
+
   it('keeps DeepBook market evidence in the audit package payload', () => {
     const auditPackage = buildAuditPackage();
 
