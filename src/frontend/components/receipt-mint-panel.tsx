@@ -40,9 +40,8 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
       }),
   });
 
-  const isWalrusArchive = storageResult.mode === 'walrus';
   const canMint = Boolean(
-    RECEIPT_PACKAGE_ID && account && isWalrusArchive && !signAndExecute.isPending && status !== 'success',
+    RECEIPT_PACKAGE_ID && account && !signAndExecute.isPending && status !== 'success',
   );
   const executionDigest =
     auditPackage.execution.digest ??
@@ -63,12 +62,6 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
       return;
     }
 
-    if (!isWalrusArchive) {
-      setStatus('error');
-      setError('Archive to Walrus mainnet before minting an on-chain receipt.');
-      return;
-    }
-
     setStatus('idle');
     setError('');
 
@@ -79,7 +72,7 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
         executionDigest,
       });
 
-      const result = await signAndExecute.mutateAsync({ transaction: tx });
+      const result = await signAndExecute.mutateAsync({ transaction: tx, chain: 'sui:mainnet' });
       const mintedObjectId = extractReceiptObjectId(result.objectChanges);
 
       setDigest(result.digest);
@@ -119,8 +112,12 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
           <strong>{formatAddress(storageResult.id)}</strong>
         </div>
         <div className="ticketRow">
-          <span>Signer</span>
+          <span>Receipt signer</span>
           <strong>{account ? formatAddress(account.address) : 'Connect wallet'}</strong>
+        </div>
+        <div className="ticketRow">
+          <span>Archive payer</span>
+          <strong>{storageResult.paymentLabel ?? 'Connected wallet'}</strong>
         </div>
       </div>
 
@@ -138,10 +135,6 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
           <Wallet size={14} />
           <span>Connect a Sui mainnet wallet to mint the receipt object.</span>
         </div>
-      ) : null}
-
-      {!isWalrusArchive ? (
-        <div className="warningStrip inline">Receipt minting is enabled after a Walrus mainnet archive.</div>
       ) : null}
 
       {status === 'success' ? (
@@ -163,7 +156,7 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
 
       <div className="noteRow">
         <Link2 size={14} />
-        <span>Minting records the strategy ID, Walrus blob ID, and prepared execution ID on Sui mainnet.</span>
+        <span>Minting records the strategy ID, Walrus blob ID, and prepared execution ID on Sui mainnet. Archive and receipt are separate wallet-signed transactions.</span>
       </div>
     </section>
   );

@@ -82,6 +82,21 @@ function buildAuditPackage(): AuditPackage {
 }
 
 describe('audit route', () => {
+  it('rejects ordinary archive payloads because Walrus payment must happen in the connected wallet', async () => {
+    const { POST } = await import('@/app/api/audit/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/audit', {
+        method: 'POST',
+        body: JSON.stringify(buildAuditPackage()),
+      }),
+    );
+    const payload = (await response.json()) as { error?: string };
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toContain('Server-side Walrus archive is disabled');
+  });
+
   it('rejects what-if preview payloads before archive storage', async () => {
     const { POST } = await import('@/app/api/audit/route');
 

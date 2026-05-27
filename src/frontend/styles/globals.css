@@ -4889,6 +4889,48 @@ button.walletButton:hover:not(:disabled) {
   font-size: 1.04rem;
 }
 
+.walletBoundaryNotice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  grid-column: 1 / -1;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: var(--paper-soft);
+  box-shadow: 6px 6px 0 var(--line);
+}
+
+.walletBoundaryNotice div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
+.walletBoundaryNotice span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.walletBoundaryNotice strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.walletBoundaryNotice small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
 .liveExecutionPreview {
   display: grid;
   gap: 14px;
@@ -6468,6 +6510,7 @@ button.walletButton:hover:not(:disabled) {
   .preparePrimaryColumn > .executionModeControl,
   .preparePrimaryColumn > .prepareSafetyPanel,
   .preparePrimaryColumn > .liveExecutionPreview,
+  .preparePrimaryColumn > .walletBoundaryNotice,
   .preparePrimaryColumn > .prepareButton {
     grid-column: 1 / -1;
     grid-row: auto;
@@ -6482,6 +6525,10 @@ button.walletButton:hover:not(:disabled) {
   }
 
   .prepareSafetyPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .walletBoundaryNotice {
     grid-template-columns: 1fr;
   }
 
@@ -6537,6 +6584,7 @@ button.walletButton:hover:not(:disabled) {
 
   .stageIntroAside,
   .prepareRoute,
+  .walletBoundaryNotice,
   .prepareSafetyPanel {
     grid-template-columns: 1fr;
   }

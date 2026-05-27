@@ -4,7 +4,9 @@ Date: 2026-05-27
 Workspace: `/Users/puzhiqiu/Practice/suiOverflow-2026`
 Branch: `main`
 Base commit tested: `45f18b7`
-Scope: Sui mainnet wallet read, DeepBook evidence, Walrus archive, preview guards, browser smoke, and regression checks.
+Scope: Sui mainnet wallet read, DeepBook evidence, historical pre-wallet-paid Walrus archive, preview guards, browser smoke, and regression checks.
+
+> Superseded boundary note, 2026-05-27: RiskPilot now requires wallet-paid Walrus archive. The old CLI evidence below is historical verification only; it is no longer an app runtime path. Current expected behavior is that `/api/audit` rejects server-side archive and Prepare asks the connected browser wallet to pay Walrus register/certify.
 
 ## Secret Redaction
 
@@ -32,7 +34,7 @@ Public chain identifiers such as wallet addresses, transaction digests, object i
 | --- | --- | --- |
 | `npm run lint` | PASS | ESLint completed with exit code 0. |
 | `npm run typecheck` | PASS | `tsc --noEmit` completed with exit code 0. |
-| `npm test` | PASS | 19 test files, 82 tests. |
+| `npm test` | PASS | 19 test files, 81 tests. |
 | `npm run build` | PASS | Next.js 16.2.6 production build completed. |
 | `git diff --check` | PASS | No whitespace errors. |
 | Secret scan | PASS | No real key material found; only a test env var name was matched. |
@@ -73,7 +75,8 @@ The Prepare page successfully archived the judge-mode audit package through Walr
 | --- | --- |
 | Audit id | `audit_aw9pyh` |
 | Prepared id | `prep_1kebs9h` |
-| Storage provider | `walrus-mainnet-cli` |
+| Historical storage provider | pre-wallet-paid CLI probe |
+| Current archive payer/signer expectation | Connected wallet |
 | Blob id | `U5zAF1mDIVr0eM4nMe1gdWL5lqoVweJDZ-YTESFcL2s` |
 | Fallback used | No |
 | Readback | PASS with `walrus read --context mainnet --skip-consistency-check` |
@@ -89,7 +92,8 @@ After the Walrus CLI archive path was changed to use `--permanent`, a small main
 | --- | --- |
 | Audit id | `audit_permanent_probe_1779873575030` |
 | Execution digest | `prep_permanent_probe` |
-| Storage provider | `walrus-mainnet-cli` |
+| Historical storage provider | pre-wallet-paid CLI probe |
+| Current archive payer/signer expectation | Connected wallet |
 | Blob id | `8dz45tQS48HQ54shZz2u1ncPrH9DnCue0VcpRMmrJL0` |
 | Fallback used | No |
 | `walrus read --context mainnet` | PASS |
@@ -118,7 +122,30 @@ Checked in Google Chrome with Slush available.
 | Strategy stage | PASS, DeepBook Predict-style prepare-only recommendation |
 | Live Spot button | PASS, disabled because current route is not eligible Spot SUI/USDC |
 
-No connected-wallet prepare/archive click was performed in this report yet because it would trigger a new paid Walrus mainnet archive. That action should be confirmed at action time.
+Connected-wallet prepare/archive was triggered after the wallet-paid boundary fix. First attempt: the connected wallet paid Walrus register tx `BTgDrrjDPcoeBbzu2UA1T2BaHphx3GUYy49NFYTEX4cf`, which emitted `BlobRegistered` for object `0x5e6de65cdfa35bd9ec5de1e1aca9559caec9b7f566eea4695ff9a97c5ace89fa`; the browser then lost the `signAndExecute` response before upload/certify, verifying payer boundary but not a completed archive.
+
+After adding register/certify response-loss recovery, `Prepare and wallet-paid archive` was re-triggered with the same connected wallet and completed successfully:
+
+| Field | Value |
+| --- | --- |
+| Audit id | `audit_1u99mb6` |
+| Walrus blob | `ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk` |
+| Blob object | `0xdbf1058c9f842f3ae577735d9ce42a76769eee7d8bb5ba8a91d797c29e175cf2` |
+| Register tx | `5PHtpzFqxz8jrXew23nW9QGmCekXNd714D7hCqpCJseS` |
+| Certify tx | `GG6KB537teUvjKMjP4xpqeD4Dao2usQx62kKmVtE69AR` |
+| Register cost | `6821092` MIST SUI and `6380451` WAL from connected wallet |
+| Certify cost | `202040` MIST SUI from connected wallet |
+| Blob size | `35446` bytes |
+| Status | certified permanent Blob through epoch 32 |
+
+Readback verification:
+
+```bash
+walrus read ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk --out /tmp/riskpilot-walrus-read.json
+walrus blob-status --blob-id ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk
+```
+
+`walrus read` reconstructed the audit JSON and `walrus blob-status` reported the related event tx `GG6KB537teUvjKMjP4xpqeD4Dao2usQx62kKmVtE69AR`.
 
 ## Safety Boundary Checks
 
@@ -139,6 +166,7 @@ No connected-wallet prepare/archive click was performed in this report yet becau
 - Walrus CLI storage now uses `--permanent` so future audit packages are non-deletable until expiry and easier to verify with default Walrus consistency checks.
 - Added a regression test asserting the permanent Walrus CLI arguments.
 - Added extra frontend long-text wrapping for warning strips, evidence chips, Agent Council, and Incident Room text surfaces.
+- Superseded by the wallet-paid boundary fix: current UI labels Walrus archive payer/signer as the connected wallet.
 
 ## Final Assessment
 
@@ -153,5 +181,4 @@ Passed:
 - Full lint/typecheck/test/build regression.
 
 Remaining optional checks:
-- Connected-wallet `Prepare and archive action` with user-confirmed Walrus storage spend.
 - Live DeepBook Spot swap only if a wallet state produces an eligible `spot` SUI/USDC or USDC/SUI recommendation and the user explicitly confirms the wallet transaction.

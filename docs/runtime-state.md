@@ -2,7 +2,7 @@
 
 Read this first before changing Sui, Walrus, wallet, execution, AI, or cleanup-related files.
 
-Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
+Last handoff update: 2026-05-27 after wallet-paid Walrus archive verification and Walrus wasm dynamic-loading fix.
 
 ## Do Not Reset
 
@@ -25,9 +25,13 @@ Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
 - Default execution mode is `prepare_mainnet`.
 - Live DeepBook is explicit opt-in only, gated to eligible spot SUI/USDC or USDC/SUI routes, and requires wallet approval.
 - DeepBook Predict-style protection remains prepare-only.
-- Walrus archive uses mainnet CLI or configured endpoints when available; local fallback is explicit and labeled.
-- Walrus CLI archive now stores blobs with `--permanent` so default Walrus read/status verification is stronger than the deletable default.
+- Walrus archive is connected-wallet signed and paid. The browser wallet signs Walrus register/certify and pays required SUI/WAL costs.
+- The browser Walrus archive module is dynamically imported only when Prepare/archive is clicked; do not top-level import `@mysten/walrus` from the app shell.
+- Browser Walrus encoding must use the web wasm URL from `NEXT_PUBLIC_WALRUS_WASM_URL`; otherwise Next/Turbopack can resolve the Node.js wasm entry and throw `ENOENT ... walrus_wasm_bg.wasm`.
+- Server-side Walrus archive is disabled. `/api/audit` returns a hard error and must not be used as a backend payer path.
+- The old off-browser Walrus payer path is historical only and has been removed from the app runtime.
 - StrategyReceipt mint is optional and post-archive. It is not proof of automatic trade execution.
+- Optional StrategyReceipt minting is connected-wallet signed and paid only when the user clicks mint.
 
 ## Implemented Surfaces
 
@@ -54,6 +58,7 @@ Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
 - What-if is estimated preview data only. It must not mutate the base portfolio and must not replace real prepare/archive, Walrus payloads, receipt mint, or live execution data.
 - `/api/execute` and `/api/audit` must reject `previewOnly` or `source: what_if_preview` markers.
 - Audit Package Explorer must render only from real `auditPackage && auditStorage`; it must not read simulated What-if state as the real archive source.
+- UI must distinguish subject wallet, wallet signer, action payer, and Walrus archive payer. Every paid chain action must be signed and paid by the connected wallet.
 
 ## Current Mainnet Environment
 
@@ -77,8 +82,9 @@ Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
 - `NEXT_PUBLIC_SUI_RPC_URL=https://fullnode.mainnet.sui.io:443`
 - `NEXT_PUBLIC_MAINNET_EXECUTION_MODE=prepare`
 - `NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=true`
-- `WALRUS_MODE=walrus`
-- `WALRUS_UPLOAD_METHOD=cli`
+- `NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_URL=https://upload-relay.mainnet.walrus.space`
+- `NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_MAX_TIP_MIST=10000000`
+- `NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@0.2.2/web/walrus_wasm_bg.wasm`
 - `NEXT_PUBLIC_RECEIPT_PACKAGE_ID=0x3f889b1dba8796715690b5b78f6bc7ca0f248a45368649b8116f982bda847b19`
 - Committed AI examples stay provider-neutral and blank-key by default.
 - Local demo provider configuration belongs only in `.env.local`; never copy secret values into docs, source, screenshots, commits, or chat logs.
@@ -105,13 +111,21 @@ Last handoff update: 2026-05-27 after Mainnet Full Verification Pass.
 
 ## Latest Mainnet Verification Summary
 
-- Automated checks passed after verification changes: `npm run lint`, `npm run typecheck`, `npm test` (19 files / 82 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
+- Automated checks passed after verification changes: `npm run lint`, `npm run typecheck`, `npm test` (19 files / 81 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
 - DeepBook mainnet `SUI_USDC` market evidence returned a registered pool at `0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407`.
 - UI prepare/archive successfully produced Walrus mainnet blob `U5zAF1mDIVr0eM4nMe1gdWL5lqoVweJDZ-YTESFcL2s` for audit `audit_aw9pyh`; this pre-permanent blob required `walrus read --skip-consistency-check` because default status verification hit a deletable/quorum warning.
 - Walrus CLI storage was changed to `--permanent`; permanent probe blob `8dz45tQS48HQ54shZz2u1ncPrH9DnCue0VcpRMmrJL0` passed default `walrus read` and `walrus blob-status`, with certified status tx `34SXDY9ZQqraYzP6p4QjxS4Sxe4skL6R9ksDEDdPweZw`.
 - Connected-wallet Chrome verification passed for address `0xc495...8e94`: 3 balance rows, 34 owned objects, 1 DeFi candidate, no synthetic lending/LP insertion, unpriced SPAM did not create an invented trade.
 - Current connected wallet produced a DeepBook Predict-style prepare-only recommendation; `Live Spot mainnet` was correctly disabled because the route was not eligible spot SUI/USDC.
-- `/api/execute` and `/api/audit` both rejected What-if preview payloads with HTTP 400.
+- Wallet-paid boundary fix: Prepare now requires a connected Sui mainnet wallet before archive; Walrus archive uses the browser wallet flow and returns `provider: walrus-mainnet-wallet`.
+- Wallet-paid mainnet attempt reached the Walrus upload relay tip guard; default max relay tip is now `10000000` MIST so the required `2579480` MIST relay tip can proceed to wallet signing.
+- Connected-wallet register transaction `BTgDrrjDPcoeBbzu2UA1T2BaHphx3GUYy49NFYTEX4cf` succeeded on mainnet for wallet `0xc495...8e94`, spending `6821092` MIST SUI and `6380451` WAL. The browser lost the `signAndExecute` response before upload/certify, so no completed archive was recorded from that attempt.
+- Wallet archive recovery patch now catches recoverable register/certify response-loss errors. Register recovery queries recent mainnet `BlobRegistered` events for the encoded blob id and size; certify recovery checks Walrus/Sui blob object state before marking the archive failed.
+- Re-triggered `Prepare and wallet-paid archive` completed successfully through the connected wallet. Audit `audit_1u99mb6` archived to Walrus blob `ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk`, blob object `0xdbf1058c9f842f3ae577735d9ce42a76769eee7d8bb5ba8a91d797c29e175cf2`, register tx `5PHtpzFqxz8jrXew23nW9QGmCekXNd714D7hCqpCJseS`, and certify tx `GG6KB537teUvjKMjP4xpqeD4Dao2usQx62kKmVtE69AR`.
+- The certified blob is permanent until epoch 32. `walrus read --out /tmp/riskpilot-walrus-read.json` reconstructed 35446 bytes; `walrus blob-status --blob-id ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk` reports the related certify event `GG6KB537teUvjKMjP4xpqeD4Dao2usQx62kKmVtE69AR`.
+- Walrus wasm runtime fix: `riskpilot-app.tsx` dynamically imports the wallet archive helper at click time, and `wallet-archive.ts` passes `NEXT_PUBLIC_WALRUS_WASM_URL` to `WalrusClient`. This avoids the Next/Turbopack runtime error that tried to open `/ROOT/node_modules/@mysten/walrus-wasm/nodejs/walrus_wasm_bg.wasm`. Browser reload of `/?stage=prepare#risk-dashboard` showed no runtime overlay and the Prepare button rendered.
+- `/api/audit` now rejects ordinary archive payloads because server-side Walrus payment is disabled; What-if preview payloads still reject with HTTP 400.
+- Live DeepBook Spot and StrategyReceipt mint both pass `chain: sui:mainnet` to wallet signing.
 
 ## Verification Expectations
 

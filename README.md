@@ -12,7 +12,7 @@ Primary track: **Agentic Web**. The product surface is a bounded multi-agent inc
 - Runs an Agentic Incident Room and Agent Council with deterministic fallback and optional AI-backed wording.
 - Recommends bounded DeepBook / DeepBook Predict-style protection or wallet review when no priced actionable route exists.
 - Enforces a user policy gate before prepare or live spot execution paths.
-- Archives the decision package through Walrus mainnet or explicit local fallback.
+- Archives the decision package through connected-wallet Walrus mainnet storage.
 - Optionally mints a Sui StrategyReceipt after archive.
 
 Core rule: **AI explains; deterministic rules decide.**
@@ -22,6 +22,8 @@ Core rule: **AI explains; deterministic rules decide.**
 - Sui network: mainnet only.
 - Default execution mode: `prepare_mainnet`.
 - Live DeepBook is explicit opt-in only, limited to eligible spot SUI/USDC or USDC/SUI routes, and still requires wallet approval.
+- Walrus archive is connected-wallet signed and paid. The browser wallet signs Walrus register/certify and pays required SUI/WAL costs; no backend or local wallet is a default payer.
+- Optional StrategyReceipt minting is browser-wallet signed and paid only when the user clicks the receipt mint action.
 - Connected-wallet mode uses real mainnet wallet rows only; it does not mix in demo assets or synthetic lending/LP positions.
 - What-if output is estimated preview data. It cannot replace real prepare/archive, Walrus payloads, receipt minting, or live execution.
 - AI text can improve explanations, briefings, findings, deliberation, and summaries. It cannot override `policyCheck`, action bounds, final commands, handoffs, DeepBook eligibility, archive behavior, or the `prepare_mainnet` default.
@@ -34,7 +36,7 @@ Requirements:
 - Node.js 20+
 - npm
 - Optional: Slush or another Sui wallet browser extension
-- Optional: Walrus CLI or Walrus HTTP endpoints
+- Optional: Slush or another wallet with enough SUI/WAL for Walrus archive payments
 - Optional: OpenAI-compatible / DeepSeek API key in private `.env.local`
 
 Run:
@@ -66,11 +68,11 @@ Useful links:
 3. Open Risk and switch What-if presets.
 4. Open Strategy and compare base vs stressed posture.
 5. Open Audit to inspect Incident Room, Agent Council, Evidence Timeline, and preview boundaries.
-6. Open Prepare, keep `Prepare mainnet` selected, and archive the decision package.
+6. Connect a funded Sui mainnet wallet, open Prepare, keep `Prepare mainnet` selected, and archive the decision package through wallet-paid Walrus storage.
 7. Inspect Audit Package Explorer and optional StrategyReceipt context.
 8. Connect a wallet only when you want to demonstrate real-wallet mode.
 
-Connected-wallet mode must show live mainnet balances/object scan, hide scenario cards, clear synthetic demo lending/LP positions, and refuse to invent trades from unknown or unpriced coins.
+Connected-wallet mode must show live mainnet balances/object scan, hide scenario cards, clear synthetic demo lending/LP positions, refuse to invent trades from unknown or unpriced coins, and require the connected wallet for any paid chain action.
 
 ## Environment
 
@@ -96,13 +98,10 @@ OPENAI_API_MODE=responses
 OPENAI_REASONING_EFFORT=low
 ```
 
-Optional Walrus archive:
+Connected-wallet Walrus archive:
 
 ```bash
-WALRUS_MODE=walrus
-WALRUS_UPLOAD_METHOD=cli
-WALRUS_PUBLISHER_URL=
-WALRUS_AGGREGATOR_URL=
+NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_URL=https://upload-relay.mainnet.walrus.space
 ```
 
 Optional StrategyReceipt:
@@ -131,7 +130,7 @@ src/lib/risk            Risk engine, fixtures, What-if scenarios, and shared ris
 src/lib/strategy        Strategy builder, policy gate, and monitor rule generation
 src/lib/agents          Incident Room, Agent Council, and AI narrative merge logic
 src/lib/sui             Mainnet Sui wallet/object, DeepBook, and receipt adapters
-src/lib/walrus          Audit packaging plus Walrus/local storage adapters
+src/lib/walrus          Audit packaging plus connected-wallet Walrus archive helpers
 src/test                Focused safety and regression tests
 move                    Optional StrategyReceipt Move package
 ```

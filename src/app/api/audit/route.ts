@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import type { AuditPackage } from '@/lib/walrus/types';
-import { storeAuditPackage } from '@/lib/walrus/walrus-client';
+import { SERVER_WALRUS_ARCHIVE_DISABLED_MESSAGE } from '@/lib/walrus/walrus-client';
+import { hasWhatIfPreviewMarker } from '@/lib/walrus/preview-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,20 +28,6 @@ const BodySchema = z
   })
   .passthrough();
 
-function hasWhatIfPreviewMarker(value: unknown): boolean {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  if (record.previewOnly === true || record.source === 'what_if_preview') {
-    return true;
-  }
-
-  return Object.values(record).some((entry) => hasWhatIfPreviewMarker(entry));
-}
-
 export async function POST(request: Request) {
   try {
     const auditPackage = BodySchema.parse(await request.json()) as AuditPackage;
@@ -54,12 +41,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const storage = await storeAuditPackage(auditPackage);
-
-    return NextResponse.json({
-      auditPackage,
-      storage,
-    });
+    return NextResponse.json(
+      {
+        error: SERVER_WALRUS_ARCHIVE_DISABLED_MESSAGE,
+      },
+      { status: 400 },
+    );
   } catch (error) {
     return NextResponse.json(
       {

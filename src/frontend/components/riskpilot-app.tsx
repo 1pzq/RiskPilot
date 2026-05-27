@@ -66,9 +66,11 @@ import {
   getDeepBookLiveGate,
   type DeepBookLiveMarketSnapshot,
 } from '@/lib/sui/deepbook-live';
+import { prepareDeepBookTransaction, simulateDeepBookAction } from '@/lib/sui/deepbook';
 
 type ExplanationStatus = 'idle' | 'ready' | 'loading' | 'fallback';
 type SelectedExecutionMode = 'simulation' | 'prepare_mainnet' | 'mainnet';
+const ARCHIVE_AI_TIMEOUT_MS = 4500;
 
 function selectedModeLabel(mode: SelectedExecutionMode) {
   if (mode === 'prepare_mainnet') {
@@ -86,6 +88,31 @@ function formatTradeAmount(value: number, asset: string): string {
   return `${value.toLocaleString(undefined, {
     maximumFractionDigits: asset === 'USDC' ? 2 : 6,
   })} ${asset}`;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+function archivePaymentLabel(storage: AuditStorageResult | null): string {
+  return storage?.paymentLabel ?? 'Connected wallet required';
+}
+
+function archiveSignerLabel(storage: AuditStorageResult | null): string {
+  return storage?.signerLabel ?? 'Connected wallet required';
 }
 
 type RiskPilotAppProps = {
@@ -124,6 +151,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   const [auditStorage, setAuditStorage] = useState<AuditStorageResult | null>(null);
   const [executionMode, setExecutionMode] = useState('pending');
   const [executionStatus, setExecutionStatus] = useState('awaiting approval');
+  const [walletArchiveStatus, setWalletArchiveStatus] = useState('');
   const [aiAgentCouncil, setAiAgentCouncil] = useState<AgentCouncilDecision | null>(null);
   const [, setAgentCouncilStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
   const [, setAiIncidentRoom] = useState<IncidentRoomDecision | null>(null);
@@ -608,13 +636,17 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setAgentCouncilStatus('loading');
 
       try {
-        const response = await fetch('/api/agent-council', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify(buildAgentCouncilRequest(input)),
-        });
+        const response = await withTimeout(
+          fetch('/api/agent-council', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify(buildAgentCouncilRequest(input)),
+          }),
+          ARCHIVE_AI_TIMEOUT_MS,
+          'Agent council',
+        );
 
         if (!response.ok) {
           throw new Error(`Agent council endpoint returned ${response.status}`);
@@ -685,13 +717,17 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setIncidentRoomStatus('loading');
 
       try {
-        const response = await fetch('/api/incident-room', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify(buildIncidentRoomRequest(input)),
-        });
+        const response = await withTimeout(
+          fetch('/api/incident-room', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify(buildIncidentRoomRequest(input)),
+          }),
+          ARCHIVE_AI_TIMEOUT_MS,
+          'Incident room',
+        );
 
         if (!response.ok) {
           throw new Error(`Incident room endpoint returned ${response.status}`);
@@ -904,18 +940,22 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setExplanationStatus('loading');
 
       try {
-        const response = await fetch('/api/explain', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            portfolioSnapshot: portfolio,
-            riskReport,
-            recommendation,
-            policy: currentPolicy,
+        const response = await withTimeout(
+          fetch('/api/explain', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              portfolioSnapshot: portfolio,
+              riskReport,
+              recommendation,
+              policy: currentPolicy,
+            }),
           }),
-        });
+          ARCHIVE_AI_TIMEOUT_MS,
+          'Explanation',
+        );
 
         if (!response.ok) {
           throw new Error(`Explain endpoint returned ${response.status}`);
@@ -970,6 +1010,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
+    setWalletArchiveStatus('');
   }, [resetAiPreviewState]);
 
   const handleScenarioChange = useCallback((scenarioId: DemoScenarioId) => {
@@ -1041,9 +1082,15 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
     setExecutionBusy(true);
     setExecuteWarning('');
+    setWalletArchiveStatus('Preparing wallet-paid audit package.');
 
     try {
-      const currentExplanation = await refreshExplanation(policyRef.current ?? effectivePolicy);
+      if (!account?.address) {
+        throw new Error('Connect a Sui mainnet wallet before preparing and archiving. Paid archive storage must be signed by the connected wallet.');
+      }
+
+      const currentPolicy = policyRef.current ?? effectivePolicy;
+      const currentExplanation = buildMockExplanation(portfolio, riskReport, recommendation, currentPolicy);
       let auditMarketSnapshot = deepbookMarketSnapshot;
       let execution: AuditPackage['execution'];
 
@@ -1061,7 +1108,11 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             recommendation,
             marketSnapshot,
           );
-          const liveResult = await signAndExecute.mutateAsync({ transaction: liveExecution.transaction });
+          setWalletArchiveStatus('Waiting for connected wallet to sign live DeepBook transaction.');
+          const liveResult = await signAndExecute.mutateAsync({
+            transaction: liveExecution.transaction,
+            chain: 'sui:mainnet',
+          });
           const effectsStatus = liveResult.effects?.status?.status;
           const effectsError = liveResult.effects?.status?.error;
           const liveStatus =
@@ -1094,57 +1145,42 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               requestedMode: 'mainnet',
               mainnetOnly: true,
             },
+            authority: {
+              signer: 'connected_wallet',
+              payer: 'connected_wallet',
+              signerLabel: 'Connected Sui wallet',
+              payerLabel: 'Connected Sui wallet',
+              walletAddress: account.address,
+              note: 'The connected wallet signs and pays this live Sui transaction and then signs the Walrus archive transactions.',
+            },
           };
         } catch (liveError) {
           const liveWarning = buildLiveDeepBookFailureWarning(liveError);
           setExecuteWarning(liveWarning);
 
-          const executeResponse = await fetch('/api/execute', {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              recommendation,
-              policy: effectivePolicy,
-              policyCheck,
-              walletAddress,
-              executionMode: 'prepare_mainnet',
-            }),
-          });
-
-          if (!executeResponse.ok) {
-            const payload = (await executeResponse.json().catch(() => null)) as { error?: string } | null;
-            throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
-          }
-
-          const prepareFallback = (await executeResponse.json()) as AuditPackage['execution'];
+          const prepareFallback = prepareDeepBookTransaction(
+            recommendation.deepbookAction,
+            account.address,
+            'prepare_mainnet',
+          );
           execution = {
             ...prepareFallback,
             warning: [liveWarning, prepareFallback.warning].filter(Boolean).join(' '),
           };
         }
       } else {
-        const executeResponse = await fetch('/api/execute', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            recommendation,
-            policy: effectivePolicy,
-            policyCheck,
-            walletAddress,
-            executionMode: effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
-          }),
-        });
-
-        if (!executeResponse.ok) {
-          const payload = (await executeResponse.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? `Execution failed with ${executeResponse.status}`);
-        }
-
-        execution = (await executeResponse.json()) as AuditPackage['execution'];
+        execution =
+          effectiveSelectedExecutionMode === 'simulation'
+            ? {
+                ...simulateDeepBookAction(recommendation.deepbookAction),
+                warning:
+                  'Local simulation mode selected. No DeepBook transaction is submitted; the connected wallet still pays Walrus archive storage.',
+              }
+            : prepareDeepBookTransaction(
+                recommendation.deepbookAction,
+                account.address,
+                effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
+              );
       }
 
       if (execution.warning) {
@@ -1153,7 +1189,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
       const deepbookMarketEvidence = createDeepBookMarketEvidence({
         snapshot: auditMarketSnapshot,
-        walletAddress: account?.address ?? '0x2',
+        walletAddress: account.address,
         poolKey: 'SUI_USDC',
         routeStatus: deepbookMarketStatus,
         error: deepbookMarketError,
@@ -1161,7 +1197,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       const finalAgentCouncil = buildAgentCouncilDecision({
         riskReport,
         recommendation,
-        policy: effectivePolicy,
+        policy: currentPolicy,
         policyCheck,
         monitorRules,
         deepbookMarketEvidence,
@@ -1171,15 +1207,11 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         receiptEnabled: Boolean(receiptPackageId),
         liveGate: liveDeepBookGate,
       });
-      const archivedAgentCouncil = await refreshAgentCouncil({
-        deepbookMarketEvidence,
-        auditArchived: true,
-        fallback: finalAgentCouncil,
-      });
+      const archivedAgentCouncil = finalAgentCouncil;
       const finalIncidentRoom = buildIncidentRoomDecision({
         riskReport,
         recommendation,
-        policy: effectivePolicy,
+        policy: currentPolicy,
         policyCheck,
         monitorRules,
         deepbookMarketEvidence,
@@ -1190,21 +1222,16 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         liveGate: liveDeepBookGate,
         agentCouncil: archivedAgentCouncil,
       });
-      const archivedIncidentRoom = await refreshIncidentRoom({
-        deepbookMarketEvidence,
-        auditArchived: true,
-        agentCouncil: archivedAgentCouncil,
-        fallback: finalIncidentRoom,
-      });
+      const archivedIncidentRoom = finalIncidentRoom;
 
       const auditPayload = createAuditPackage({
-        walletAddress,
+        walletAddress: account.address,
         portfolioSnapshot: portfolio,
         riskReportBefore: riskReport,
         recommendation,
         monitorRules,
         deepbookMarketEvidence,
-        policy: effectivePolicy,
+        policy: currentPolicy,
         policyCheck,
         agentCouncil: archivedAgentCouncil,
         incidentRoom: archivedIncidentRoom,
@@ -1213,28 +1240,37 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         riskReportAfter: estimatedAfterRisk,
       });
 
-      const auditResponse = await fetch('/api/audit', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(auditPayload),
+      setAiAgentCouncil(archivedAgentCouncil);
+      setAgentCouncilStatus('fallback');
+      setAiIncidentRoom(archivedIncidentRoom);
+      setIncidentRoomStatus('fallback');
+      setWalletArchiveStatus('Loading wallet-paid Walrus archive module.');
+      const { storeAuditPackageWithConnectedWallet } = await import('@/lib/walrus/wallet-archive');
+      setWalletArchiveStatus('Audit package ready. Opening wallet for Walrus register.');
+      const storage = await storeAuditPackageWithConnectedWallet({
+        auditPackage: auditPayload,
+        walletAddress: account.address,
+        signAndExecute: ({ transaction, chain }) => signAndExecute.mutateAsync({ transaction, chain }),
+        onProgress: ({ message }) => setWalletArchiveStatus(message),
       });
 
-      if (!auditResponse.ok) {
-        const payload = (await auditResponse.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? `Audit upload failed with ${auditResponse.status}`);
-      }
-
-      const payload = (await auditResponse.json()) as {
-        auditPackage: AuditPackage;
-        storage: AuditStorageResult;
-      };
-
-      setAuditPackage(payload.auditPackage);
-      setAuditStorage(payload.storage);
+      setAuditPackage(auditPayload);
+      setAuditStorage(storage);
       setExecutionMode(execution.mode);
       setExecutionStatus(execution.status);
+      setWalletArchiveStatus('Wallet-paid Walrus archive certified.');
+      void refreshAgentCouncil({
+        deepbookMarketEvidence,
+        auditArchived: true,
+        fallback: archivedAgentCouncil,
+      }).then((refreshedCouncil) =>
+        refreshIncidentRoom({
+          deepbookMarketEvidence,
+          auditArchived: true,
+          agentCouncil: refreshedCouncil,
+          fallback: archivedIncidentRoom,
+        }),
+      );
     } catch (error) {
       setExecuteWarning(
         error instanceof Error ? error.message : 'Execution or audit preparation failed.',
@@ -1261,12 +1297,11 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     portfolio,
     receiptPackageId,
     recommendation,
-    refreshExplanation,
     refreshAgentCouncil,
     refreshIncidentRoom,
     riskReport,
     signAndExecute,
-    walletAddress,
+    setWalletArchiveStatus,
   ]);
 
   const liveModeFallbackWarning =
@@ -1338,8 +1373,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     },
     prepare: {
       proof: 'Mainnet prepare desk',
-      evidence: auditStorage ? `${auditStorage.mode} archive ready` : 'Walrus/local archive target pending',
-      boundary: liveSubmitSelected ? 'Real submit requires wallet approval' : 'Prepare-only is the default',
+      evidence: auditStorage ? 'wallet-paid Walrus archive ready' : 'Wallet-paid Walrus archive pending',
+      boundary: liveSubmitSelected ? 'Every paid action requires wallet approval' : 'Prepare-only still requires wallet-paid archive',
     },
   };
 
@@ -1446,6 +1481,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               storageMode={auditStorage?.mode ?? 'pending'}
               storageId={auditStorage?.id ?? ''}
               storageUrl={auditStorage?.url}
+              storagePaymentLabel={archivePaymentLabel(auditStorage)}
               onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
               refreshing={explanationStatus === 'loading' || executionBusy}
             />
@@ -1499,7 +1535,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     );
     const prepareButtonLabel = liveSubmitSelected
       ? 'Submit real Sui mainnet transaction and archive'
-      : 'Prepare and archive action';
+      : 'Prepare and wallet-paid archive';
 
     return (
       <div className="stageGrid stageGridPrepare">
@@ -1509,8 +1545,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             <span className="fieldLabel">Action mode</span>
             <div className="optionGroup optionGroupWide" role="radiogroup" aria-label="Action mode">
               {[
-                { value: 'prepare_mainnet' as const, label: 'Prepare mainnet', detail: 'default' },
-                { value: 'simulation' as const, label: 'Local simulation', detail: 'fallback' },
+                { value: 'prepare_mainnet' as const, label: 'Prepare mainnet', detail: 'wallet archive' },
+                { value: 'simulation' as const, label: 'Local simulation', detail: 'wallet archive' },
                 {
                   value: 'mainnet' as const,
                   label: 'Live Spot mainnet',
@@ -1529,6 +1565,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                     setExecutionMode('pending');
                     setExecutionStatus('awaiting approval');
                     setExecuteWarning('');
+                    setWalletArchiveStatus('');
                   }}
                 >
                   <span>{mode.label}</span>
@@ -1579,6 +1616,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
               <div className="warningStrip inline">
                 This button submits a real Sui mainnet DeepBook Spot transaction. Your connected wallet must sign and confirm it.
+                Walrus archive storage is also signed and paid by the connected wallet.
               </div>
             </section>
           ) : selectedExecutionMode === 'mainnet' && liveGateReasons.length > 0 ? (
@@ -1591,31 +1629,57 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             </div>
           ) : null}
 
+          <div className="walletBoundaryNotice" role="note" aria-label="Payment and signer boundary">
+            <div>
+              <span>Subject wallet</span>
+              <strong>{account ? formatAddress(account.address) : 'Judge scenario wallet'}</strong>
+              <small>Read for balances, objects, and risk context.</small>
+            </div>
+            <div>
+              <span>Wallet signer</span>
+              <strong>Connected wallet</strong>
+              <small>{liveSubmitSelected ? 'Signs live Spot plus Walrus archive.' : 'Signs Walrus register and certify.'}</small>
+            </div>
+            <div>
+              <span>Archive payer</span>
+              <strong>{archivePaymentLabel(auditStorage)}</strong>
+              <small>Walrus archive is blocked unless this wallet pays.</small>
+            </div>
+          </div>
+
+          {walletArchiveStatus ? <div className="noteRow">{walletArchiveStatus}</div> : null}
+
           <button
             className="button buttonPrimary prepareButton"
             type="button"
             onClick={() => void prepareAndArchive()}
-            disabled={!policyCheck.ok || executionBusy}
+            disabled={!policyCheck.ok || executionBusy || !account}
           >
             {executionBusy ? 'Preparing…' : prepareButtonLabel}
           </button>
 
+          {!account ? (
+            <div className="warningStrip inline">
+              Connect a Sui mainnet wallet before Prepare/archive. Walrus storage has no backend or local-wallet payer.
+            </div>
+          ) : null}
+
           <section className="prepareSafetyPanel" aria-label="Prepare safety locks">
             <div className="prepareSafetyCard prepareSafetyCardBlue">
-              <span>{liveSubmitSelected ? 'Live submit' : 'No live submit'}</span>
-              <strong>{liveSubmitSelected ? 'Wallet-signed mainnet tx' : 'Prepared record only'}</strong>
+              <span>Wallet signer</span>
+              <strong>Required for archive</strong>
             </div>
             <div className="prepareSafetyCard prepareSafetyCardYellow">
-              <span>Mainnet path</span>
-              <strong>{liveSubmitSelected ? 'DeepBook Spot only' : 'Sui + DeepBook context'}</strong>
+              <span>Mainnet action payer</span>
+              <strong>{liveSubmitSelected ? 'Connected wallet' : 'No trade payment'}</strong>
             </div>
             <div className="prepareSafetyCard prepareSafetyCardMint">
-              <span>Audit storage</span>
-              <strong>{auditStorage ? auditStorage.mode : 'Walrus fallback-ready'}</strong>
+              <span>Archive payer</span>
+              <strong>{archivePaymentLabel(auditStorage)}</strong>
             </div>
             <div className="prepareSafetyCard prepareSafetyCardPurple">
-              <span>Receipt contract</span>
-              <strong>{receiptPackageId ? 'Published on mainnet' : 'Optional'}</strong>
+              <span>Receipt signer</span>
+              <strong>{receiptPackageId ? 'Wallet only if minted' : 'Optional'}</strong>
             </div>
           </section>
         </div>
@@ -1653,11 +1717,15 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               <div className="prepareRouteStep">
                 <span>03</span>
                 <strong>Archive</strong>
-                <small>{auditStorage ? auditStorage.mode : 'pending'}</small>
+                <small>{auditStorage ? archivePaymentLabel(auditStorage) : 'wallet payer required'}</small>
               </div>
             </div>
 
             <div className="ticketRows">
+              <div className="ticketRow">
+                <span>Subject wallet</span>
+                <strong>{formatAddress(walletAddress)}</strong>
+              </div>
               <div className="ticketRow">
                 <span>Mode</span>
                 <strong>{selectedMode}</strong>
@@ -1678,12 +1746,20 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                 <span>Receipt package</span>
                 <strong>{receiptPackageId ? formatAddress(receiptPackageId) : 'Not configured'}</strong>
               </div>
+              <div className="ticketRow">
+                <span>Walrus payer</span>
+                <strong>{archivePaymentLabel(auditStorage)}</strong>
+              </div>
+              <div className="ticketRow">
+                <span>Archive signer</span>
+                <strong>{archiveSignerLabel(auditStorage)}</strong>
+              </div>
             </div>
 
             <p className="panelCopy">
               {liveSubmitSelected
-                ? 'Live Spot mode is selected. The CTA submits a real Sui mainnet transaction only after the connected wallet signs it, then archives the result.'
-                : 'The action is staged as a prepared record first. No live transaction is submitted unless live mode is explicitly eligible and selected.'}
+                ? 'Live Spot mode is selected. The connected wallet signs the Sui transaction, then signs and pays Walrus register and certify.'
+                : 'The action is staged as a prepared record first, then the connected wallet signs and pays Walrus register and certify. No off-browser wallet is used.'}
             </p>
           </section>
 

@@ -9,6 +9,7 @@ type AuditLogPanelProps = {
   storageMode: string;
   storageId: string;
   storageUrl?: string;
+  storagePaymentLabel?: string;
   onRefresh: () => void;
   refreshing: boolean;
 };
@@ -20,6 +21,7 @@ export function AuditLogPanel({
   storageMode,
   storageId,
   storageUrl,
+  storagePaymentLabel,
   onRefresh,
   refreshing,
 }: AuditLogPanelProps) {
@@ -49,6 +51,10 @@ export function AuditLogPanel({
           <span>Audit id</span>
           <span>{storageId || 'pending'}</span>
         </div>
+        <div className="positionLine">
+          <span>Archive payer</span>
+          <span>{storagePaymentLabel ?? 'Connected wallet required'}</span>
+        </div>
         {storageUrl ? (
           <div className="positionLine">
             <span>URL</span>
@@ -59,7 +65,7 @@ export function AuditLogPanel({
 
       <div className="noteRow">
         <FileJson2 size={14} />
-        <span>Audit JSON appears after the mainnet action is prepared.</span>
+        <span>Audit JSON appears after the mainnet action is prepared. Walrus archive register and certify must be signed and paid by the connected wallet.</span>
       </div>
     </section>
   );

@@ -12,11 +12,15 @@ type AuditPackageExplorerProps = {
 };
 
 function storageLabel(storage: AuditStorageResult): string {
-  if (storage.mode === 'walrus') {
-    return storage.provider ?? 'walrus archive';
-  }
+  return storage.provider ?? 'walrus archive';
+}
 
-  return storage.provider ?? 'local fallback';
+function archivePaymentLabel(storage: AuditStorageResult): string {
+  return storage.paymentLabel ?? 'Connected wallet';
+}
+
+function archiveSignerLabel(storage: AuditStorageResult): string {
+  return storage.signerLabel ?? 'Connected wallet';
 }
 
 export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPackageExplorerProps) {
@@ -25,7 +29,6 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
   const marketEvidence = auditPackage.deepbookMarketEvidence;
   const incidentTasks = auditPackage.incidentRoom?.tasks.length ?? 0;
   const councilAgents = auditPackage.agentCouncil?.agents.length ?? 0;
-  const archiveIsWalrus = storageResult.mode === 'walrus';
 
   return (
     <section className="panel auditPackageExplorerPanel">
@@ -34,7 +37,7 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
           <p className="eyebrow">Audit package explorer</p>
           <h2 className="panelTitle">Readable evidence package</h2>
         </div>
-        <span className={`pill ${archiveIsWalrus ? 'pillSuccess' : 'pillWarn'}`}>
+        <span className="pill pillSuccess">
           <Archive size={14} />
           {storageLabel(storageResult)}
         </span>
@@ -108,8 +111,16 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
           </strong>
         </div>
         <div className="ticketRow">
-          <span>Wallet</span>
+          <span>Subject wallet</span>
           <strong>{formatAddress(auditPackage.walletAddress)}</strong>
+        </div>
+        <div className="ticketRow">
+          <span>Archive payer</span>
+          <strong>{archivePaymentLabel(storageResult)}</strong>
+        </div>
+        <div className="ticketRow">
+          <span>Archive signer</span>
+          <strong>{archiveSignerLabel(storageResult)}</strong>
         </div>
         <div className="ticketRow">
           <span>Checksum</span>
@@ -120,8 +131,8 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
       <div className="packageExplorerBoundary">
         <FileJson2 size={15} />
         <span>
-          Explorer reads only the archived audit package returned by prepare/archive. What-if preview room and strategy
-          diff stay outside this real evidence package.
+          Explorer reads the archived audit package for the subject wallet. Walrus archive payment and certification
+          come from the connected wallet; no backend or local wallet is a default payer.
         </span>
       </div>
 

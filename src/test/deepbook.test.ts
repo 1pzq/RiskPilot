@@ -26,6 +26,14 @@ describe('DeepBook adapter', () => {
     expect(result.adapter.venue).toBe('DeepBook Predict mainnet');
     expect(result.adapter.mainnetOnly).toBe(true);
     expect(result.transactionBytes).toMatch(/^0x/u);
+    expect(result.authority).toEqual(
+      expect.objectContaining({
+        signer: 'none',
+        payer: 'none',
+        signerLabel: 'No wallet signature',
+        payerLabel: 'No chain payment',
+      }),
+    );
   });
 
   it('returns a local simulation fallback with a unique simulation id', () => {
@@ -35,6 +43,12 @@ describe('DeepBook adapter', () => {
     expect(result.status).toBe('prepared');
     expect(result.simulationId).toMatch(/^sim_/u);
     expect(result.adapter.venue).toBe('local simulation');
+    expect(result.authority).toEqual(
+      expect.objectContaining({
+        signer: 'none',
+        payer: 'none',
+      }),
+    );
   });
 
   it('normalizes environment execution mode safely', () => {

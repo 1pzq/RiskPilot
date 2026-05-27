@@ -8,6 +8,7 @@ import {
   executeDeepBookTransaction,
   executionModeFromEnvironment,
 } from '@/lib/sui/deepbook';
+import { hasWhatIfPreviewMarker } from '@/lib/walrus/preview-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,20 +57,6 @@ const BodySchema = z.object({
   executionMode: z.enum(['simulation', 'prepare_mainnet', 'mainnet']).optional(),
 })
   .passthrough();
-
-function hasWhatIfPreviewMarker(value: unknown): boolean {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  if (record.previewOnly === true || record.source === 'what_if_preview') {
-    return true;
-  }
-
-  return Object.values(record).some((entry) => hasWhatIfPreviewMarker(entry));
-}
 
 export async function POST(request: Request) {
   try {

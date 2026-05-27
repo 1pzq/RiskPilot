@@ -7,12 +7,12 @@ Submission framing: RiskPilot's primary track is **Agentic Web**. The agent syst
 The Final Completeness Pass should be visible in the demo:
 
 - **One-click Judge Demo Mode**: start disconnected, choose a curated scenario, and show that the whole flow works without wallet funds or secrets.
-- **Audit Package Explorer**: after prepare/archive, expand the evidence bundle and point to policy, DeepBook evidence, Incident Room JSON, Agent Council JSON, checksum, storage provider, and raw audit JSON.
+- **Audit Package Explorer**: after prepare/archive, expand the evidence bundle and point to policy, DeepBook evidence, Incident Room JSON, Agent Council JSON, checksum, storage provider, archive payer, and raw audit JSON.
 - **What-if Strategy Diff**: in Risk/Audit, compare the base strategy against a preview stress scenario and say clearly that the diff is estimated and cannot replace the real prepare/archive payload.
 
 ## 30-Second Elevator Pitch
 
-RiskPilot is an Agentic Web incident room for Sui DeFi risk. It reads a Sui mainnet wallet or a one-click judge scenario, runs deterministic risk checks, lets bounded agents explain and hand off the case, proposes a policy-gated DeepBook protection action, and archives the decision package through Walrus or a local fallback. The key safety point is simple: AI writes the briefing, deterministic rules lock policy and execution. What-if strategy diffs are preview-only; they never replace the real archive or execution payload.
+RiskPilot is an Agentic Web incident room for Sui DeFi risk. It reads a Sui mainnet wallet or a one-click judge scenario, runs deterministic risk checks, lets bounded agents explain and hand off the case, proposes a policy-gated DeepBook protection action, and archives the decision package through connected-wallet Walrus storage. The key safety point is simple: AI writes the briefing, deterministic rules lock policy and execution. What-if strategy diffs are preview-only; they never replace the real archive or execution payload.
 
 ## 3-Minute Demo Script
 
@@ -82,12 +82,12 @@ Key line:
 
 ### 2:30-3:00 - Prepare
 
-"Finally we leave execution mode on Prepare mainnet, the default safety posture. When I click prepare and archive, RiskPilot prepares the action package, checks policy, attaches DeepBook evidence, and archives the decision through Walrus mainnet or an explicit local fallback. Optional receipt minting can happen after archive, but the default demo path is prepare-only."
+"Finally we leave execution mode on Prepare mainnet, the default safety posture. When I click prepare and wallet-paid archive, RiskPilot prepares the action package, checks policy, attaches DeepBook evidence, and asks the connected wallet to register and certify Walrus storage. The same boundary applies to live Spot and receipts: if a chain action costs money, the connected wallet signs and pays it."
 
 Show:
 - `Prepare mainnet (default)`.
 - Policy gate status.
-- Audit Package Explorer: prepared digest, audit id, checksum, storage provider, DeepBook evidence, Incident Room JSON, Agent Council JSON, and raw Audit JSON.
+- Audit Package Explorer: prepared digest, audit id, checksum, storage provider, archive payer/signer, DeepBook evidence, Incident Room JSON, Agent Council JSON, and raw Audit JSON.
 
 Key line:
 "The final artifact is not just a recommendation. It is an Audit Package Explorer for the Wallet Scan-to-Receipt evidence chain, and judges can inspect it without any private key or secret."
@@ -101,7 +101,7 @@ No. AI only writes explanation, briefing, task finding wording, deliberation wor
 The primary product surface is the bounded agent workflow: Incident Room roles, task findings, handoffs, council synthesis, strategy diff, and an inspectable evidence chain. Sui mainnet, DeepBook, and Walrus make the agent decisions verifiable with real wallet state, market evidence, and storage.
 
 **What happens if the AI provider is unavailable?**  
-RiskPilot falls back to deterministic text. The Sui wallet read, risk engine, policy gate, prepare path, Walrus/local archive, and audit package continue to work.
+RiskPilot falls back to deterministic text. The Sui wallet read, risk engine, policy gate, prepare path, connected-wallet Walrus archive, and audit package continue to work.
 
 **What makes What-if safe?**  
 What-if uses a cloned portfolio and marks output as estimated preview data. It is a strategy diff only: it cannot replace the real portfolio, cannot pass into `/api/execute` or `/api/audit` as the real payload, cannot mint a receipt, and cannot submit live execution.
@@ -113,7 +113,7 @@ Both modes are explicit. Judge mode uses curated scenarios for a clean walkthrou
 DeepBook provides the market evidence and bounded SUI/USDC action path. DeepBook Predict-style protection remains prepare-only. Live DeepBook spot execution is not the default and requires explicit eligible routing plus wallet approval.
 
 **Where does Walrus fit?**  
-Walrus stores the audit package when available. If Walrus is unavailable, RiskPilot labels the local fallback clearly. Either way, the audit payload preserves portfolio, risk, strategy, policy, DeepBook evidence, Incident Room, Agent Council, archive result, and optional receipt context.
+Walrus stores the audit package through the connected wallet. The browser wallet signs Walrus register and certify transactions and pays the required storage costs; no backend or local wallet is a default payer. The audit payload preserves portfolio, risk, strategy, policy, DeepBook evidence, Incident Room, Agent Council, archive result, and optional receipt context.
 
 **What is the strongest safety claim?**  
 RiskPilot separates narrative from authority: agents can brief the user, but deterministic rules lock the policy and execution boundary.

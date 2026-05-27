@@ -66,19 +66,39 @@ export type AuditPackage = {
       requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
       mainnetOnly: true;
     };
+    authority?: {
+      signer: 'connected_wallet' | 'none';
+      payer: 'connected_wallet' | 'none';
+      signerLabel: string;
+      payerLabel: string;
+      walletAddress?: string;
+      note: string;
+    };
   };
   riskReportAfter?: RiskReport;
 };
 
+export type AuditArchiveActor = 'connected_wallet' | 'none';
+
 export type AuditStorageResult = {
-  mode: 'local' | 'walrus';
+  mode: 'walrus';
   id: string;
   url?: string;
   error?: string;
   warning?: string;
-  provider?: 'walrus-mainnet-cli' | 'walrus-mainnet-publisher' | 'local-file' | 'memory';
+  provider?: 'walrus-mainnet-wallet';
   fallback?: boolean;
   checksum?: string;
   sizeBytes?: number;
-  localPath?: string;
+  archivePayer?: AuditArchiveActor;
+  archiveSigner?: AuditArchiveActor;
+  paymentLabel?: string;
+  signerLabel?: string;
+  walletPaysArchive?: boolean;
+  custodyNote?: string;
+  walletAddress?: string;
+  blobObjectId?: string;
+  registerDigest?: string;
+  certifyDigest?: string;
+  uploadRelayUrl?: string;
 };

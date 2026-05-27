@@ -26,6 +26,14 @@ export type DeepBookExecutionResult = {
     requestedMode: DeepBookExecutionMode;
     mainnetOnly: true;
   };
+  authority?: {
+    signer: 'connected_wallet' | 'none';
+    payer: 'connected_wallet' | 'none';
+    signerLabel: string;
+    payerLabel: string;
+    walletAddress?: string;
+    note: string;
+  };
 };
 
 function summarizeRequest(request: DeepBookExecutionRequest): string {
@@ -67,6 +75,13 @@ export function simulateDeepBookAction(request: DeepBookExecutionRequest): DeepB
       requestedMode: 'simulation',
       mainnetOnly: true,
     },
+    authority: {
+      signer: 'none',
+      payer: 'none',
+      signerLabel: 'No wallet signature',
+      payerLabel: 'No chain payment',
+      note: 'Local simulation does not submit a transaction or spend wallet funds.',
+    },
   };
 }
 
@@ -88,6 +103,14 @@ export function prepareDeepBookTransaction(
       venue: venueForRequest(request),
       requestedMode,
       mainnetOnly: true,
+    },
+    authority: {
+      signer: 'none',
+      payer: 'none',
+      signerLabel: 'No wallet signature',
+      payerLabel: 'No chain payment',
+      walletAddress,
+      note: 'Prepared mainnet action records intent only; the connected wallet does not sign until live mode is explicitly selected.',
     },
   };
 }

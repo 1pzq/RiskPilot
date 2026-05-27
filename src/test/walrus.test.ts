@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { buildAgentCouncilDecision } from '../lib/agents/decision-council';
 import { buildIncidentRoomDecision } from '../lib/agents/incident-room';
@@ -8,11 +8,9 @@ import { buildMonitorRules } from '../lib/strategy/monitor';
 import { createDefaultPolicy, validateExecutionPolicy } from '../lib/strategy/policy';
 import { buildStrategyRecommendation } from '../lib/strategy/strategy-builder';
 import { createDeepBookMarketEvidence } from '../lib/walrus/audit-package';
-import { buildWalrusCliStoreArgs, storeAuditPackage, storeAuditPackageWalrus } from '../lib/walrus/walrus-client';
+import { storeAuditPackage } from '../lib/walrus/walrus-client';
+import { storeAuditPackageWithConnectedWallet } from '../lib/walrus/wallet-archive';
 import type { AuditPackage } from '../lib/walrus/types';
-
-const originalFetch = globalThis.fetch;
-const originalEnv = { ...process.env };
 
 function buildAuditPackage(): AuditPackage {
   const portfolio = createDemoPortfolio('0xDEMO', {
@@ -106,26 +104,7 @@ function buildAuditPackage(): AuditPackage {
   };
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  process.env = { ...originalEnv };
-  globalThis.fetch = originalFetch;
-});
-
 describe('Walrus audit storage', () => {
-  it('stores CLI audit blobs as permanent mainnet blobs', () => {
-    expect(buildWalrusCliStoreArgs('/tmp/audit.json')).toEqual([
-      'store',
-      '--context',
-      'mainnet',
-      '--epochs',
-      '1',
-      '--permanent',
-      '--json',
-      '/tmp/audit.json',
-    ]);
-  });
-
   it('keeps DeepBook market evidence in the audit package payload', () => {
     const auditPackage = buildAuditPackage();
 
@@ -258,61 +237,31 @@ describe('Walrus audit storage', () => {
     expect(evidence.fallbackReason).toContain('unavailable');
   });
 
-  it('uses local storage when explicitly configured for local development', async () => {
-    process.env.WALRUS_MODE = 'local';
-
-    const result = await storeAuditPackage(buildAuditPackage());
-
-    expect(result.mode).toBe('local');
-    expect(result.provider).toBe('local-file');
-    expect(result.warning).toContain('WALRUS_MODE');
-    expect(result.checksum).toHaveLength(64);
+  it('blocks server-side Walrus archive by default', async () => {
+    await expect(storeAuditPackage(buildAuditPackage())).rejects.toThrow(
+      'Server-side Walrus archive is disabled',
+    );
   });
 
-  it('falls back locally when Walrus mainnet is not configured', async () => {
-    delete process.env.WALRUS_MODE;
-    delete process.env.WALRUS_PUBLISHER_URL;
+  it('blocks what-if preview payloads before wallet-paid Walrus archive can request a signature', async () => {
+    const auditPackage = buildAuditPackage();
+    const signAndExecute = async () => {
+      throw new Error('signAndExecute should not be called for preview payloads.');
+    };
 
-    const result = await storeAuditPackage(buildAuditPackage());
-
-    expect(result.mode).toBe('local');
-    expect(result.fallback).toBe(true);
-    expect(result.error).toContain('WALRUS_PUBLISHER_URL');
-    expect(result.warning).toContain('not configured');
-  });
-
-  it('uploads to the configured Walrus publisher endpoint', async () => {
-    process.env.WALRUS_PUBLISHER_URL = 'https://publisher.walrus.mainnet.example';
-    process.env.WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus.mainnet.example';
-
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        newlyCreated: {
-          blobObject: {
-            blobId: 'walrus_blob_123',
+    await expect(
+      storeAuditPackageWithConnectedWallet({
+        auditPackage: ({
+          ...auditPackage,
+          deepbookMarketEvidence: {
+            ...auditPackage.deepbookMarketEvidence,
+            previewOnly: true,
           },
-        },
+        } as unknown) as AuditPackage,
+        walletAddress: '0xDEMO',
+        signAndExecute,
       }),
-    })) as unknown as typeof fetch;
-
-    globalThis.fetch = fetchMock;
-
-    const result = await storeAuditPackageWalrus(buildAuditPackage());
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://publisher.walrus.mainnet.example/v1/blobs?epochs=1',
-      expect.objectContaining({
-        method: 'PUT',
-      }),
-    );
-    expect(result).toEqual(
-      expect.objectContaining({
-        mode: 'walrus',
-        provider: 'walrus-mainnet-publisher',
-        id: 'walrus_blob_123',
-        url: 'https://aggregator.walrus.mainnet.example/v1/blobs/walrus_blob_123',
-      }),
-    );
+    ).rejects.toThrow('What-if preview payloads cannot be submitted');
   });
+
 });

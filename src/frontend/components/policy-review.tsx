@@ -22,6 +22,23 @@ function toLocalDateParts(value: string) {
   };
 }
 
+function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+function labelForExpiryOption(base: string, daysFromNow: number): string {
+  const current = toLocalDateParts(base).date;
+  const next = new Date();
+  next.setDate(next.getDate() + daysFromNow);
+  next.setHours(current.getHours(), current.getMinutes(), 0, 0);
+
+  return formatShortDate(next);
+}
+
 function setExpiry(base: string, daysFromNow: number, hour?: number, minute?: number): string {
   const current = toLocalDateParts(base).date;
   const next = new Date();
@@ -58,10 +75,7 @@ function formatDateChip(daysFromNow: number): string {
 
 export function PolicyReview({ policy, policyCheck, onChange }: PolicyReviewProps) {
   const expiryParts = toLocalDateParts(policy.expiresAt);
-  const selectedDate = expiryParts.date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  const selectedDate = formatShortDate(expiryParts.date);
 
   return (
     <section className="panel policyPanel">
@@ -170,7 +184,7 @@ export function PolicyReview({ policy, policyCheck, onChange }: PolicyReviewProp
                   }
                 >
                   <span>{formatDateChip(days)}</span>
-                  <small>{days === 1 ? 'tomorrow' : selectedDate}</small>
+                  <small>{labelForExpiryOption(policy.expiresAt, days)}</small>
                 </button>
               ))}
             </span>

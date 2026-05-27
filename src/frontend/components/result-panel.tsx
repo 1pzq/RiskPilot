@@ -64,6 +64,14 @@ function yesNo(value: boolean | undefined): string {
   return value ? 'yes' : 'no';
 }
 
+function archivePaymentLabel(storageResult: AuditStorageResult): string {
+  return storageResult.paymentLabel ?? 'Connected wallet';
+}
+
+function archiveSignerLabel(storageResult: AuditStorageResult): string {
+  return storageResult.signerLabel ?? 'Connected wallet';
+}
+
 function statusPillClass(status: string | undefined): string {
   const normalized = status?.toLowerCase() ?? '';
 
@@ -377,25 +385,28 @@ function ArchiveEvidenceSection({
 }) {
   return (
     <EvidenceCard
-      title="Walrus/Local Archive"
+      title="Wallet-Paid Walrus Archive"
       icon={<Archive size={17} />}
-      badge={<span className={`pill ${storageResult.mode === 'walrus' ? 'pillSuccess' : 'pillWarn'}`}>{storageResult.mode}</span>}
+      badge={<span className="pill pillSuccess">{storageResult.mode}</span>}
     >
       <div className="evidenceRows">
         <EvidenceRow label="Audit ID" value={auditPackage.id} />
         <EvidenceRow label="Created" value={formatDateTime(auditPackage.createdAt)} />
-        <EvidenceRow label="Wallet" value={formatAddress(auditPackage.walletAddress)} />
+        <EvidenceRow label="Subject wallet" value={formatAddress(auditPackage.walletAddress)} />
         <EvidenceRow label="Provider" value={storageResult.provider ?? 'unknown'} />
+        <EvidenceRow label="Archive payer" value={archivePaymentLabel(storageResult)} />
+        <EvidenceRow label="Archive signer" value={archiveSignerLabel(storageResult)} />
+        <EvidenceRow label="Wallet pays archive" value={storageResult.walletPaysArchive ? 'yes' : 'no'} />
         <EvidenceRow label="Archive ID" value={storageResult.id} />
         <EvidenceRow label="Checksum" value={storageResult.checksum ? storageResult.checksum.slice(0, 24) : 'not recorded'} />
         <EvidenceRow label="Size" value={storageResult.sizeBytes ? `${formatNumber(storageResult.sizeBytes)} bytes` : 'not recorded'} />
         <EvidenceRow label="Fallback" value={typeof storageResult.fallback === 'boolean' ? yesNo(storageResult.fallback) : 'not recorded'} />
         {storageResult.url ? <EvidenceRow label="URL" value={storageResult.url} /> : null}
-        {storageResult.localPath ? <EvidenceRow label="Local path" value={storageResult.localPath} /> : null}
       </div>
       {storageResult.warning || storageResult.error ? (
         <div className="evidenceWarning">{storageResult.warning ?? storageResult.error}</div>
       ) : null}
+      {storageResult.custodyNote ? <div className="evidenceWarning">{storageResult.custodyNote}</div> : null}
     </EvidenceCard>
   );
 }
@@ -407,19 +418,25 @@ function ReceiptEvidenceSection({
   auditPackage: AuditPackage;
   storageResult: AuditStorageResult;
 }) {
-  const receiptState = storageResult.mode === 'walrus' ? 'mint-ready fields' : 'needs Walrus archive';
+  const receiptState = 'mint-ready fields';
 
   return (
     <EvidenceCard
       title="Receipt"
       icon={<FileCheck2 size={17} />}
-      badge={<span className={`pill ${storageResult.mode === 'walrus' ? 'pillSuccess' : 'pillWarn'}`}>{receiptState}</span>}
+      badge={<span className="pill pillSuccess">{receiptState}</span>}
     >
       <div className="evidenceRows">
         <EvidenceRow label="Strategy ID" value={auditPackage.recommendation.id} />
         <EvidenceRow label="Audit blob" value={storageResult.id} />
         <EvidenceRow label={executionIdentifierLabel(auditPackage.execution.mode)} value={executionIdentifier(auditPackage)} />
         <EvidenceRow label="Execution" value={`${auditPackage.execution.mode} / ${auditPackage.execution.status}`} />
+        {auditPackage.execution.authority ? (
+          <>
+            <EvidenceRow label="Tx signer" value={auditPackage.execution.authority.signerLabel} />
+            <EvidenceRow label="Tx payer" value={auditPackage.execution.authority.payerLabel} />
+          </>
+        ) : null}
         {auditPackage.execution.effectsStatus ? (
           <EvidenceRow
             label="Sui effects"
@@ -430,6 +447,9 @@ function ReceiptEvidenceSection({
       </div>
       {auditPackage.execution.warning || auditPackage.execution.error ? (
         <div className="evidenceWarning">{auditPackage.execution.warning ?? auditPackage.execution.error}</div>
+      ) : null}
+      {auditPackage.execution.authority?.note ? (
+        <div className="evidenceWarning">{auditPackage.execution.authority.note}</div>
       ) : null}
     </EvidenceCard>
   );
@@ -491,7 +511,7 @@ export function ResultPanel({
           <p className="eyebrow">Prepared result</p>
           <h2 className="panelTitle">{resultTitle(auditPackage.execution.mode)}</h2>
         </div>
-        <span className={`pill ${storageResult.mode === 'walrus' ? 'pillSuccess' : 'pillWarn'}`}>
+        <span className="pill pillSuccess">
           {storageResult.provider ?? storageResult.mode}
         </span>
       </div>
