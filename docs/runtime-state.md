@@ -2,7 +2,7 @@
 
 Read this first before changing Sui, Walrus, wallet, execution, AI, or cleanup-related files.
 
-Last handoff update: 2026-05-27 after wallet-paid Walrus archive verification and Walrus wasm dynamic-loading fix.
+Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-content compression pass.
 
 ## Do Not Reset
 
@@ -20,6 +20,7 @@ Last handoff update: 2026-05-27 after wallet-paid Walrus archive verification an
 - Primary Sui Overflow 2026 track narrative: **Agentic Web**.
 - Sui mainnet, DeepBook, Walrus, and optional StrategyReceipt are supporting proof rails.
 - App stages: Overview -> Risk -> Strategy -> Audit -> Prepare.
+- Judge-facing workflow rail: Prime context -> Score risk -> Run what-if -> Lock strategy -> Open agent room -> Prepare archive. The rail adds UI/API-only actions before the final wallet-paid archive so the product no longer reads as one archive button.
 - Judge mode works disconnected through curated scenarios and One-click Judge Demo Mode.
 - Connected-wallet mode reads real Sui mainnet balances and owned objects, hides scenario cards, clears synthetic demo lending/LP positions, and does not invent trades from unknown or unpriced coins.
 - Default execution mode is `prepare_mainnet`.
@@ -36,6 +37,7 @@ Last handoff update: 2026-05-27 after wallet-paid Walrus archive verification an
 ## Implemented Surfaces
 
 - Wallet source panel and connected-wallet portfolio scanner.
+- Six-step interactive workflow rail with per-step status and feedback.
 - Deterministic risk score and signal breakdown.
 - What-if Risk Simulator.
 - What-if Strategy Diff.
@@ -48,6 +50,16 @@ Last handoff update: 2026-05-27 after wallet-paid Walrus archive verification an
 - Audit Package Explorer.
 - Prepare/archive flow.
 - Optional StrategyReceipt mint.
+
+## Latest Demo Polish Summary
+
+- Added the six-step workflow rail to the stage intro. Steps one through five only change UI state or refresh AI/API narrative; they must not call wallet signing or chain payment. Step six opens Prepare and leaves the actual wallet-paid archive on the explicit Prepare button.
+- Removed the old static `DemoFlowPanel` from Overview so workflow narration lives in one place.
+- Removed the connected-wallet Overview decorative card to reduce first-screen whitespace and keep focus on wallet source plus portfolio.
+- Collapsed the duplicate Strategy What-if diff behind a compact details panel; Risk remains the primary full What-if view.
+- Reduced Audit post-archive duplication: Audit keeps the package explorer summary, while full result review and optional receipt mint remain in Prepare.
+- Removed repeated subject-wallet, Walrus-payer, and archive-signer ticket rows from Prepare companion because the wallet boundary notice already owns that safety text.
+- Kept the previous warning polish: AI explanation fallback no longer creates a global top warning when deterministic fallback text is expected.
 
 ## Safety Boundaries
 

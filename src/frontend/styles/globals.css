@@ -2974,6 +2974,171 @@ body::after {
   line-height: 1.25;
 }
 
+.workflowRail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.workflowStep {
+  display: grid;
+  grid-template-rows: auto auto minmax(38px, auto) minmax(42px, auto) auto;
+  gap: 7px;
+  min-width: 0;
+  min-height: 178px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.workflowStep:nth-child(1) {
+  background: var(--blue-soft);
+}
+
+.workflowStep:nth-child(2) {
+  background: #e6dcff;
+}
+
+.workflowStep:nth-child(3) {
+  background: var(--mint);
+}
+
+.workflowStep:nth-child(4) {
+  background: var(--yellow);
+}
+
+.workflowStep:nth-child(5) {
+  background: #ffe0e7;
+}
+
+.workflowStep:nth-child(6) {
+  background: var(--paper-soft);
+}
+
+.workflowStepTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workflowStepTop span,
+.workflowStepTop em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.workflowStep h3,
+.workflowStep p {
+  margin: 0;
+}
+
+.workflowStep h3 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.workflowStep p,
+.workflowStep strong {
+  font-size: 0.76rem;
+  line-height: 1.28;
+}
+
+.workflowStep p {
+  color: var(--muted);
+  font-weight: 820;
+}
+
+.workflowStep strong {
+  align-self: start;
+  color: var(--ink);
+  font-weight: 920;
+  overflow-wrap: anywhere;
+}
+
+.workflowStepButton {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px;
+  font-size: 0.75rem;
+}
+
+.workflowStep-active {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--line);
+}
+
+.workflowStep-done .workflowStepTop em {
+  background: var(--mint);
+}
+
+.workflowStep-blocked .workflowStepTop em {
+  background: #ffd8e2;
+}
+
+.compactDetailsPanel {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.compactDetailsPanel > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 64px;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.compactDetailsPanel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.compactDetailsPanel > summary span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.compactDetailsPanel > summary strong {
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  background: var(--blue);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.compactDetailsPanel .whatIfStrategyDiffPanel {
+  border-width: 3px 0 0;
+  box-shadow: none;
+}
+
+.auditArchiveSummary {
+  display: grid;
+  gap: 12px;
+}
+
 .stageIntroPrepare {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.48fr);
   align-items: stretch;
@@ -6168,6 +6333,10 @@ button.walletButton:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
+  .workflowRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .stageGridAudit {
     grid-template-columns: 1fr;
   }
@@ -6433,6 +6602,7 @@ button.walletButton:hover:not(:disabled) {
   }
 
   .judgeDemoCue,
+  .workflowRail,
   .whatIfDiffGrid {
     grid-template-columns: 1fr;
   }
@@ -6446,6 +6616,7 @@ button.walletButton:hover:not(:disabled) {
   }
 
   .flowGrid,
+  .workflowRail,
   .stageCue,
   .scenarioGrid,
   .metricGrid,

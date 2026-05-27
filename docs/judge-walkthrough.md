@@ -1,11 +1,12 @@
 # RiskPilot Judge Walkthrough
 
-Use this as the tight 3-minute demo script for judges. Keep the spoken demo flow on: Overview -> Risk -> What-if -> Strategy -> Audit -> Prepare.
+Use this as the tight 3-minute demo script for judges. Keep the spoken demo flow on the six-step workflow rail: Prime context -> Score risk -> Run what-if -> Lock strategy -> Open agent room -> Prepare archive.
 
 Submission framing: RiskPilot's primary track is **Agentic Web**. The agent system is the product surface: an Incident Room opens the case, bounded agents produce findings and handoffs, the Manager locks the final command, and the Evidence Timeline makes the reasoning inspectable. Sui mainnet, DeepBook, and Walrus are the strong infrastructure proof underneath, not a competing track story.
 
 The Final Completeness Pass should be visible in the demo:
 
+- **Six-step workflow rail**: use the action buttons as the visible path so judges do not read the app as one final archive button.
 - **One-click Judge Demo Mode**: start disconnected, choose a curated scenario, and show that the whole flow works without wallet funds or secrets.
 - **Audit Package Explorer**: after prepare/archive, expand the evidence bundle and point to policy, DeepBook evidence, Incident Room JSON, Agent Council JSON, checksum, storage provider, archive payer, and raw audit JSON.
 - **What-if Strategy Diff**: in Risk/Audit, compare the base strategy against a preview stress scenario and say clearly that the diff is estimated and cannot replace the real prepare/archive payload.
@@ -22,8 +23,9 @@ RiskPilot is an Agentic Web incident room for Sui DeFi risk. It reads a Sui main
 
 Show:
 - Current mode: one-click judge scenario or connected wallet.
+- The six workflow buttons: Prime context, Score risk, Run what-if, Lock strategy, Open agent room, Prepare archive.
 - Portfolio snapshot and object scan summary.
-- The spoken flow: Overview -> Risk -> What-if -> Strategy -> Audit -> Prepare.
+- The spoken flow: context -> risk -> what-if -> strategy -> agents -> wallet-paid archive.
 
 Key line:
 "The Agentic Web layer coordinates the room; it cannot override policy checks, change action bounds, or submit a transaction."

@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
-import Link from 'next/link';
 
 import { AppShell, type DemoSection } from './app-shell';
 import { AgentCouncilPanel } from './agent-council-panel';
 import { AuditLogPanel } from './audit-log-panel';
 import { AuditPackageExplorer } from './audit-package-explorer';
-import { DemoFlowPanel } from './demo-flow-panel';
 import { EvidenceTimeline } from './evidence-timeline';
 import { IncidentRoomPanel } from './incident-room-panel';
 import { PortfolioOverview } from './portfolio-overview';
@@ -70,6 +68,8 @@ import { prepareDeepBookTransaction, simulateDeepBookAction } from '@/lib/sui/de
 
 type ExplanationStatus = 'idle' | 'ready' | 'loading' | 'fallback';
 type SelectedExecutionMode = 'simulation' | 'prepare_mainnet' | 'mainnet';
+type WorkflowStepId = 'context' | 'risk' | 'whatIf' | 'strategy' | 'agents' | 'archive';
+type WorkflowStepStatus = 'ready' | 'active' | 'done' | 'blocked';
 const ARCHIVE_AI_TIMEOUT_MS = 4500;
 
 function selectedModeLabel(mode: SelectedExecutionMode) {
@@ -109,10 +109,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 
 function archivePaymentLabel(storage: AuditStorageResult | null): string {
   return storage?.paymentLabel ?? 'Connected wallet required';
-}
-
-function archiveSignerLabel(storage: AuditStorageResult | null): string {
-  return storage?.signerLabel ?? 'Connected wallet required';
 }
 
 type RiskPilotAppProps = {
@@ -161,6 +157,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   const [aiWhatIfIncidentRoom, setAiWhatIfIncidentRoom] = useState<IncidentRoomDecision | null>(null);
   const [whatIfIncidentRoomStatus, setWhatIfIncidentRoomStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
   const [selectedExecutionMode, setSelectedExecutionMode] = useState<SelectedExecutionMode>('prepare_mainnet');
+  const [completedWorkflowSteps, setCompletedWorkflowSteps] = useState<WorkflowStepId[]>([]);
+  const [workflowFeedback, setWorkflowFeedback] = useState<Partial<Record<WorkflowStepId, string>>>({});
   const [deepbookMarketSnapshot, setDeepbookMarketSnapshot] = useState<DeepBookLiveMarketSnapshot | null>(null);
   const [deepbookMarketStatus, setDeepbookMarketStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [deepbookMarketError, setDeepbookMarketError] = useState<string | null>(null);
@@ -239,6 +237,31 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
   const [policy, setPolicy] = useState<ExecutionPolicy>(() => createDefaultPolicy(recommendation));
   const [policyTouched, setPolicyTouched] = useState(false);
+
+  const openDemoSection = useCallback((section: DemoSection) => {
+    setActiveSection(section);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('stage', section);
+    url.hash = 'risk-dashboard';
+    window.history.replaceState(null, '', url);
+    window.requestAnimationFrame(() => {
+      document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
+  const markWorkflowStep = useCallback((stepId: WorkflowStepId, feedback: string) => {
+    setCompletedWorkflowSteps((current) => (current.includes(stepId) ? current : [...current, stepId]));
+    setWorkflowFeedback((current) => ({
+      ...current,
+      [stepId]: feedback,
+    }));
+  }, []);
+
   const effectivePolicy = useMemo(
     () => (policyTouched ? policy : createDefaultPolicy(recommendation)),
     [policy, policyTouched, recommendation],
@@ -273,6 +296,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setWhatIfAgentCouncilStatus('idle');
     setAiWhatIfIncidentRoom(null);
     setWhatIfIncidentRoomStatus('idle');
+    setCompletedWorkflowSteps((current) => current.filter((step) => step !== 'agents' && step !== 'archive'));
   }, []);
 
   useEffect(() => {
@@ -970,14 +994,11 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         setExplanationMode(payload.mode);
         setExplanationStatus('ready');
         return payload.explanation;
-      } catch (error) {
+      } catch {
         const fallback = buildMockExplanation(portfolio, riskReport, recommendation, currentPolicy);
         setExplanation(fallback);
         setExplanationMode('mock');
         setExplanationStatus('fallback');
-        setWalletWarning(
-          error instanceof Error ? `Explanation fallback used: ${error.message}` : 'Explanation fallback used.',
-        );
         return fallback;
       }
     },
@@ -998,6 +1019,9 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setExecutionMode('pending');
       setExecutionStatus('awaiting approval');
       setExecuteWarning('');
+      setCompletedWorkflowSteps((current) =>
+        current.filter((step) => step !== 'strategy' && step !== 'agents' && step !== 'archive'),
+      );
     },
     [resetAiPreviewState, setPolicy],
   );
@@ -1011,6 +1035,9 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
     setWalletArchiveStatus('');
+    setCompletedWorkflowSteps((current) =>
+      current.filter((step) => step !== 'strategy' && step !== 'agents' && step !== 'archive'),
+    );
   }, [resetAiPreviewState]);
 
   const handleScenarioChange = useCallback((scenarioId: DemoScenarioId) => {
@@ -1022,6 +1049,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
+    setCompletedWorkflowSteps([]);
+    setWorkflowFeedback({});
   }, [resetAiPreviewState]);
 
   const startJudgeDemo = useCallback(() => {
@@ -1035,17 +1064,18 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
-    setActiveSection('risk');
-
-    const url = new URL(window.location.href);
-    url.searchParams.set('stage', 'risk');
-    url.searchParams.set('demo', 'judge');
-    url.hash = 'risk-dashboard';
-    window.history.replaceState(null, '', url);
-    window.requestAnimationFrame(() => {
-      document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setCompletedWorkflowSteps(['context']);
+    setWorkflowFeedback({
+      context: 'Context primed: leveraged lending wallet with SUI -15% what-if.',
     });
-  }, [resetAiPreviewState]);
+    openDemoSection('risk');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('demo', 'judge');
+      window.history.replaceState(null, '', url);
+    }
+  }, [openDemoSection, resetAiPreviewState]);
 
   const exitJudgeDemo = useCallback(() => {
     setJudgeDemoActive(false);
@@ -1073,6 +1103,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
+    setCompletedWorkflowSteps((current) => current.filter((step) => step !== 'agents' && step !== 'archive'));
   }, [resetAiPreviewState]);
 
   const prepareAndArchive = useCallback(async () => {
@@ -1259,6 +1290,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setExecutionMode(execution.mode);
       setExecutionStatus(execution.status);
       setWalletArchiveStatus('Wallet-paid Walrus archive certified.');
+      markWorkflowStep('archive', `Archive certified: ${storage.id}`);
       void refreshAgentCouncil({
         deepbookMarketEvidence,
         auditArchived: true,
@@ -1302,6 +1334,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     riskReport,
     signAndExecute,
     setWalletArchiveStatus,
+    markWorkflowStep,
   ]);
 
   const liveModeFallbackWarning =
@@ -1319,6 +1352,247 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
   const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
   const liveSubmitSelected = effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookGate.canSubmitLive;
+  const isWorkflowStepDone = useCallback(
+    (stepId: WorkflowStepId) => completedWorkflowSteps.includes(stepId),
+    [completedWorkflowSteps],
+  );
+  const runWorkflowAction = useCallback(
+    (stepId: WorkflowStepId) => {
+      if (stepId === 'context') {
+        if (account) {
+          markWorkflowStep('context', `Live wallet context attached: ${formatAddress(account.address)}.`);
+          openDemoSection('overview');
+          return;
+        }
+
+        startJudgeDemo();
+        return;
+      }
+
+      if (stepId === 'risk') {
+        markWorkflowStep(
+          'risk',
+          `Risk map ready: ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals.`,
+        );
+        openDemoSection('risk');
+        return;
+      }
+
+      if (stepId === 'whatIf') {
+        handleWhatIfScenarioChange('sui_drawdown_15');
+        markWorkflowStep(
+          'whatIf',
+          'SUI -15% preview is primed. It cannot mutate the real archive payload.',
+        );
+        openDemoSection('risk');
+        return;
+      }
+
+      if (stepId === 'strategy') {
+        markWorkflowStep(
+          'strategy',
+          policyCheck.ok
+            ? `Strategy locked: ${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} max cost.`
+            : `Policy gate blocked: ${policyCheck.errors[0] ?? 'review policy settings'}.`,
+        );
+        openDemoSection('strategy');
+        return;
+      }
+
+      if (stepId === 'agents') {
+        markWorkflowStep(
+          'agents',
+          `Agent room opened: ${activeWhatIfIncidentRoomDecision.tasks.length} tasks · ${activeWhatIfAgentCouncilDecision.agents.length} agents.`,
+        );
+        openDemoSection('audit');
+        void refreshWhatIfIncidentRoom();
+        return;
+      }
+
+      if (auditStorage) {
+        markWorkflowStep('archive', `Archive certified: ${auditStorage.id}.`);
+      } else {
+        setWorkflowFeedback((current) => ({
+          ...current,
+          archive: account
+            ? 'Prepare desk opened. Use the wallet-paid archive button when ready.'
+            : 'Archive needs a connected Sui mainnet wallet.',
+        }));
+      }
+      openDemoSection('prepare');
+    },
+    [
+      account,
+      activeWhatIfAgentCouncilDecision.agents.length,
+      activeWhatIfIncidentRoomDecision.tasks.length,
+      auditStorage,
+      handleWhatIfScenarioChange,
+      markWorkflowStep,
+      openDemoSection,
+      policyCheck.errors,
+      policyCheck.ok,
+      recommendation.deepbookAction.market,
+      recommendation.estimatedCostUsd,
+      refreshWhatIfIncidentRoom,
+      riskReport.overallScore,
+      riskReport.signals.length,
+      startJudgeDemo,
+    ],
+  );
+
+  const workflowSteps = useMemo(
+    () => {
+      const contextDone = isWorkflowStepDone('context') || Boolean(account) || judgeDemoActive;
+      const riskDone = isWorkflowStepDone('risk');
+      const whatIfDone = isWorkflowStepDone('whatIf');
+      const strategyDone = isWorkflowStepDone('strategy') && policyCheck.ok;
+      const agentsDone =
+        isWorkflowStepDone('agents') ||
+        Boolean(aiWhatIfAgentCouncil || aiWhatIfIncidentRoom) ||
+        whatIfAgentCouncilStatus === 'fallback' ||
+        whatIfIncidentRoomStatus === 'fallback';
+      const archiveDone = Boolean(auditPackage && auditStorage);
+
+      const getStatus = (stepId: WorkflowStepId, section: DemoSection): WorkflowStepStatus => {
+        if (stepId === 'strategy' && !policyCheck.ok) {
+          return activeSection === section ? 'active' : 'blocked';
+        }
+
+        if (stepId === 'archive' && !account) {
+          return 'blocked';
+        }
+
+        if (
+          (stepId === 'context' && contextDone) ||
+          (stepId === 'risk' && riskDone) ||
+          (stepId === 'whatIf' && whatIfDone) ||
+          (stepId === 'strategy' && strategyDone) ||
+          (stepId === 'agents' && agentsDone) ||
+          (stepId === 'archive' && archiveDone)
+        ) {
+          return 'done';
+        }
+
+        if (stepId === 'risk') {
+          return activeSection === 'risk' && contextDone ? 'active' : 'ready';
+        }
+
+        if (stepId === 'whatIf') {
+          return activeSection === 'risk' && riskDone ? 'active' : 'ready';
+        }
+
+        if (
+          activeSection === section ||
+          (stepId === 'agents' &&
+            (whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading')) ||
+          (stepId === 'archive' && executionBusy)
+        ) {
+          return 'active';
+        }
+
+        return 'ready';
+      };
+
+      return [
+        {
+          id: 'context' as const,
+          step: '01',
+          title: 'Prime context',
+          detail: account ? 'Use connected wallet data.' : 'Load the judge scenario.',
+          actionLabel: account ? 'Use wallet context' : 'Start judge scenario',
+          status: getStatus('context', 'overview'),
+          feedback:
+            workflowFeedback.context ??
+            (account ? `Live wallet: ${formatAddress(account.address)}` : 'Demo context is ready to prime.'),
+        },
+        {
+          id: 'risk' as const,
+          step: '02',
+          title: 'Score risk',
+          detail: 'Build the deterministic risk map.',
+          actionLabel: 'Score risk',
+          status: getStatus('risk', 'risk'),
+          feedback:
+            workflowFeedback.risk ??
+            `Score ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals.`,
+        },
+        {
+          id: 'whatIf' as const,
+          step: '03',
+          title: 'Run what-if',
+          detail: 'Preview a stress scenario only.',
+          actionLabel: 'Run SUI -15%',
+          status: getStatus('whatIf', 'risk'),
+          feedback:
+            workflowFeedback.whatIf ??
+            `${whatIfSimulation.scenario.label}: ${whatIfSimulation.baseRiskReport.overallScore} → ${whatIfSimulation.simulatedRiskReport.overallScore}.`,
+        },
+        {
+          id: 'strategy' as const,
+          step: '04',
+          title: 'Lock strategy',
+          detail: 'Review policy-gated action bounds.',
+          actionLabel: policyCheck.ok ? 'Review action' : 'Fix policy',
+          status: getStatus('strategy', 'strategy'),
+          feedback:
+            workflowFeedback.strategy ??
+            (policyCheck.ok
+              ? `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} cost.`
+              : policyCheck.errors[0] ?? 'Policy needs review.'),
+        },
+        {
+          id: 'agents' as const,
+          step: '05',
+          title: 'Open agent room',
+          detail: 'Show council, handoffs, and final command.',
+          actionLabel:
+            whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading'
+              ? 'Convening...'
+              : 'Convene agents',
+          status: getStatus('agents', 'audit'),
+          feedback:
+            workflowFeedback.agents ??
+            `${activeWhatIfIncidentRoomDecision.tasks.length} tasks · ${activeWhatIfAgentCouncilDecision.agents.length} agents.`,
+        },
+        {
+          id: 'archive' as const,
+          step: '06',
+          title: 'Prepare archive',
+          detail: 'Enter the wallet-paid Walrus desk.',
+          actionLabel: auditStorage ? 'Verify archive' : 'Open prepare desk',
+          status: getStatus('archive', 'prepare'),
+          feedback:
+            workflowFeedback.archive ??
+            (auditStorage ? `Walrus ${archivePaymentLabel(auditStorage)}` : 'Wallet-paid archive is explicit.'),
+        },
+      ];
+    },
+    [
+      account,
+      activeSection,
+      activeWhatIfAgentCouncilDecision.agents.length,
+      activeWhatIfIncidentRoomDecision.tasks.length,
+      aiWhatIfAgentCouncil,
+      aiWhatIfIncidentRoom,
+      auditPackage,
+      auditStorage,
+      executionBusy,
+      isWorkflowStepDone,
+      judgeDemoActive,
+      policyCheck.errors,
+      policyCheck.ok,
+      recommendation.deepbookAction.market,
+      recommendation.estimatedCostUsd,
+      riskReport.overallScore,
+      riskReport.signals.length,
+      whatIfAgentCouncilStatus,
+      whatIfIncidentRoomStatus,
+      whatIfSimulation.baseRiskReport.overallScore,
+      whatIfSimulation.scenario.label,
+      whatIfSimulation.simulatedRiskReport.overallScore,
+      workflowFeedback,
+    ],
+  );
 
   const sectionMeta: Record<DemoSection, { eyebrow: string; title: string; copy: string }> = {
     overview: {
@@ -1385,11 +1659,9 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
           <div className="stageGrid stageGridOverview stageGridConnectedWallet">
             <div className="stageColumn stageColumnWalletContext">
               <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
-              <DemoFlowPanel walletConnected />
             </div>
             <div className="stageColumn stageColumnWalletPortfolio">
               <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
-              <VisualMotifPanel />
             </div>
           </div>
         );
@@ -1398,7 +1670,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       return (
         <div className="stageGrid stageGridOverview">
           <div className="stageColumn">
-            <DemoFlowPanel walletConnected={Boolean(account)} />
             <VisualMotifPanel />
           </div>
           <div className="stageColumn">
@@ -1451,12 +1722,20 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             />
           </div>
           <div className="stageColumn strategyPreviewColumn">
-            <WhatIfStrategyDiff
-              simulation={whatIfSimulation}
-              baseRecommendation={recommendation}
-              simulatedRecommendation={whatIfRecommendation}
-              simulatedPolicyCheck={whatIfPolicyCheck}
-            />
+            <details className="panel compactDetailsPanel">
+              <summary>
+                <span>What-if strategy diff</span>
+                <strong>
+                  {whatIfSimulation.baseRiskReport.overallScore} → {whatIfSimulation.simulatedRiskReport.overallScore}
+                </strong>
+              </summary>
+              <WhatIfStrategyDiff
+                simulation={whatIfSimulation}
+                baseRecommendation={recommendation}
+                simulatedRecommendation={whatIfRecommendation}
+                simulatedPolicyCheck={whatIfPolicyCheck}
+              />
+            </details>
             <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
           </div>
         </div>
@@ -1507,23 +1786,12 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             />
             <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} />
             {auditPackage && auditStorage ? (
-              <>
+              <div className="auditArchiveSummary">
                 <AuditPackageExplorer auditPackage={auditPackage} storageResult={auditStorage} />
-                <ResultPanel
-                  auditPackage={auditPackage}
-                  storageResult={auditStorage}
-                  executionMode={executionMode}
-                  executionStatus={executionStatus}
-                riskBefore={riskReport}
-                riskAfter={estimatedAfterRisk}
-                warning={auditStorage.warning ?? auditStorage.error}
-              />
-              <ReceiptMintPanel
-                key={`${auditPackage.id}-${auditStorage.id}`}
-                  auditPackage={auditPackage}
-                  storageResult={auditStorage}
-                />
-              </>
+                <div className="noteRow">
+                  Full result review and optional receipt mint live in Prepare to avoid duplicate archive panels.
+                </div>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1696,13 +1964,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               </span>
             </div>
 
-            <div className="preparePoster">
-              <div className="posterGrid" aria-hidden="true" />
-              <div className="posterBlock posterBlockOne">SUI</div>
-              <div className="posterBlock posterBlockTwo">AI</div>
-              <div className="posterArrow">↗</div>
-            </div>
-
             <div className="prepareRoute" aria-label="Prepare route">
               <div className={`prepareRouteStep ${policyCheck.ok ? 'prepareRouteReady' : 'prepareRouteBlocked'}`}>
                 <span>01</span>
@@ -1723,10 +1984,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
             <div className="ticketRows">
               <div className="ticketRow">
-                <span>Subject wallet</span>
-                <strong>{formatAddress(walletAddress)}</strong>
-              </div>
-              <div className="ticketRow">
                 <span>Mode</span>
                 <strong>{selectedMode}</strong>
               </div>
@@ -1745,14 +2002,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               <div className="ticketRow">
                 <span>Receipt package</span>
                 <strong>{receiptPackageId ? formatAddress(receiptPackageId) : 'Not configured'}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Walrus payer</span>
-                <strong>{archivePaymentLabel(auditStorage)}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Archive signer</span>
-                <strong>{archiveSignerLabel(auditStorage)}</strong>
               </div>
             </div>
 
@@ -1855,16 +2104,41 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                 <strong>
                   {judgeDemoActive
                     ? 'Risk stage is primed with leveraged lending + SUI -15% what-if.'
-                    : 'One click primes the highest-signal demo path without submitting or archiving.'}
+                  : 'One click primes the highest-signal demo path without submitting or archiving.'}
                 </strong>
               </div>
-              <Link
+              <button
                 className="button buttonGhost"
-                href="/?stage=risk&demo=judge#risk-dashboard"
+                type="button"
                 onClick={judgeDemoActive ? exitJudgeDemo : startJudgeDemo}
               >
                 {judgeDemoActive ? 'Exit demo cue' : 'Start judge demo'}
-              </Link>
+              </button>
+            </div>
+            <div className="workflowRail" aria-label="Interactive demo workflow">
+              {workflowSteps.map((step) => (
+                <article className={`workflowStep workflowStep-${step.status}`} key={step.id}>
+                  <div className="workflowStepTop">
+                    <span>{step.step}</span>
+                    <em>{step.status}</em>
+                  </div>
+                  <h3>{step.title}</h3>
+                  <p>{step.detail}</p>
+                  <strong>{step.feedback}</strong>
+                  <button
+                    className="button buttonGhost workflowStepButton"
+                    type="button"
+                    onClick={() => runWorkflowAction(step.id)}
+                    disabled={
+                      (step.id === 'agents' &&
+                        (whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading')) ||
+                      (step.id === 'archive' && executionBusy)
+                    }
+                  >
+                    {step.actionLabel}
+                  </button>
+                </article>
+              ))}
             </div>
           </div>
 

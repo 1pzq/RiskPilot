@@ -63,14 +63,16 @@ Useful links:
 
 ## Demo Flow
 
-1. Open Overview in disconnected judge mode.
-2. Use One-click Judge Demo Mode to prime the high-signal scenario.
-3. Open Risk and switch What-if presets.
-4. Open Strategy and compare base vs stressed posture.
-5. Open Audit to inspect Incident Room, Agent Council, Evidence Timeline, and preview boundaries.
-6. Connect a funded Sui mainnet wallet, open Prepare, keep `Prepare mainnet` selected, and archive the decision package through wallet-paid Walrus storage.
-7. Inspect Audit Package Explorer and optional StrategyReceipt context.
-8. Connect a wallet only when you want to demonstrate real-wallet mode.
+Use the six-step workflow rail at the top of the app as the judge path:
+
+1. `Prime context`: start a judge scenario or use the connected wallet context.
+2. `Score risk`: open the deterministic risk map and signal board.
+3. `Run what-if`: prime the `SUI -15%` preview without mutating the real payload.
+4. `Lock strategy`: review the policy-gated DeepBook or wallet-review action.
+5. `Open agent room`: inspect Incident Room, Agent Council, Evidence Timeline, and preview boundaries.
+6. `Prepare archive`: enter Prepare, keep `Prepare mainnet` selected by default, and archive only through connected-wallet Walrus storage.
+
+After archive, inspect the Audit Package Explorer, result review, and optional StrategyReceipt context. Connect a wallet only when you want to demonstrate real-wallet mode or any paid chain action.
 
 Connected-wallet mode must show live mainnet balances/object scan, hide scenario cards, clear synthetic demo lending/LP positions, refuse to invent trades from unknown or unpriced coins, and require the connected wallet for any paid chain action.
 
