@@ -2,7 +2,7 @@
 
 Read this first before changing Sui, Walrus, wallet, execution, AI, or cleanup-related files.
 
-Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-content compression pass.
+Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 
 ## Do Not Reset
 
@@ -23,10 +23,14 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 - Judge-facing workflow rail: Prime context -> Score risk -> Run what-if -> Lock strategy -> Open agent room -> Prepare archive. The rail adds UI/API-only actions before the final wallet-paid archive so the product no longer reads as one archive button.
 - Judge mode works disconnected through curated scenarios and One-click Judge Demo Mode.
 - Connected-wallet mode reads real Sui mainnet balances and owned objects, hides scenario cards, clears synthetic demo lending/LP positions, and does not invent trades from unknown or unpriced coins.
+- Connected-wallet Overview now includes Wallet Health Summary: top concern, actionable vs non-actionable route, and unpriced/unsupported exposure. This is trust copy, not execution authority.
 - Default execution mode is `prepare_mainnet`.
 - Live DeepBook is explicit opt-in only, gated to eligible spot SUI/USDC or USDC/SUI routes, and requires wallet approval.
+- If live DeepBook signing/execution fails or is rejected, the flow stops before Walrus archive payment. Do not auto-archive a prepare-only fallback after a rejected live transaction.
 - DeepBook Predict-style protection remains prepare-only.
 - Walrus archive is connected-wallet signed and paid. The browser wallet signs Walrus register/certify and pays required SUI/WAL costs.
+- Prepare now shows Archive Preflight with subject wallet, wallet signer, archive payer, selected mode, and Walrus register/upload/certify progress.
+- Successful wallet-paid archives are stored in local browser history under `riskpilot.archiveHistory.v1`. History stores recent audit package/result pairs for readback and is capped to a small list.
 - The browser Walrus archive module is dynamically imported only when Prepare/archive is clicked; do not top-level import `@mysten/walrus` from the app shell.
 - Browser Walrus encoding must use the web wasm URL from `NEXT_PUBLIC_WALRUS_WASM_URL`; otherwise Next/Turbopack can resolve the Node.js wasm entry and throw `ENOENT ... walrus_wasm_bg.wasm`.
 - Server-side Walrus archive is disabled. `/api/audit` returns a hard error and must not be used as a backend payer path.
@@ -37,6 +41,7 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 ## Implemented Surfaces
 
 - Wallet source panel and connected-wallet portfolio scanner.
+- Wallet Health Summary.
 - Six-step interactive workflow rail with per-step status and feedback.
 - Deterministic risk score and signal breakdown.
 - What-if Risk Simulator.
@@ -48,8 +53,18 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 - Evidence Timeline.
 - Monitor mode.
 - Audit Package Explorer.
-- Prepare/archive flow.
+- Prepare/archive flow with preflight signing timeline.
+- Local Archive History and Walrus readback link.
 - Optional StrategyReceipt mint.
+
+## Latest Trust Layer Summary
+
+- Added Wallet Health Summary for connected-wallet mode so the user sees the strongest concern, whether it is actionable, and which assets/objects remain unpriced or unsupported.
+- Replaced repeated Prepare signer/payer cards with a single Archive Preflight panel. It shows 2 wallet approvals for prepare/simulation archive and 3 approvals for live Spot plus archive.
+- Added progress states for package build, live Spot signing, Walrus register, upload, certify, success, and failure.
+- Changed live DeepBook fallback behavior: live failure or rejection now stops before Walrus register/certify. The user must explicitly choose `Prepare mainnet` and click archive to pay for a fallback record.
+- Added local archive history in `src/lib/walrus/archive-history.ts` and the Prepare Archive History panel. Entries include audit id, Walrus blob id, blob object id, register digest, certify digest, checksum, and readback URL.
+- Added focused tests for archive history persistence/malformed-record recovery and updated the live DeepBook failure warning test.
 
 ## Latest Demo Polish Summary
 
@@ -71,6 +86,7 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 - `/api/execute` and `/api/audit` must reject `previewOnly` or `source: what_if_preview` markers.
 - Audit Package Explorer must render only from real `auditPackage && auditStorage`; it must not read simulated What-if state as the real archive source.
 - UI must distinguish subject wallet, wallet signer, action payer, and Walrus archive payer. Every paid chain action must be signed and paid by the connected wallet.
+- Archive history is local browser state only. It can reopen the stored audit result and provide a Walrus readback URL, but it must not become an execution source or mutate What-if into a real archive.
 
 ## Current Mainnet Environment
 
@@ -95,6 +111,7 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 - `NEXT_PUBLIC_MAINNET_EXECUTION_MODE=prepare`
 - `NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL=true`
 - `NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_URL=https://upload-relay.mainnet.walrus.space`
+- `NEXT_PUBLIC_WALRUS_READBACK_BASE_URL=https://aggregator.mainnet.walrus.space/v1/blobs`
 - `NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_MAX_TIP_MIST=10000000`
 - `NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@0.2.2/web/walrus_wasm_bg.wasm`
 - `NEXT_PUBLIC_RECEIPT_PACKAGE_ID=0x3f889b1dba8796715690b5b78f6bc7ca0f248a45368649b8116f982bda847b19`
@@ -123,7 +140,8 @@ Last handoff update: 2026-05-27 after six-step workflow rail and duplicate-conte
 
 ## Latest Mainnet Verification Summary
 
-- Automated checks passed after verification changes: `npm run lint`, `npm run typecheck`, `npm test` (19 files / 81 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
+- Latest automated checks after Trust Layer pass: `npm run lint`, `npm run typecheck`, `npm test` (20 files / 85 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
+- Browser smoke passed on `127.0.0.1:3000` and `localhost:3000` for judge Risk, Strategy, Audit, and Prepare. Prepare showed Archive Preflight and Archive History, had no horizontal overflow, and kept the no-wallet archive button disabled.
 - DeepBook mainnet `SUI_USDC` market evidence returned a registered pool at `0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407`.
 - UI prepare/archive successfully produced Walrus mainnet blob `U5zAF1mDIVr0eM4nMe1gdWL5lqoVweJDZ-YTESFcL2s` for audit `audit_aw9pyh`; this pre-permanent blob required `walrus read --skip-consistency-check` because default status verification hit a deletable/quorum warning.
 - Walrus CLI storage was changed to `--permanent`; permanent probe blob `8dz45tQS48HQ54shZz2u1ncPrH9DnCue0VcpRMmrJL0` passed default `walrus read` and `walrus blob-status`, with certified status tx `34SXDY9ZQqraYzP6p4QjxS4Sxe4skL6R9ksDEDdPweZw`.

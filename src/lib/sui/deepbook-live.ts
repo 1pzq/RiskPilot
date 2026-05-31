@@ -249,7 +249,7 @@ export function getDeepBookLiveGate(input: DeepBookLiveGateInput): DeepBookLiveG
 export function buildLiveDeepBookFailureWarning(error: unknown): string {
   const message = error instanceof Error ? error.message : 'Wallet signing or Sui execution failed.';
 
-  return `Live DeepBook Spot submission failed, so RiskPilot archived a prepare-only fallback instead: ${message}`;
+  return `Live DeepBook Spot submission failed or was rejected. RiskPilot stopped before Walrus archive; choose Prepare mainnet and confirm again to archive a prepare-only fallback: ${message}`;
 }
 
 export function buildDeepBookLiveTransaction(

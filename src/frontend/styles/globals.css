@@ -5006,12 +5006,13 @@ button.walletButton:hover:not(:disabled) {
 }
 
 .preparePrimaryColumn > .policyPanel,
+.preparePrimaryColumn > .archivePreflightPanel,
 .preparePrimaryColumn > .prepareButton {
   grid-column: 1 / -1;
 }
 
 .preparePrimaryColumn .executionModeControl,
-.preparePrimaryColumn .prepareSafetyPanel {
+.preparePrimaryColumn .archivePreflightPanel {
   min-width: 0;
 }
 
@@ -5020,15 +5021,10 @@ button.walletButton:hover:not(:disabled) {
   grid-row: 2;
 }
 
-.preparePrimaryColumn .prepareSafetyPanel {
+.preparePrimaryColumn .archivePreflightPanel {
   grid-column: 2;
   grid-row: 2;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-self: start;
-}
-
-.preparePrimaryColumn .prepareSafetyCard {
-  min-height: 92px;
 }
 
 .preparePrimaryColumn .liveExecutionPreview {
@@ -5036,8 +5032,13 @@ button.walletButton:hover:not(:disabled) {
   grid-row: 3;
 }
 
-.preparePrimaryColumn .prepareButton {
+.preparePrimaryColumn > .warningStrip.inline {
+  grid-column: 1 / -1;
   grid-row: 3;
+}
+
+.preparePrimaryColumn .prepareButton {
+  grid-row: 4;
 }
 
 .preparePrimaryColumn:has(.liveExecutionPreview) .prepareButton {
@@ -5111,6 +5112,254 @@ button.walletButton:hover:not(:disabled) {
 
 .liveExecutionPreview .ticketRows {
   margin-top: 0;
+}
+
+.archivePreflightPanel {
+  display: grid;
+  gap: 12px;
+  background:
+    linear-gradient(135deg, rgba(126, 235, 177, 0.2), transparent 38%),
+    linear-gradient(315deg, rgba(95, 157, 247, 0.18), transparent 46%),
+    #fff;
+}
+
+.archiveActorGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.archiveActorGrid div,
+.archivePreflightMode,
+.archiveTimelineStep,
+.archiveStatusLine {
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.archiveActorGrid div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px;
+}
+
+.archiveActorGrid svg {
+  color: var(--ink);
+}
+
+.archiveActorGrid span,
+.archivePreflightMode span,
+.archiveTimelineStep strong,
+.archiveHistoryFields span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.archiveActorGrid strong,
+.archivePreflightMode strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.archivePreflightMode {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  background: var(--cream);
+}
+
+.archivePreflightMode small,
+.archiveTimelineStep span,
+.archiveStatusLine {
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.archiveTimeline {
+  display: grid;
+  gap: 8px;
+}
+
+.archiveTimelineStep {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.archiveTimelineStep svg {
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+.archiveTimelineStep > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.archiveTimelineStep-done {
+  background: var(--mint);
+}
+
+.archiveTimelineStep-active {
+  background: var(--blue-soft);
+}
+
+.archiveTimelineStep-blocked {
+  background: #ffd8e2;
+}
+
+.archiveStepSpinner {
+  animation: spin 900ms linear infinite;
+}
+
+.archiveStatusLine {
+  padding: 9px 10px;
+  background: rgba(255, 226, 95, 0.4);
+  font-weight: 820;
+}
+
+.archiveHistoryPanel {
+  background:
+    linear-gradient(135deg, rgba(211, 193, 255, 0.22), transparent 36%),
+    linear-gradient(315deg, rgba(126, 235, 177, 0.16), transparent 44%),
+    #fff;
+}
+
+.archiveHistoryList {
+  display: grid;
+  gap: 10px;
+  max-height: clamp(260px, 38vh, 460px);
+  padding: 2px 8px 8px 2px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.archiveHistoryPanelCompact .archiveHistoryList {
+  max-height: clamp(180px, 28vh, 320px);
+}
+
+.archiveHistoryItem {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.archiveHistoryItemActive {
+  background: var(--mint);
+}
+
+.archiveHistoryItemHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.archiveHistoryItemHead > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.archiveHistoryItemHead span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 820;
+}
+
+.archiveHistoryItemHead strong {
+  color: var(--ink);
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.archiveHistoryFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.archiveHistoryFields div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 2px solid rgba(7, 17, 31, 0.22);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.archiveHistoryFields strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  line-height: 1.2;
+  font-size: 0.82rem;
+  font-weight: 900;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-all;
+}
+
+.archiveHistoryFooter {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.archiveHistoryFooter .button {
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: 8px;
+  font-size: 0.82rem;
+}
+
+.archiveHistoryEmpty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 14px;
+  border: 3px dashed rgba(7, 17, 31, 0.32);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.archiveHistoryEmpty span {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.iconButton:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  background: var(--blue-soft);
+  box-shadow: 5px 5px 0 var(--line);
 }
 
 .prepareSafetyPanel {
@@ -6064,6 +6313,122 @@ button.walletButton:hover:not(:disabled) {
   font-size: 0.66rem;
 }
 
+.walletHealthPanel {
+  background:
+    linear-gradient(135deg, rgba(255, 226, 95, 0.2), transparent 36%),
+    linear-gradient(315deg, rgba(95, 157, 247, 0.18), transparent 44%),
+    #fff;
+}
+
+.walletHealthGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.walletHealthCard {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 148px;
+  padding: 11px;
+  border: 3px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.walletHealthCard svg {
+  color: var(--ink);
+}
+
+.walletHealthCard span,
+.walletHealthRow span,
+.walletHealthBoundary span {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.walletHealthCard > span {
+  font-family: var(--font-pixel);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.walletHealthCard strong {
+  color: var(--ink);
+  font-size: 0.96rem;
+  line-height: 1.15;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.walletHealthCard small {
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.walletHealthCardBlue {
+  background: var(--blue-soft);
+}
+
+.walletHealthCardMint {
+  background: var(--mint);
+}
+
+.walletHealthCardYellow {
+  background: rgba(255, 226, 95, 0.48);
+}
+
+.walletHealthRows {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.walletHealthRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 2px solid rgba(7, 17, 31, 0.22);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.walletHealthRow div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.walletHealthRow strong {
+  color: var(--ink);
+  font-weight: 920;
+  overflow-wrap: anywhere;
+}
+
+.walletHealthBoundary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  border: 2px solid var(--line);
+  color: var(--ink);
+  background: var(--cream);
+  box-shadow: 3px 3px 0 var(--line);
+  font-weight: 820;
+}
+
+.walletHealthBoundary svg {
+  color: var(--ink);
+}
+
 .walletSourcePanel {
   background:
     linear-gradient(135deg, rgba(95, 157, 247, 0.2), transparent 34%),
@@ -6243,6 +6608,12 @@ button.walletButton:hover:not(:disabled) {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -6629,12 +7000,16 @@ button.walletButton:hover:not(:disabled) {
   .packageExplorerGrid,
   .incidentLayout,
   .portfolioAssetGrid,
+  .walletHealthGrid,
   .walletSourceGrid,
   .riskEmptyGrid,
   .metricGrid.compact,
   .fieldGrid,
   .twoUp,
-  .resultGrid {
+  .resultGrid,
+  .archiveActorGrid,
+  .archiveHistoryFields,
+  .archiveHistoryFooter {
     grid-template-columns: 1fr;
   }
 
@@ -6679,6 +7054,7 @@ button.walletButton:hover:not(:disabled) {
 
   .preparePrimaryColumn > .policyPanel,
   .preparePrimaryColumn > .executionModeControl,
+  .preparePrimaryColumn > .archivePreflightPanel,
   .preparePrimaryColumn > .prepareSafetyPanel,
   .preparePrimaryColumn > .liveExecutionPreview,
   .preparePrimaryColumn > .walletBoundaryNotice,

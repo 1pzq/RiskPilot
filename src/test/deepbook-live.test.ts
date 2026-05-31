@@ -214,7 +214,10 @@ describe('DeepBook live helper', () => {
 
   it('builds a clear warning for live execution failure fallback', () => {
     expect(buildLiveDeepBookFailureWarning(new Error('User rejected request'))).toContain(
-      'prepare-only fallback',
+      'stopped before Walrus archive',
+    );
+    expect(buildLiveDeepBookFailureWarning(new Error('User rejected request'))).toContain(
+      'archive a prepare-only fallback',
     );
     expect(buildLiveDeepBookFailureWarning(new Error('User rejected request'))).toContain(
       'User rejected request',

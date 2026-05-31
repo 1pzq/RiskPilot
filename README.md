@@ -8,11 +8,13 @@ Primary track: **Agentic Web**. The product surface is a bounded multi-agent inc
 
 - Reads either a curated judge scenario or a connected Sui mainnet wallet.
 - Computes deterministic wallet risk across balances, DeFi-like positions, object evidence, and stress scenarios.
+- Summarizes connected-wallet health with top concerns, actionable vs. non-actionable risk, and unknown/unpriced exposure.
 - Shows What-if Strategy Diff previews without mutating the real wallet workflow.
 - Runs an Agentic Incident Room and Agent Council with deterministic fallback and optional AI-backed wording.
 - Recommends bounded DeepBook / DeepBook Predict-style protection or wallet review when no priced actionable route exists.
 - Enforces a user policy gate before prepare or live spot execution paths.
-- Archives the decision package through connected-wallet Walrus mainnet storage.
+- Archives the decision package through connected-wallet Walrus mainnet storage with a preflight signing timeline.
+- Keeps a local recent-archive history so the user can reopen the latest audit result and verify Walrus evidence.
 - Optionally mints a Sui StrategyReceipt after archive.
 
 Core rule: **AI explains; deterministic rules decide.**
@@ -22,6 +24,7 @@ Core rule: **AI explains; deterministic rules decide.**
 - Sui network: mainnet only.
 - Default execution mode: `prepare_mainnet`.
 - Live DeepBook is explicit opt-in only, limited to eligible spot SUI/USDC or USDC/SUI routes, and still requires wallet approval.
+- If a live DeepBook transaction fails or the user rejects it, RiskPilot stops before Walrus archive payment. The user must explicitly choose a prepare-only fallback before paying to archive.
 - Walrus archive is connected-wallet signed and paid. The browser wallet signs Walrus register/certify and pays required SUI/WAL costs; no backend or local wallet is a default payer.
 - Optional StrategyReceipt minting is browser-wallet signed and paid only when the user clicks the receipt mint action.
 - Connected-wallet mode uses real mainnet wallet rows only; it does not mix in demo assets or synthetic lending/LP positions.
@@ -72,7 +75,7 @@ Use the six-step workflow rail at the top of the app as the judge path:
 5. `Open agent room`: inspect Incident Room, Agent Council, Evidence Timeline, and preview boundaries.
 6. `Prepare archive`: enter Prepare, keep `Prepare mainnet` selected by default, and archive only through connected-wallet Walrus storage.
 
-After archive, inspect the Audit Package Explorer, result review, and optional StrategyReceipt context. Connect a wallet only when you want to demonstrate real-wallet mode or any paid chain action.
+Prepare shows the archive preflight before payment: subject wallet, signer, payer, live/prepare mode, and Walrus register/upload/certify progress. After archive, inspect the Audit Package Explorer, result review, recent archive history, Walrus readback link, and optional StrategyReceipt context. Connect a wallet only when you want to demonstrate real-wallet mode or any paid chain action.
 
 Connected-wallet mode must show live mainnet balances/object scan, hide scenario cards, clear synthetic demo lending/LP positions, refuse to invent trades from unknown or unpriced coins, and require the connected wallet for any paid chain action.
 
@@ -104,6 +107,7 @@ Connected-wallet Walrus archive:
 
 ```bash
 NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_URL=https://upload-relay.mainnet.walrus.space
+NEXT_PUBLIC_WALRUS_READBACK_BASE_URL=https://aggregator.mainnet.walrus.space/v1/blobs
 ```
 
 Optional StrategyReceipt:

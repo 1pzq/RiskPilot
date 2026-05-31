@@ -6,6 +6,8 @@ import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
 
 import { AppShell, type DemoSection } from './app-shell';
 import { AgentCouncilPanel } from './agent-council-panel';
+import { ArchiveHistoryPanel } from './archive-history-panel';
+import { ArchivePreflightPanel, type ArchiveProgressPhase } from './archive-preflight-panel';
 import { AuditLogPanel } from './audit-log-panel';
 import { AuditPackageExplorer } from './audit-package-explorer';
 import { EvidenceTimeline } from './evidence-timeline';
@@ -21,6 +23,7 @@ import { StrategyPanel } from './strategy-panel';
 import { MonitorPanel } from './monitor-panel';
 import { VisualMotifPanel } from './visual-motif-panel';
 import { WalletConnectButton } from './wallet-connect';
+import { WalletHealthSummary } from './wallet-health-summary';
 import { WalletSourcePanel } from './wallet-source-panel';
 import { WhatIfSimulatorPanel } from './what-if-simulator-panel';
 import { WhatIfStrategyDiff } from './what-if-strategy-diff';
@@ -55,6 +58,13 @@ import {
 } from '@/lib/strategy/strategy-builder';
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
 import { createAuditPackage, createDeepBookMarketEvidence } from '@/lib/walrus/audit-package';
+import {
+  clearArchiveHistory,
+  createArchiveHistoryEntry,
+  readArchiveHistory,
+  saveArchiveHistoryEntry,
+  type ArchiveHistoryEntry,
+} from '@/lib/walrus/archive-history';
 import { formatAddress, formatUsd } from '@/lib/utils/format';
 import type { AssetBalance, WalletScanSummary } from '@/lib/risk/types';
 import {
@@ -145,6 +155,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   const [executionBusy, setExecutionBusy] = useState(false);
   const [auditPackage, setAuditPackage] = useState<AuditPackage | null>(null);
   const [auditStorage, setAuditStorage] = useState<AuditStorageResult | null>(null);
+  const [archiveHistory, setArchiveHistory] = useState<ArchiveHistoryEntry[]>([]);
+  const [archiveProgressPhase, setArchiveProgressPhase] = useState<ArchiveProgressPhase>('idle');
   const [executionMode, setExecutionMode] = useState('pending');
   const [executionStatus, setExecutionStatus] = useState('awaiting approval');
   const [walletArchiveStatus, setWalletArchiveStatus] = useState('');
@@ -254,6 +266,18 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     });
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setArchiveHistory(readArchiveHistory());
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   const markWorkflowStep = useCallback((stepId: WorkflowStepId, feedback: string) => {
     setCompletedWorkflowSteps((current) => (current.includes(stepId) ? current : [...current, stepId]));
     setWorkflowFeedback((current) => ({
@@ -311,6 +335,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         setWalletWarning(null);
         setAuditPackage(null);
         setAuditStorage(null);
+        setArchiveProgressPhase('idle');
         resetAiPreviewState();
         setExecutionMode('pending');
         setExecutionStatus('awaiting approval');
@@ -356,6 +381,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
           );
           setAuditPackage(null);
           setAuditStorage(null);
+          setArchiveProgressPhase('idle');
           resetAiPreviewState();
           setExecutionMode('pending');
           setExecutionStatus('awaiting approval');
@@ -1015,6 +1041,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setPolicyTouched(true);
       setAuditPackage(null);
       setAuditStorage(null);
+      setArchiveProgressPhase('idle');
       resetAiPreviewState();
       setExecutionMode('pending');
       setExecutionStatus('awaiting approval');
@@ -1030,6 +1057,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setPredictSettings(nextSettings);
     setAuditPackage(null);
     setAuditStorage(null);
+    setArchiveProgressPhase('idle');
     resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
@@ -1045,6 +1073,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setPolicyTouched(false);
     setAuditPackage(null);
     setAuditStorage(null);
+    setArchiveProgressPhase('idle');
     resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
@@ -1060,6 +1089,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setPolicyTouched(false);
     setAuditPackage(null);
     setAuditStorage(null);
+    setArchiveProgressPhase('idle');
     resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
@@ -1099,6 +1129,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     }));
     setAuditPackage(null);
     setAuditStorage(null);
+    setArchiveProgressPhase('idle');
     resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
@@ -1113,6 +1144,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
     setExecutionBusy(true);
     setExecuteWarning('');
+    setArchiveProgressPhase('package');
     setWalletArchiveStatus('Preparing wallet-paid audit package.');
 
     try {
@@ -1139,6 +1171,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             recommendation,
             marketSnapshot,
           );
+          setArchiveProgressPhase('live');
           setWalletArchiveStatus('Waiting for connected wallet to sign live DeepBook transaction.');
           const liveResult = await signAndExecute.mutateAsync({
             transaction: liveExecution.transaction,
@@ -1188,16 +1221,9 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         } catch (liveError) {
           const liveWarning = buildLiveDeepBookFailureWarning(liveError);
           setExecuteWarning(liveWarning);
-
-          const prepareFallback = prepareDeepBookTransaction(
-            recommendation.deepbookAction,
-            account.address,
-            'prepare_mainnet',
-          );
-          execution = {
-            ...prepareFallback,
-            warning: [liveWarning, prepareFallback.warning].filter(Boolean).join(' '),
-          };
+          setArchiveProgressPhase('failed');
+          setWalletArchiveStatus('Live DeepBook did not complete. Walrus archive has not started.');
+          throw new Error(liveWarning);
         }
       } else {
         execution =
@@ -1282,13 +1308,19 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         auditPackage: auditPayload,
         walletAddress: account.address,
         signAndExecute: ({ transaction, chain }) => signAndExecute.mutateAsync({ transaction, chain }),
-        onProgress: ({ message }) => setWalletArchiveStatus(message),
+        onProgress: ({ phase, message }) => {
+          setArchiveProgressPhase(phase);
+          setWalletArchiveStatus(message);
+        },
       });
 
       setAuditPackage(auditPayload);
       setAuditStorage(storage);
+      const historyEntry = createArchiveHistoryEntry(auditPayload, storage);
+      setArchiveHistory(saveArchiveHistoryEntry(historyEntry));
       setExecutionMode(execution.mode);
       setExecutionStatus(execution.status);
+      setArchiveProgressPhase('certified');
       setWalletArchiveStatus('Wallet-paid Walrus archive certified.');
       markWorkflowStep('archive', `Archive certified: ${storage.id}`);
       void refreshAgentCouncil({
@@ -1304,6 +1336,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         }),
       );
     } catch (error) {
+      setArchiveProgressPhase('failed');
       setExecuteWarning(
         error instanceof Error ? error.message : 'Execution or audit preparation failed.',
       );
@@ -1439,6 +1472,24 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       startJudgeDemo,
     ],
   );
+
+  const openArchiveHistoryEntry = useCallback(
+    (entry: ArchiveHistoryEntry) => {
+      setAuditPackage(entry.auditPackage);
+      setAuditStorage(entry.storageResult);
+      setExecutionMode(entry.executionMode);
+      setExecutionStatus(entry.executionStatus);
+      setArchiveProgressPhase('certified');
+      setWalletArchiveStatus(`Loaded local archive history for ${entry.storageId}.`);
+      markWorkflowStep('archive', `Archive loaded: ${entry.storageId}.`);
+      openDemoSection('prepare');
+    },
+    [markWorkflowStep, openDemoSection],
+  );
+
+  const clearLocalArchiveHistory = useCallback(() => {
+    setArchiveHistory(clearArchiveHistory());
+  }, []);
 
   const workflowSteps = useMemo(
     () => {
@@ -1658,6 +1709,13 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         return (
           <div className="stageGrid stageGridOverview stageGridConnectedWallet">
             <div className="stageColumn stageColumnWalletContext">
+              <WalletHealthSummary
+                address={walletAddress}
+                assets={walletAssets ?? []}
+                walletScan={walletScan}
+                riskReport={riskReport}
+                recommendation={recommendation}
+              />
               <WalletSourcePanel address={walletAddress} assets={walletAssets ?? []} walletScan={walletScan} />
             </div>
             <div className="stageColumn stageColumnWalletPortfolio">
@@ -1830,6 +1888,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                     setSelectedExecutionMode(mode.value);
                     setAuditPackage(null);
                     setAuditStorage(null);
+                    setArchiveProgressPhase('idle');
                     setExecutionMode('pending');
                     setExecutionStatus('awaiting approval');
                     setExecuteWarning('');
@@ -1897,25 +1956,16 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             </div>
           ) : null}
 
-          <div className="walletBoundaryNotice" role="note" aria-label="Payment and signer boundary">
-            <div>
-              <span>Subject wallet</span>
-              <strong>{account ? formatAddress(account.address) : 'Judge scenario wallet'}</strong>
-              <small>Read for balances, objects, and risk context.</small>
-            </div>
-            <div>
-              <span>Wallet signer</span>
-              <strong>Connected wallet</strong>
-              <small>{liveSubmitSelected ? 'Signs live Spot plus Walrus archive.' : 'Signs Walrus register and certify.'}</small>
-            </div>
-            <div>
-              <span>Archive payer</span>
-              <strong>{archivePaymentLabel(auditStorage)}</strong>
-              <small>Walrus archive is blocked unless this wallet pays.</small>
-            </div>
-          </div>
-
-          {walletArchiveStatus ? <div className="noteRow">{walletArchiveStatus}</div> : null}
+          <ArchivePreflightPanel
+            accountAddress={account?.address}
+            selectedMode={selectedMode}
+            liveSubmitSelected={liveSubmitSelected}
+            policyOk={policyCheck.ok}
+            executionBusy={executionBusy}
+            archiveProgressPhase={archiveProgressPhase}
+            walletArchiveStatus={walletArchiveStatus}
+            auditStorage={auditStorage}
+          />
 
           <button
             className="button buttonPrimary prepareButton"
@@ -1931,25 +1981,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               Connect a Sui mainnet wallet before Prepare/archive. Walrus storage has no backend or local-wallet payer.
             </div>
           ) : null}
-
-          <section className="prepareSafetyPanel" aria-label="Prepare safety locks">
-            <div className="prepareSafetyCard prepareSafetyCardBlue">
-              <span>Wallet signer</span>
-              <strong>Required for archive</strong>
-            </div>
-            <div className="prepareSafetyCard prepareSafetyCardYellow">
-              <span>Mainnet action payer</span>
-              <strong>{liveSubmitSelected ? 'Connected wallet' : 'No trade payment'}</strong>
-            </div>
-            <div className="prepareSafetyCard prepareSafetyCardMint">
-              <span>Archive payer</span>
-              <strong>{archivePaymentLabel(auditStorage)}</strong>
-            </div>
-            <div className="prepareSafetyCard prepareSafetyCardPurple">
-              <span>Receipt signer</span>
-              <strong>{receiptPackageId ? 'Wallet only if minted' : 'Optional'}</strong>
-            </div>
-          </section>
         </div>
 
         <div className="stageColumn prepareRailColumn">
@@ -2011,6 +2042,13 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                 : 'The action is staged as a prepared record first, then the connected wallet signs and pays Walrus register and certify. No off-browser wallet is used.'}
             </p>
           </section>
+
+          <ArchiveHistoryPanel
+            entries={archiveHistory}
+            activeAuditId={auditPackage?.id}
+            onOpen={openArchiveHistoryEntry}
+            onClear={clearLocalArchiveHistory}
+          />
 
           {auditPackage && auditStorage ? (
             <>

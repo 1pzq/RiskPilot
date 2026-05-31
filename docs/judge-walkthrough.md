@@ -8,6 +8,9 @@ The Final Completeness Pass should be visible in the demo:
 
 - **Six-step workflow rail**: use the action buttons as the visible path so judges do not read the app as one final archive button.
 - **One-click Judge Demo Mode**: start disconnected, choose a curated scenario, and show that the whole flow works without wallet funds or secrets.
+- **Wallet Health Summary**: when connected, show the user's top concern, whether RiskPilot has an actionable priced route, and which unknown assets/objects stay evidence-only.
+- **Archive Preflight**: before paying, show the expected wallet approvals and Walrus register/upload/certify progress.
+- **Archive History**: after archive, reopen the local recent result and point to audit id, blob id, register digest, certify digest, and Walrus readback.
 - **Audit Package Explorer**: after prepare/archive, expand the evidence bundle and point to policy, DeepBook evidence, Incident Room JSON, Agent Council JSON, checksum, storage provider, archive payer, and raw audit JSON.
 - **What-if Strategy Diff**: in Risk/Audit, compare the base strategy against a preview stress scenario and say clearly that the diff is estimated and cannot replace the real prepare/archive payload.
 
@@ -24,7 +27,7 @@ RiskPilot is an Agentic Web incident room for Sui DeFi risk. It reads a Sui main
 Show:
 - Current mode: one-click judge scenario or connected wallet.
 - The six workflow buttons: Prime context, Score risk, Run what-if, Lock strategy, Open agent room, Prepare archive.
-- Portfolio snapshot and object scan summary.
+- Wallet Health Summary, portfolio snapshot, and object scan summary.
 - The spoken flow: context -> risk -> what-if -> strategy -> agents -> wallet-paid archive.
 
 Key line:
@@ -84,15 +87,20 @@ Key line:
 
 ### 2:30-3:00 - Prepare
 
-"Finally we leave execution mode on Prepare mainnet, the default safety posture. When I click prepare and wallet-paid archive, RiskPilot prepares the action package, checks policy, attaches DeepBook evidence, and asks the connected wallet to register and certify Walrus storage. The same boundary applies to live Spot and receipts: if a chain action costs money, the connected wallet signs and pays it."
+"Finally we leave execution mode on Prepare mainnet, the default safety posture. Before payment, the preflight shows the subject wallet, the signer, the archive payer, and the exact approval sequence. When I click prepare and wallet-paid archive, RiskPilot prepares the action package, checks policy, attaches DeepBook evidence, and asks the connected wallet to register and certify Walrus storage. The same boundary applies to live Spot and receipts: if a chain action costs money, the connected wallet signs and pays it."
 
 Show:
 - `Prepare mainnet (default)`.
 - Policy gate status.
+- Archive Preflight: 2 approvals for prepare/simulation archive, or 3 if live Spot is explicitly selected.
+- Archive History after success: audit id, Walrus blob id, register digest, certify digest, and readback link.
 - Audit Package Explorer: prepared digest, audit id, checksum, storage provider, archive payer/signer, DeepBook evidence, Incident Room JSON, Agent Council JSON, and raw Audit JSON.
 
 Key line:
 "The final artifact is not just a recommendation. It is an Audit Package Explorer for the Wallet Scan-to-Receipt evidence chain, and judges can inspect it without any private key or secret."
+
+Fallback line:
+"If a live DeepBook transaction is rejected or fails, RiskPilot stops before Walrus payment. The user must explicitly choose the prepare-only fallback before paying to archive it."
 
 ## Judge Q&A Points
 
@@ -112,10 +120,10 @@ What-if uses a cloned portfolio and marks output as estimated preview data. It i
 Both modes are explicit. Judge mode uses curated scenarios for a clean walkthrough. Connected-wallet mode reads live Sui mainnet balances and owned objects, removes synthetic lending/LP demo positions, and does not invent trades from unknown or unpriced coins.
 
 **Where does DeepBook fit?**  
-DeepBook provides the market evidence and bounded SUI/USDC action path. DeepBook Predict-style protection remains prepare-only. Live DeepBook spot execution is not the default and requires explicit eligible routing plus wallet approval.
+DeepBook provides the market evidence and bounded SUI/USDC action path. DeepBook Predict-style protection remains prepare-only. Live DeepBook spot execution is not the default and requires explicit eligible routing plus wallet approval. If live signing/execution fails or is rejected, RiskPilot stops before Walrus archive payment instead of silently charging for a fallback archive.
 
 **Where does Walrus fit?**  
-Walrus stores the audit package through the connected wallet. The browser wallet signs Walrus register and certify transactions and pays the required storage costs; no backend or local wallet is a default payer. The audit payload preserves portfolio, risk, strategy, policy, DeepBook evidence, Incident Room, Agent Council, archive result, and optional receipt context.
+Walrus stores the audit package through the connected wallet. The browser wallet signs Walrus register and certify transactions and pays the required storage costs; no backend or local wallet is a default payer. The audit payload preserves portfolio, risk, strategy, policy, DeepBook evidence, Incident Room, Agent Council, archive result, and optional receipt context. Recent archives also appear in local browser history so the user can reopen the result and verify blob/digest evidence.
 
 **What is the strongest safety claim?**  
 RiskPilot separates narrative from authority: agents can brief the user, but deterministic rules lock the policy and execution boundary.
@@ -126,4 +134,5 @@ RiskPilot separates narrative from authority: agents can brief the user, but det
 - Do not paste or display private keys, seed phrases, OpenAI-compatible provider keys, proxy keys, or wallet secrets.
 - Keep the default action mode on `Prepare mainnet`.
 - Treat live DeepBook execution as an explicit opt-in path, not the hackathon default.
+- If live DeepBook is rejected, say that archive payment has not started.
 - When discussing What-if, always say "preview-only" before showing Audit or Prepare.
