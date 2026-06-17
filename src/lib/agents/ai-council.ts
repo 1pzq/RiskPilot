@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 
 import type { RiskReport } from '@/lib/risk/types';
+import { getAiProviderConfig, missingAiProviderMessage } from '@/lib/ai/provider';
+import type { AiProviderMode } from '@/lib/ai/provider';
 import type { DeepBookLiveGate } from '@/lib/sui/deepbook-live';
 import type { ExecutionPolicy, PolicyCheckResult } from '@/lib/strategy/policy';
 import type { MonitorRule } from '@/lib/strategy/monitor';
@@ -25,11 +27,12 @@ export type BuildAiAgentCouncilInput = {
   policyCheck: PolicyCheckResult;
   monitorRules: MonitorRule[];
   deepbookMarketEvidence: AiDeepBookMarketEvidence;
-  explanationMode: 'mock' | 'openai';
+  explanationMode: AiProviderMode;
   walletConnected: boolean;
   auditArchived: boolean;
   receiptEnabled: boolean;
   liveGate?: DeepBookLiveGate;
+  policyObject?: BuildAgentCouncilInput['policyObject'];
 };
 
 type AiCouncilDraft = {
@@ -55,22 +58,6 @@ const AiCouncilDraftSchema = z.object({
     }),
   ),
 });
-
-function normalizeApiMode(value: string | undefined): 'responses' | 'chat' {
-  return value?.toLowerCase() === 'responses' ? 'responses' : 'chat';
-}
-
-function normalizeReasoningEffort(value: string | undefined) {
-  const normalized = value?.toLowerCase();
-  return normalized === 'none' ||
-    normalized === 'minimal' ||
-    normalized === 'low' ||
-    normalized === 'medium' ||
-    normalized === 'high' ||
-    normalized === 'xhigh'
-    ? normalized
-    : undefined;
-}
 
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
@@ -155,6 +142,7 @@ function buildCouncilPayload(input: BuildAiAgentCouncilInput, deterministic: Age
       expiresAt: input.policy.expiresAt,
       requireManualApproval: input.policy.requireManualApproval,
     },
+    policyObject: input.policyObject,
     monitorRules: input.monitorRules.map((rule) => ({
       label: rule.label,
       severity: rule.severity,
@@ -189,12 +177,13 @@ function mergeAiDraft(
   deterministic: AgentCouncilDecision,
   draft: AiCouncilDraft,
   model: string,
+  provider: AgentCouncilDecision['mode'],
 ): AgentCouncilDecision {
   const draftById = new Map(draft.agents.map((agent) => [agent.id, agent]));
 
   return {
     ...deterministic,
-    mode: 'openai',
+    mode: provider,
     model,
     warning: undefined,
     managerSummary: draft.managerSummary,
@@ -216,35 +205,38 @@ function mergeAiDraft(
 }
 
 async function createAiCouncilDraft(input: BuildAiAgentCouncilInput, deterministic: AgentCouncilDecision) {
-  const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
-  const model = process.env.OPENAI_MODEL ?? 'deepseek-chat';
+  const config = getAiProviderConfig();
+
+  if (!config.apiKey) {
+    throw new Error(missingAiProviderMessage(config));
+  }
+
   const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: openaiBaseUrl || undefined,
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
   });
-  const apiMode = normalizeApiMode(process.env.OPENAI_API_MODE);
+  const apiMode = config.apiMode;
   const instructions = buildCouncilInstructions(deterministic);
   const payload = buildCouncilPayload(input, deterministic);
 
   if (apiMode === 'responses') {
-    const reasoningEffort = normalizeReasoningEffort(process.env.OPENAI_REASONING_EFFORT);
     const response = await client.responses.create({
-      model,
+      model: config.model,
       instructions,
       input: payload,
       max_output_tokens: 1200,
       store: false,
-      reasoning: reasoningEffort ? { effort: reasoningEffort } : undefined,
+      reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
     });
 
     return {
-      model,
+      model: config.model,
       parsed: AiCouncilDraftSchema.parse(extractJsonObject(response.output_text ?? '')),
     };
   }
 
   const completion = await client.chat.completions.create({
-    model,
+    model: config.model,
     temperature: 0.2,
     response_format: { type: 'json_object' },
     messages: [
@@ -261,7 +253,7 @@ async function createAiCouncilDraft(input: BuildAiAgentCouncilInput, determinist
   const content = completion.choices[0]?.message?.content ?? '';
 
   return {
-    model,
+    model: config.model,
     parsed: AiCouncilDraftSchema.parse(extractJsonObject(content)),
   };
 }
@@ -271,16 +263,18 @@ export async function buildAiAgentCouncilDecision(
 ): Promise<AgentCouncilDecision> {
   const deterministic = buildAgentCouncilDecision(input);
 
-  if (!process.env.OPENAI_API_KEY) {
+  const config = getAiProviderConfig();
+
+  if (!config.apiKey) {
     return {
       ...deterministic,
-      warning: 'AI council fallback used: OPENAI_API_KEY is not configured.',
+      warning: `AI council fallback used: ${missingAiProviderMessage(config)}`,
     };
   }
 
   try {
     const draft = await createAiCouncilDraft(input, deterministic);
-    return mergeAiDraft(deterministic, draft.parsed, draft.model);
+    return mergeAiDraft(deterministic, draft.parsed, draft.model, getAiProviderConfig().provider);
   } catch (error) {
     return {
       ...deterministic,

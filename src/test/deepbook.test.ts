@@ -4,7 +4,6 @@ import {
   executeDeepBookTransaction,
   executionModeFromEnvironment,
   prepareDeepBookTransaction,
-  simulateDeepBookAction,
   type DeepBookExecutionRequest,
 } from '../lib/sui/deepbook';
 
@@ -30,23 +29,8 @@ describe('DeepBook adapter', () => {
       expect.objectContaining({
         signer: 'none',
         payer: 'none',
-        signerLabel: 'No wallet signature',
-        payerLabel: 'No chain payment',
-      }),
-    );
-  });
-
-  it('returns a local simulation fallback with a unique simulation id', () => {
-    const result = simulateDeepBookAction(request);
-
-    expect(result.mode).toBe('simulation');
-    expect(result.status).toBe('prepared');
-    expect(result.simulationId).toMatch(/^sim_/u);
-    expect(result.adapter.venue).toBe('local simulation');
-    expect(result.authority).toEqual(
-      expect.objectContaining({
-        signer: 'none',
-        payer: 'none',
+        signerLabel: '无钱包签名',
+        payerLabel: '无链上付款',
       }),
     );
   });
@@ -55,7 +39,8 @@ describe('DeepBook adapter', () => {
     expect(executionModeFromEnvironment(undefined)).toBe('prepare_mainnet');
     expect(executionModeFromEnvironment('prepare')).toBe('prepare_mainnet');
     expect(executionModeFromEnvironment('live')).toBe('mainnet');
-    expect(executionModeFromEnvironment('simulation')).toBe('simulation');
+    expect(executionModeFromEnvironment('simulation')).toBe('prepare_mainnet');
+    expect(executionModeFromEnvironment('simulate')).toBe('prepare_mainnet');
   });
 
   it('falls back to preparation when live mainnet submission is requested', async () => {
@@ -67,7 +52,7 @@ describe('DeepBook adapter', () => {
       expect.objectContaining({
         mode: 'prepare_mainnet',
         status: 'prepared',
-        warning: expect.stringContaining('prepared instead'),
+        warning: expect.stringContaining('准备 mainnet 动作'),
       }),
     );
   });

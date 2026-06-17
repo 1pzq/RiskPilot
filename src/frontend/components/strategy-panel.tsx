@@ -12,11 +12,12 @@ import {
   Target,
   TriangleAlert,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type { DeepBookPredictSettings, StrategyRecommendation } from '@/lib/strategy/strategy-builder';
 import type { DeepBookLiveMarketSnapshot } from '@/lib/sui/deepbook-live';
 import { formatUsd } from '@/lib/utils/format';
+import { zhDisplayText } from '@/frontend/utils/zh';
 
 type StrategyPanelProps = {
   recommendation: StrategyRecommendation;
@@ -30,8 +31,19 @@ type StrategyPanelProps = {
 const thresholds: DeepBookPredictSettings['thresholdPct'][] = [-10, -15, -20];
 const expiries: DeepBookPredictSettings['expiryDays'][] = [1, 7, 14];
 
+function parseUsdInput(value: string): number | null {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const numericValue = Number(trimmedValue);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function formatActionMode(mode: string): string {
-  return mode === 'prepare_mainnet' ? 'prepare-only' : mode.replace(/_/g, ' ');
+  return mode === 'prepare_mainnet' ? '仅 Prepare' : mode.replace(/_/g, ' ');
 }
 
 function OptionButton({
@@ -62,34 +74,60 @@ export function StrategyPanel({
   const strategyDetails = [
     {
       icon: <Info size={14} />,
-      label: 'Why',
+      label: '原因',
       value: recommendation.rationale,
     },
     {
       icon: <Target size={14} />,
-      label: 'Applies to',
+      label: '适用范围',
       value: recommendation.applicability,
     },
     {
       icon: <ShieldCheck size={14} />,
-      label: 'Prepare-only',
+      label: '仅 Prepare',
       value: recommendation.prepareOnlyReason,
     },
     {
       icon: <RotateCcw size={14} />,
-      label: 'Fallback',
+      label: '兜底方案',
       value: recommendation.fallback,
     },
   ].filter((item) => item.value);
   const displayFacts = recommendation.displayFacts ?? [];
   const constraints = recommendation.constraints ?? [];
   const riskTradeoffs = recommendation.riskTradeoffs ?? [];
+  const [budgetDraft, setBudgetDraft] = useState(() => ({
+    source: predictSettings?.budgetUsd ?? null,
+    value: String(predictSettings?.budgetUsd ?? ''),
+  }));
+  const budgetInput =
+    budgetDraft.source === (predictSettings?.budgetUsd ?? null)
+      ? budgetDraft.value
+      : String(predictSettings?.budgetUsd ?? '');
+
+  function updateBudgetInput(value: string) {
+    setBudgetDraft({ source: predictSettings?.budgetUsd ?? null, value });
+
+    if (!predictSettings || !onPredictSettingsChange) {
+      return;
+    }
+
+    const nextValue = parseUsdInput(value);
+    if (nextValue === null || value.trim().endsWith('.')) {
+      return;
+    }
+
+    onPredictSettingsChange({
+      ...predictSettings,
+      budgetUsd: nextValue,
+    });
+  }
 
   return (
     <section className="panel strategyPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Recommended action</p>
+          <p className="eyebrow">推荐动作</p>
           <h2 className="panelTitle">{recommendation.title}</h2>
         </div>
         <span className="pill pillAccent">{formatActionMode(recommendation.deepbookAction.mode)}</span>
@@ -101,14 +139,14 @@ export function StrategyPanel({
         <div className="metricCard">
           <div className="metricLabel">
             <ShieldAlert size={14} />
-            Max cost
+            最大成本
           </div>
           <div className="metricValue">{formatUsd(recommendation.estimatedCostUsd)}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <ArrowRightLeft size={14} />
-            Est. risk cut
+            预估降险
           </div>
           <div className="metricValue">{recommendation.expectedRiskReduction}%</div>
         </div>
@@ -132,7 +170,7 @@ export function StrategyPanel({
             <div className="strategyFactGrid">
               {displayFacts.map((fact) => (
                 <div className="strategyFact" key={`${fact.label}-${fact.value}`}>
-                  <span>{fact.label}</span>
+                  <span>{zhDisplayText(fact.label)}</span>
                   <strong>{fact.value}</strong>
                 </div>
               ))}
@@ -145,7 +183,7 @@ export function StrategyPanel({
                 <div className="strategyList">
                   <span className="strategyListTitle">
                     <ListChecks size={14} />
-                    Guardrails
+                    护栏
                   </span>
                   <ul>
                     {constraints.map((constraint) => (
@@ -159,7 +197,7 @@ export function StrategyPanel({
                 <div className="strategyList">
                   <span className="strategyListTitle">
                     <TriangleAlert size={14} />
-                    Tradeoffs
+                    权衡
                   </span>
                   <ul>
                     {riskTradeoffs.map((tradeoff) => (
@@ -179,12 +217,12 @@ export function StrategyPanel({
             <div className="strategyFact">
               <span>
                 <BarChart3 size={14} />
-                Live pool
+                实时池
               </span>
               <strong>{marketSnapshot.poolKey}</strong>
             </div>
             <div className="strategyFact">
-              <span>Mid price</span>
+              <span>中间价</span>
               <strong>{formatUsd(marketSnapshot.midPrice)}</strong>
             </div>
             <div className="strategyFact">
@@ -196,24 +234,24 @@ export function StrategyPanel({
               <strong>{marketSnapshot.baseOutForOneQuote.toFixed(4)} SUI</strong>
             </div>
             <div className="strategyFact">
-              <span>Pool state</span>
+              <span>池状态</span>
               <strong>{marketSnapshot.registeredPool ? 'registered' : 'unregistered'} · {marketSnapshot.whitelisted ? 'whitelisted' : 'open'}</strong>
             </div>
             <div className="strategyFact">
-              <span>Vaults</span>
+              <span>金库</span>
               <strong>
                 {marketSnapshot.vaultBalances.base.toFixed(2)} / {marketSnapshot.vaultBalances.quote.toFixed(2)} / {marketSnapshot.vaultBalances.deep.toFixed(2)}
               </strong>
             </div>
           </div>
           <div className="strategyNote">
-            Real DeepBook mainnet quote and pool metadata, fetched from the live SUI/USDC market.
+            真实 DeepBook mainnet 报价和池元数据，取自实时 SUI/USDC 市场。
           </div>
         </div>
       ) : marketSnapshotStatus === 'loading' ? (
         <div className="noteRow">
           <BarChart3 size={14} />
-          <span>Loading live DeepBook mainnet data…</span>
+          <span>正在加载实时 DeepBook mainnet 数据…</span>
         </div>
       ) : marketSnapshotError ? (
         <div className="warningStrip inline">{marketSnapshotError}</div>
@@ -221,27 +259,27 @@ export function StrategyPanel({
 
       <div className="positionBlock strategyBlock strategyActionBlock">
         <div className="positionLine">
-          <span>Adapter</span>
+          <span>适配器</span>
           <span>{recommendation.deepbookAction.kind === 'predict_binary' ? 'DeepBook Predict' : 'DeepBook'}</span>
         </div>
         <div className="positionLine">
-          <span>Market</span>
+          <span>市场</span>
           <span>{recommendation.deepbookAction.market}</span>
         </div>
         <div className="positionLine">
-          <span>Direction</span>
+          <span>方向</span>
           <span>{recommendation.deepbookAction.side}</span>
         </div>
         <div className="positionLine">
-          <span>Asset in</span>
+          <span>输入资产</span>
           <span>{recommendation.deepbookAction.assetIn}</span>
         </div>
         <div className="positionLine">
-          <span>Asset out</span>
+          <span>输出资产</span>
           <span>{recommendation.deepbookAction.assetOut}</span>
         </div>
         <div className="positionLine">
-          <span>Prepared size</span>
+          <span>准备规模</span>
           <span>{formatUsd(recommendation.deepbookAction.amountUsd)}</span>
         </div>
         <div className="strategyNote">{recommendation.deepbookAction.description}</div>
@@ -252,9 +290,9 @@ export function StrategyPanel({
           <label className="field">
             <span className="fieldLabel">
               <Target size={14} />
-              Protection threshold
+              保护阈值
             </span>
-            <span className="optionGroup" role="radiogroup" aria-label="Protection threshold">
+            <span className="optionGroup" role="radiogroup" aria-label="保护阈值">
               {thresholds.map((threshold) => (
                 <OptionButton
                   active={predictSettings.thresholdPct === threshold}
@@ -275,9 +313,9 @@ export function StrategyPanel({
           <label className="field">
             <span className="fieldLabel">
               <CalendarClock size={14} />
-              Expiry
+              过期时间
             </span>
-            <span className="optionGroup" role="radiogroup" aria-label="Expiry">
+            <span className="optionGroup" role="radiogroup" aria-label="过期时间">
               {expiries.map((expiryDays) => (
                 <OptionButton
                   active={predictSettings.expiryDays === expiryDays}
@@ -289,7 +327,7 @@ export function StrategyPanel({
                     })
                   }
                 >
-                  {expiryDays} {expiryDays === 1 ? 'day' : 'days'}
+                  {expiryDays} 天
                 </OptionButton>
               ))}
             </span>
@@ -298,20 +336,32 @@ export function StrategyPanel({
           <label className="field wide">
             <span className="fieldLabel">
               <ShieldAlert size={14} />
-              Budget USD
+              预算 USD
             </span>
             <input
               className="input"
+              inputMode="decimal"
               min="1"
               step="0.5"
-              type="number"
-              value={predictSettings.budgetUsd}
-              onChange={(event) =>
+              type="text"
+              value={budgetInput}
+              onChange={(event) => updateBudgetInput(event.target.value)}
+              onBlur={() => {
+                const nextValue = parseUsdInput(budgetInput);
+
+                if (nextValue === null) {
+                  setBudgetDraft({
+                    source: predictSettings.budgetUsd,
+                    value: String(predictSettings.budgetUsd),
+                  });
+                  return;
+                }
+
                 onPredictSettingsChange({
                   ...predictSettings,
-                  budgetUsd: Number(event.target.value),
-                })
-              }
+                  budgetUsd: nextValue,
+                });
+              }}
             />
           </label>
         </div>

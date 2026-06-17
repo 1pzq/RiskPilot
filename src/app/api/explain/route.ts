@@ -6,6 +6,7 @@ import type { PortfolioSnapshot, RiskReport } from '@/lib/risk/types';
 import type { ExecutionPolicy } from '@/lib/strategy/policy';
 import type { StrategyRecommendation } from '@/lib/strategy/strategy-builder';
 import { buildMockExplanation } from '@/lib/ai/explain';
+import { getAiProviderConfig, missingAiProviderMessage } from '@/lib/ai/provider';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,11 @@ function limitWords(text: string, maxWords: number): string {
 function buildExplanationInstructions() {
   return [
     'You are RiskPilot, a verifiable AI risk manager for Sui DeFi.',
-    'Explain the portfolio risk and recommendation in clear demo-friendly language.',
-    'Use exactly four short labeled lines: Risk, Strategy, Policy, Safety.',
-    'Do not promise profit or protection.',
-    'Mention the policy limits and that execution is prepare-only unless the user explicitly approves a separate wallet action.',
-    'Mention that this is not financial advice.',
+    '用中文解释 Portfolio 风险和推荐，保持 demo 友好、清晰简短。',
+    '只输出四行，标签必须是：风险、策略、Policy、安全。',
+    '不要承诺收益或保护。',
+    '说明 Policy 限制，并说明除非用户明确批准单独的钱包动作，否则执行仅为 Prepare。',
+    '说明这不是投资建议。',
     'Keep the whole response under 160 words.',
   ].join(' ');
 }
@@ -76,41 +77,28 @@ function buildExplanationPayload(input: {
   });
 }
 
-function normalizeApiMode(value: string | undefined): 'responses' | 'chat' {
-  return value?.toLowerCase() === 'chat' ? 'chat' : 'responses';
-}
-
-function normalizeReasoningEffort(value: string | undefined) {
-  const normalized = value?.toLowerCase();
-  return normalized === 'none' ||
-    normalized === 'minimal' ||
-    normalized === 'low' ||
-    normalized === 'medium' ||
-    normalized === 'high' ||
-    normalized === 'xhigh'
-    ? normalized
-    : undefined;
-}
-
-async function createOpenAIExplanation(input: {
+async function createAiExplanation(input: {
   portfolioSnapshot: PortfolioSnapshot;
   riskReport: RiskReport;
   recommendation: StrategyRecommendation;
   policy: ExecutionPolicy;
 }) {
-  const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+  const config = getAiProviderConfig();
+
+  if (!config.apiKey) {
+    throw new Error(missingAiProviderMessage(config));
+  }
+
   const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: openaiBaseUrl || undefined,
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
   });
-  const model = process.env.OPENAI_MODEL ?? 'gpt-5.5';
   const payload = buildExplanationPayload(input);
   const instructions = buildExplanationInstructions();
-  const apiMode = normalizeApiMode(process.env.OPENAI_API_MODE);
 
-  if (apiMode === 'chat') {
+  if (config.apiMode === 'chat') {
     const completion = await client.chat.completions.create({
-      model,
+      model: config.model,
       temperature: 0.2,
       messages: [
         {
@@ -127,14 +115,13 @@ async function createOpenAIExplanation(input: {
     return completion.choices[0]?.message?.content?.trim() ?? '';
   }
 
-  const reasoningEffort = normalizeReasoningEffort(process.env.OPENAI_REASONING_EFFORT);
   const response = await client.responses.create({
-    model,
+    model: config.model,
     instructions,
     input: payload,
     max_output_tokens: 420,
     store: false,
-    reasoning: reasoningEffort ? { effort: reasoningEffort } : undefined,
+    reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
   });
 
   return response.output_text?.trim() ?? '';
@@ -159,7 +146,9 @@ export async function POST(request: Request) {
     };
     parsedBody = body;
 
-    if (!process.env.OPENAI_API_KEY) {
+    const config = getAiProviderConfig();
+
+    if (!config.apiKey) {
       return NextResponse.json({
         mode: 'mock',
         explanation: buildMockExplanation(
@@ -172,7 +161,7 @@ export async function POST(request: Request) {
     }
 
     const explanation = limitWords(
-      (await createOpenAIExplanation(body)) ||
+      (await createAiExplanation(body)) ||
         buildMockExplanation(
           body.portfolioSnapshot,
           body.riskReport,
@@ -183,7 +172,8 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json({
-      mode: 'openai',
+      mode: config.provider,
+      model: config.model,
       explanation,
     });
   } catch (error) {
@@ -196,13 +186,13 @@ export async function POST(request: Request) {
           parsedBody.recommendation,
           parsedBody.policy,
         ),
-        warning: error instanceof Error ? `OpenAI fallback used: ${error.message}` : 'OpenAI fallback used.',
+        warning: error instanceof Error ? `AI provider 已使用兜底：${error.message}` : 'AI provider 已使用兜底。',
       });
     }
 
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Could not build explanation.',
+        error: error instanceof Error ? error.message : '无法生成解释。',
       },
       { status: 400 },
     );

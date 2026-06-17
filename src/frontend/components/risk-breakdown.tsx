@@ -21,10 +21,10 @@ export function RiskBreakdown({ signals }: RiskBreakdownProps) {
     <section className={hasSignals ? 'panel riskBreakdownPanel' : 'panel riskBreakdownPanel riskBreakdownPanelEmpty'}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Signals</p>
-          <h2 className="panelTitle">Breakdown</h2>
+          <p className="eyebrow">信号</p>
+          <h2 className="panelTitle">风险拆解</h2>
         </div>
-        <span className={`pill ${hasSignals ? 'pillWarn' : 'pillSuccess'}`}>{hasSignals ? `${signals.length} active` : 'clear'}</span>
+        <span className={`pill ${hasSignals ? 'pillWarn' : 'pillSuccess'}`}>{hasSignals ? `${signals.length} 个活跃` : '清晰'}</span>
       </div>
 
       {hasSignals ? (
@@ -50,22 +50,22 @@ export function RiskBreakdown({ signals }: RiskBreakdownProps) {
         </div>
       ) : (
         <div className="riskEmptyState">
-          <strong>No active priced risk signal.</strong>
+          <strong>没有活跃的已定价风险信号。</strong>
           <p>
-            Connected-wallet review stays in audit-only mode until a priced, actionable route appears. What-if can still preview shocks without mutating wallet state.
+            在出现已定价、可执行的路线之前，已连接钱包会保持仅审计模式。What-if 仍可预览冲击，但不会改变钱包状态。
           </p>
-          <div className="riskEmptyGrid" aria-label="Clear risk guardrails">
+          <div className="riskEmptyGrid" aria-label="清晰风险护栏">
             <div>
-              <span>Wallet</span>
-              <strong>real scan</strong>
+              <span>钱包</span>
+              <strong>真实扫描</strong>
             </div>
             <div>
               <span>Policy</span>
-              <strong>review only</strong>
+              <strong>仅审查</strong>
             </div>
             <div>
-              <span>Preview</span>
-              <strong>no submit</strong>
+              <span>预览</span>
+              <strong>不提交</strong>
             </div>
           </div>
         </div>

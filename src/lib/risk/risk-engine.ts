@@ -79,14 +79,14 @@ function scoreConcentration(portfolio: PortfolioSnapshot, topAsset: { symbol: st
 
   return {
     id: 'concentration-top-asset',
-    title: `${topAsset.symbol} concentration risk`,
+    title: `${topAsset.symbol} 集中度风险`,
     level: pct >= 0.65 ? 'critical' : 'high',
     category: 'concentration',
-    summary: `${topAsset.symbol} makes up ${round(pct * 100)}% of the tracked portfolio.`,
+    summary: `${topAsset.symbol} 占已跟踪 Portfolio 的 ${round(pct * 100)}%。`,
     evidence: [
-      `Top asset: ${topAsset.symbol}`,
-      `Tracked share: ${round(pct * 100)}%`,
-      `Tracked value: $${round(topAsset.usdValue)}`,
+      `最大资产：${topAsset.symbol}`,
+      `已跟踪占比：${round(pct * 100)}%`,
+      `已跟踪价值：$${round(topAsset.usdValue)}`,
     ],
     numericScore,
   };
@@ -107,14 +107,14 @@ function scoreSuiDownside(portfolio: PortfolioSnapshot): RiskSignal | null {
 
   return {
     id: 'sui-downside',
-    title: 'SUI downside exposure',
+    title: 'SUI 下行敞口',
     level: pct >= 0.65 ? 'critical' : 'high',
     category: 'price',
-    summary: `SUI-linked exposure is ${round(pct * 100)}% of the portfolio, so a drawdown would hit hard.`,
+    summary: `SUI 相关敞口占 Portfolio 的 ${round(pct * 100)}%，回撤会造成明显冲击。`,
     evidence: [
-      `Direct SUI value: $${round(directSui)}`,
-      `LP-linked SUI exposure: $${round(exposure - directSui)}`,
-      `Total SUI exposure: $${round(exposure)}`,
+      `直接 SUI 价值：$${round(directSui)}`,
+      `LP 相关 SUI 敞口：$${round(exposure - directSui)}`,
+      `总 SUI 敞口：$${round(exposure)}`,
     ],
     numericScore: Math.min(30, round(14 + pct * 10)),
   };
@@ -135,14 +135,14 @@ function scoreStablecoinConcentration(portfolio: PortfolioSnapshot): RiskSignal 
 
   return {
     id: 'stablecoin-concentration',
-    title: `${stable.symbol} stablecoin concentration`,
+    title: `${stable.symbol} stablecoin 集中度`,
     level: 'medium',
     category: 'stablecoin',
-    summary: `${stable.symbol} represents ${round(share * 100)}% of the stablecoin sleeve.`,
+    summary: `${stable.symbol} 占 stablecoin 仓位的 ${round(share * 100)}%。`,
     evidence: [
-      `Stablecoin sleeve value: $${round(stable.total)}`,
-      `Largest stablecoin: ${stable.symbol}`,
-      `Largest share: ${round(share * 100)}%`,
+      `Stablecoin 仓位价值：$${round(stable.total)}`,
+      `最大 stablecoin：${stable.symbol}`,
+      `最大占比：${round(share * 100)}%`,
     ],
     numericScore: 10,
   };
@@ -169,14 +169,14 @@ function scoreLendingRisk(portfolio: PortfolioSnapshot): RiskSignal | null {
 
   return {
     id: 'lending-health',
-    title: `${weakest.protocol} liquidation risk`,
+    title: `${weakest.protocol} 清算风险`,
     level,
     category: 'liquidation',
-    summary: `The lending position is close enough to liquidation to matter in a modest drawdown.`,
+    summary: '该借贷仓位已经接近清算区间，中等回撤也值得关注。',
     evidence: [
-      `Collateral: $${round(weakest.collateralUsd)} ${weakest.collateralSymbol}`,
-      `Debt: $${round(weakest.debtUsd)} ${weakest.debtSymbol}`,
-      `Health factor: ${weakest.healthFactor.toFixed(2)}`,
+      `抵押品：$${round(weakest.collateralUsd)} ${weakest.collateralSymbol}`,
+      `债务：$${round(weakest.debtUsd)} ${weakest.debtSymbol}`,
+      `健康因子：${weakest.healthFactor.toFixed(2)}`,
     ],
     numericScore: weakest.healthFactor < 1.3 ? 20 : 16,
   };
@@ -204,14 +204,14 @@ function scoreLiquidityRisk(portfolio: PortfolioSnapshot): RiskSignal | null {
 
   return {
     id: 'lp-impermanent-loss',
-    title: `${highest.protocol} LP impermanent loss risk`,
+    title: `${highest.protocol} LP 无常损失风险`,
     level,
     category: 'lp',
-    summary: `The ${highest.pair} position is large enough that impermanent loss could dent the book.`,
+    summary: `${highest.pair} 仓位规模已经足够大，无常损失可能影响账本。`,
     evidence: [
-      `LP value: $${round(highest.usdValue)}`,
-      `Portfolio share: ${round(share * 100)}%`,
-      `Risk tag: ${highest.estimatedImpermanentLossRisk}`,
+      `LP 价值：$${round(highest.usdValue)}`,
+      `Portfolio 占比：${round(share * 100)}%`,
+      `风险标签：${highest.estimatedImpermanentLossRisk}`,
     ],
     numericScore: highest.estimatedImpermanentLossRisk === 'high' && share >= 0.08 ? 10 : 6,
   };
@@ -249,7 +249,7 @@ export function calculateRiskReport(portfolio: PortfolioSnapshot): RiskReport {
       estimatedLossPct: portfolio.totalUsdValue > 0 ? round((getSuiExposure(portfolio) * 0.2 / portfolio.totalUsdValue) * 100) : 0,
     },
     {
-      scenario: 'Stablecoin depeg -5%',
+      scenario: 'Stablecoin 脱锚 -5%',
       estimatedLossUsd: round(getStableExposure(portfolio).total * 0.05),
       estimatedLossPct: portfolio.totalUsdValue > 0 ? round((getStableExposure(portfolio).total * 0.05 / portfolio.totalUsdValue) * 100) : 0,
     },

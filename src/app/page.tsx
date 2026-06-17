@@ -15,7 +15,6 @@ function normalizeSection(value: string | string[] | undefined): DemoSection {
 
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
-  const demo = Array.isArray(params?.demo) ? params.demo[0] : params?.demo;
 
-  return <RiskPilotApp initialJudgeDemo={demo === 'judge'} initialSection={normalizeSection(params?.stage)} />;
+  return <RiskPilotApp initialSection={normalizeSection(params?.stage)} />;
 }

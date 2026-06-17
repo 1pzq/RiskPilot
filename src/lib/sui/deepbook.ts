@@ -1,6 +1,6 @@
-import { createRunId, makePrefixedId, stableHash } from '../utils/ids';
+import { stableHash } from '../utils/ids';
 
-export type DeepBookExecutionMode = 'simulation' | 'prepare_mainnet' | 'mainnet';
+export type DeepBookExecutionMode = 'prepare_mainnet' | 'mainnet';
 
 export type DeepBookExecutionRequest = {
   market: string;
@@ -16,13 +16,12 @@ export type DeepBookExecutionResult = {
   mode: DeepBookExecutionMode;
   status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
   digest?: string;
-  simulationId?: string;
   error?: string;
   preparedTransactionSummary?: string;
   transactionBytes?: string;
   warning?: string;
   adapter: {
-    venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
+    venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet';
     requestedMode: DeepBookExecutionMode;
     mainnetOnly: true;
   };
@@ -38,7 +37,7 @@ export type DeepBookExecutionResult = {
 
 function summarizeRequest(request: DeepBookExecutionRequest): string {
   const kind = request.kind === 'predict_binary' ? 'DeepBook Predict binary' : 'DeepBook spot';
-  return `${kind}: ${request.side.toUpperCase()} ${request.amountUsd.toFixed(2)} USD of ${request.assetIn} into ${request.assetOut} on ${request.market}`;
+  return `${kind}：在 ${request.market} 上 ${request.side.toUpperCase()} ${request.amountUsd.toFixed(2)} USD 的 ${request.assetIn} 换入 ${request.assetOut}`;
 }
 
 function venueForRequest(request: DeepBookExecutionRequest): 'DeepBook mainnet' | 'DeepBook Predict mainnet' {
@@ -46,12 +45,8 @@ function venueForRequest(request: DeepBookExecutionRequest): 'DeepBook mainnet' 
 }
 
 function normalizeExecutionMode(value?: string | null): DeepBookExecutionMode {
-  if (value === 'simulation' || value === 'prepare_mainnet' || value === 'mainnet') {
+  if (value === 'prepare_mainnet' || value === 'mainnet') {
     return value;
-  }
-
-  if (value === 'simulate') {
-    return 'simulation';
   }
 
   if (value === 'live') {
@@ -59,30 +54,6 @@ function normalizeExecutionMode(value?: string | null): DeepBookExecutionMode {
   }
 
   return 'prepare_mainnet';
-}
-
-export function simulateDeepBookAction(request: DeepBookExecutionRequest): DeepBookExecutionResult {
-  const digest = makePrefixedId('sim', JSON.stringify(request));
-
-  return {
-    mode: 'simulation',
-    status: 'prepared',
-    simulationId: createRunId('sim'),
-    digest,
-    preparedTransactionSummary: `Local simulation only: ${summarizeRequest(request)}.`,
-    adapter: {
-      venue: 'local simulation',
-      requestedMode: 'simulation',
-      mainnetOnly: true,
-    },
-    authority: {
-      signer: 'none',
-      payer: 'none',
-      signerLabel: 'No wallet signature',
-      payerLabel: 'No chain payment',
-      note: 'Local simulation does not submit a transaction or spend wallet funds.',
-    },
-  };
 }
 
 export function prepareDeepBookTransaction(
@@ -97,7 +68,7 @@ export function prepareDeepBookTransaction(
     mode: 'prepare_mainnet',
     status: 'prepared',
     digest: `prep_${fingerprint.slice(0, 12)}`,
-    preparedTransactionSummary: `Prepared mainnet action for ${walletAddress}: ${summary}.`,
+    preparedTransactionSummary: `已为 ${walletAddress} 准备 mainnet 动作：${summary}。`,
     transactionBytes: `0x${fingerprint}`,
     adapter: {
       venue: venueForRequest(request),
@@ -107,10 +78,10 @@ export function prepareDeepBookTransaction(
     authority: {
       signer: 'none',
       payer: 'none',
-      signerLabel: 'No wallet signature',
-      payerLabel: 'No chain payment',
+      signerLabel: '无钱包签名',
+      payerLabel: '无链上付款',
       walletAddress,
-      note: 'Prepared mainnet action records intent only; the connected wallet does not sign until live mode is explicitly selected.',
+      note: '已准备的 mainnet 动作只记录意图；只有明确选择 Live 模式后，已连接钱包才会签名。',
     },
   };
 }
@@ -120,51 +91,32 @@ export async function executeDeepBookTransaction(
   walletAddress: string,
   options?: {
     requestedMode?: string | null;
-    enableRealDeepBook?: boolean;
-    allowLocalFallback?: boolean;
   },
 ): Promise<DeepBookExecutionResult> {
   const requestedMode = normalizeExecutionMode(options?.requestedMode);
-  const allowLocalFallback = options?.allowLocalFallback ?? true;
-  const enableRealDeepBook = options?.enableRealDeepBook ?? true;
 
   try {
-    if (requestedMode === 'simulation' || !enableRealDeepBook) {
-      return {
-        ...simulateDeepBookAction(request),
-        warning: 'Local simulation fallback used. No funds were submitted.',
-      };
-    }
-
     if (requestedMode === 'mainnet') {
       return {
         ...prepareDeepBookTransaction(request, walletAddress, requestedMode),
         warning:
-          'Live mainnet submission is not wired for this action. A mainnet action was prepared instead.',
+          '该动作尚未接入 Live mainnet 提交，已改为准备 mainnet 动作。',
       };
     }
 
     return prepareDeepBookTransaction(request, walletAddress, requestedMode);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'DeepBook execution failed';
-
-    if (!allowLocalFallback) {
-      return {
-        mode: requestedMode,
-        status: 'failed',
-        error: message,
-        adapter: {
-          venue: venueForRequest(request),
-          requestedMode,
-          mainnetOnly: true,
-        },
-      };
-    }
+    const message = error instanceof Error ? error.message : 'DeepBook 执行失败';
 
     return {
-      ...simulateDeepBookAction(request),
+      mode: requestedMode,
+      status: 'failed',
       error: message,
-      warning: `${message} Local simulation fallback used. No funds were submitted.`,
+      adapter: {
+        venue: venueForRequest(request),
+        requestedMode,
+        mainnetOnly: true,
+      },
     };
   }
 }

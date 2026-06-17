@@ -11,16 +11,18 @@ import {
   extractReceiptObjectId,
   RECEIPT_PACKAGE_ID,
 } from '@/lib/sui/receipt';
+import { executionDigestForReceipt } from '@/lib/sui/prepared-ptb';
 import { formatAddress } from '@/lib/utils/format';
 
 type ReceiptMintPanelProps = {
   auditPackage: AuditPackage;
   storageResult: AuditStorageResult;
+  onReceiptMinted?: (proof: NonNullable<AuditPackage['receiptProof']>) => void;
 };
 
 type ReceiptStatus = 'idle' | 'success' | 'error';
 
-export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPanelProps) {
+export function ReceiptMintPanel({ auditPackage, storageResult, onReceiptMinted }: ReceiptMintPanelProps) {
   const account = useCurrentAccount();
   const client = useSuiClient();
   const [status, setStatus] = useState<ReceiptStatus>('idle');
@@ -44,21 +46,23 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
     RECEIPT_PACKAGE_ID && account && !signAndExecute.isPending && status !== 'success',
   );
   const executionDigest =
-    auditPackage.execution.digest ??
-    auditPackage.execution.simulationId ??
-    auditPackage.execution.preparedTransactionSummary ??
-    auditPackage.id;
+    executionDigestForReceipt({
+      signedPreparedPtb: auditPackage.execution.signedPreparedPtb,
+      digest: auditPackage.execution.digest,
+      preparedTransactionSummary: auditPackage.execution.preparedTransactionSummary,
+      fallbackId: auditPackage.id,
+    });
 
   async function handleMintReceipt() {
     if (!RECEIPT_PACKAGE_ID) {
       setStatus('error');
-      setError('Receipt package is not configured.');
+      setError('Receipt package 未配置。');
       return;
     }
 
     if (!account) {
       setStatus('error');
-      setError('Connect a Sui mainnet wallet before minting the receipt.');
+      setError('mint receipt 前请先连接 Sui mainnet 钱包。');
       return;
     }
 
@@ -74,13 +78,24 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
 
       const result = await signAndExecute.mutateAsync({ transaction: tx, chain: 'sui:mainnet' });
       const mintedObjectId = extractReceiptObjectId(result.objectChanges);
+      const receiptProof = {
+        strategyId: auditPackage.recommendation.id,
+        policyObjectId: auditPackage.policyObjectId,
+        auditBlobId: storageResult.id,
+        executionDigest,
+        receiptDigest: result.digest,
+        receiptObjectId: mintedObjectId,
+        signer: account.address,
+        mintedAt: new Date().toISOString(),
+      };
 
       setDigest(result.digest);
       setReceiptObjectId(mintedObjectId ?? '');
       setStatus('success');
+      onReceiptMinted?.(receiptProof);
     } catch (mintError) {
       setStatus('error');
-      setError(mintError instanceof Error ? mintError.message : 'Receipt mint failed.');
+      setError(mintError instanceof Error ? mintError.message : 'Receipt mint 失败。');
     }
   }
 
@@ -88,11 +103,11 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
     <section className="panel receiptMintPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">On-chain receipt</p>
+          <p className="eyebrow">归档后证明</p>
           <h2 className="panelTitle">Mint StrategyReceipt</h2>
         </div>
         <span className={`pill ${status === 'success' ? 'pillSuccess' : 'pillWarn'}`}>
-          {status === 'success' ? 'minted' : 'optional'}
+          {status === 'success' ? '已 mint' : '可选'}
         </span>
       </div>
 
@@ -102,22 +117,49 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
         <span className="pixelBadge pixelBadgePurple">RCPT</span>
       </div>
 
+      <div className="receiptProofPreview" aria-label="StrategyReceipt fields before mint">
+        <div>
+          <span>记录</span>
+          <strong>Strategy ID</strong>
+          <small>{auditPackage.recommendation.id}</small>
+        </div>
+        <div>
+          <span>链接</span>
+          <strong>Walrus blob ID</strong>
+          <small>{storageResult.id}</small>
+        </div>
+        <div>
+          <span>分离</span>
+          <strong>Execution digest</strong>
+          <small>{executionDigest}</small>
+        </div>
+        <div>
+          <span>授权</span>
+          <strong>AgentPolicy object</strong>
+          <small>{auditPackage.policyObjectId ?? '未选择'}</small>
+        </div>
+      </div>
+
       <div className="ticketRows">
         <div className="ticketRow">
           <span>Package</span>
-          <strong>{RECEIPT_PACKAGE_ID ? formatAddress(RECEIPT_PACKAGE_ID) : 'Not configured'}</strong>
+          <strong>{RECEIPT_PACKAGE_ID ? formatAddress(RECEIPT_PACKAGE_ID) : '未配置'}</strong>
         </div>
         <div className="ticketRow">
           <span>Walrus blob</span>
           <strong>{formatAddress(storageResult.id)}</strong>
         </div>
         <div className="ticketRow">
-          <span>Receipt signer</span>
-          <strong>{account ? formatAddress(account.address) : 'Connect wallet'}</strong>
+          <span>Receipt 签名者</span>
+          <strong>{account ? formatAddress(account.address) : '连接钱包'}</strong>
         </div>
         <div className="ticketRow">
-          <span>Archive payer</span>
-          <strong>{storageResult.paymentLabel ?? 'Connected wallet'}</strong>
+          <span>Policy object</span>
+          <strong>{auditPackage.policyObjectId ? formatAddress(auditPackage.policyObjectId) : '未绑定'}</strong>
+        </div>
+        <div className="ticketRow">
+          <span>归档支付方</span>
+          <strong>{storageResult.paymentLabel ?? '已连接钱包'}</strong>
         </div>
       </div>
 
@@ -127,13 +169,13 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
         onClick={() => void handleMintReceipt()}
         disabled={!canMint}
       >
-        {status === 'success' ? 'Receipt minted' : signAndExecute.isPending ? 'Waiting for wallet…' : 'Mint on-chain receipt'}
+        {status === 'success' ? 'Receipt 已 mint' : signAndExecute.isPending ? '等待钱包…' : 'Mint 归档后 receipt'}
       </button>
 
       {!account ? (
         <div className="noteRow">
           <Wallet size={14} />
-          <span>Connect a Sui mainnet wallet to mint the receipt object.</span>
+          <span>连接 Sui mainnet 钱包以 mint receipt 对象。</span>
         </div>
       ) : null}
 
@@ -141,13 +183,13 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
         <div className="receiptResult">
           <div>
             <CheckCircle2 size={16} />
-            <span>Receipt transaction</span>
+            <span>Receipt 交易</span>
             <strong>{digest}</strong>
           </div>
           <div>
             <FileCheck2 size={16} />
             <span>Receipt object</span>
-            <strong>{receiptObjectId || 'Created object pending in wallet response'}</strong>
+            <strong>{receiptObjectId || '钱包响应中创建对象待定'}</strong>
           </div>
         </div>
       ) : null}
@@ -156,7 +198,7 @@ export function ReceiptMintPanel({ auditPackage, storageResult }: ReceiptMintPan
 
       <div className="noteRow">
         <Link2 size={14} />
-        <span>Minting records the strategy ID, Walrus blob ID, and prepared execution ID on Sui mainnet. Archive and receipt are separate wallet-signed transactions.</span>
+        <span>Mint 会把 strategy ID、Policy object、Walrus blob ID 和 prepared execution ID 串成归档后证明；它是 agent 授权记忆，不是自动交易。</span>
       </div>
     </section>
   );

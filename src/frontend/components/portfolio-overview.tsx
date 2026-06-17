@@ -4,6 +4,7 @@ import { Boxes, Landmark, Layers3, PieChart, WalletCards } from 'lucide-react';
 
 import type { PortfolioSnapshot, WalletObjectKind, WalletObjectSummary } from '@/lib/risk/types';
 import { formatAddress, formatCompact, formatPercent, formatUsd } from '@/lib/utils/format';
+import { zhDisplayText, zhSourceLabel } from '@/frontend/utils/zh';
 
 type PortfolioOverviewProps = {
   portfolio: PortfolioSnapshot;
@@ -25,7 +26,7 @@ const objectKindLabel: Record<WalletObjectKind, string> = {
   riskpilot_receipt: 'Receipt',
   defi_candidate: 'DeFi',
   package_cap: 'Package',
-  other: 'Object',
+  other: '对象',
 };
 
 const objectKindBadge: Record<WalletObjectKind, string> = {
@@ -105,7 +106,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             {fact.label}: <strong>{fact.value}</strong>
           </span>
         ))}
-        {hiddenFacts > 0 ? <span className="walletObjectFactsMore">+{hiddenFacts} more</span> : null}
+        {hiddenFacts > 0 ? <span className="walletObjectFactsMore">另有 {hiddenFacts} 项</span> : null}
       </div>
     );
   }
@@ -114,12 +115,12 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
     <section className={isMainnetWallet ? 'panel portfolioPanel portfolioPanelWallet' : 'panel portfolioPanel'}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Portfolio</p>
-          <h2 className="panelTitle">Tracked value {formatUsd(portfolio.totalUsdValue)}</h2>
+          <p className="eyebrow">投资组合</p>
+          <h2 className="panelTitle">已追踪价值 {formatUsd(portfolio.totalUsdValue)}</h2>
         </div>
         <div className="panelHeaderMeta">
-          <span className="pill pillMuted">{sourceLabel}</span>
-          <span className="pill pillNeutral">{walletStatus}</span>
+          <span className="pill pillMuted">{zhSourceLabel(sourceLabel)}</span>
+          <span className="pill pillNeutral">{zhDisplayText(walletStatus)}</span>
         </div>
       </div>
 
@@ -127,34 +128,34 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         <div className="metricCard">
           <div className="metricLabel">
             <WalletCards size={14} />
-            Wallet
+            钱包
           </div>
           <div className="metricValue">{formatAddress(portfolio.walletAddress)}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <PieChart size={14} />
-            Holdings
+            持仓
           </div>
           <div className="metricValue">{portfolio.assets.length}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <Landmark size={14} />
-            Lending
+            借贷
           </div>
           <div className="metricValue">{portfolio.lendingPositions.length}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <Boxes size={14} />
-            Objects
+            对象
           </div>
           <div className="metricValue">{walletScan ? walletScan.totalObjects : '—'}</div>
         </div>
       </div>
 
-      <div className="portfolioAssetGrid" aria-label="Wallet holdings">
+      <div className="portfolioAssetGrid" aria-label="钱包持仓">
         {portfolio.assets.map((asset) => {
           const isPriced = asset.usdPrice > 0 && asset.usdValue > 0;
           const share = portfolio.totalUsdValue > 0 ? asset.usdValue / portfolio.totalUsdValue : 0;
@@ -173,9 +174,9 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                 </div>
                 <div className="assetNumbers">
                   <strong className={isPriced ? undefined : 'assetUnpriced'}>
-                    {isPriced ? formatUsd(asset.usdValue) : 'Unpriced'}
+                    {isPriced ? formatUsd(asset.usdValue) : '未定价'}
                   </strong>
-                  <span>{isPriced ? formatPercent(share * 100) : 'not valued'}</span>
+                  <span>{isPriced ? formatPercent(share * 100) : '未计入估值'}</span>
                 </div>
               </div>
               <div className="barTrack" aria-hidden="true">
@@ -189,7 +190,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
               </div>
               <div className="assetMetaRow">
                 <span>{formatCompact(asset.amount)} {asset.symbol}</span>
-                <span>{isPriced ? `@ ${formatUsd(asset.usdPrice)}` : 'price unavailable'}</span>
+                <span>{isPriced ? `@ ${formatUsd(asset.usdPrice)}` : '价格不可用'}</span>
               </div>
             </div>
           );
@@ -202,27 +203,23 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             <div>
               <div className="subPanelHeader">
                 <Boxes size={14} />
-                Mainnet object scan
+                Mainnet 对象扫描
               </div>
-              <p>Owned Sui objects are scanned directly from mainnet and attached to the audit package.</p>
-              <p className="walletScanPreviewNote">
-                Scrollable preview showing {sampleObjectCount} of {walletScan.totalObjects} scanned objects. Key category counts stay visible above.
-              </p>
             </div>
-            <span className="pill pillSuccess">real scan</span>
+            <span className="pill pillSuccess">真实扫描</span>
           </div>
 
-          <div className="walletScanChips" aria-label="Wallet object counters">
-            <span>{walletScan.coinObjects} coin objects</span>
+          <div className="walletScanChips" aria-label="钱包对象计数">
+            <span>{walletScan.coinObjects} 个 Coin 对象</span>
             <span>{walletScan.deepbookObjects} DeepBook objects</span>
             <span>{walletScan.walrusBlobs} Walrus blobs</span>
-            <span>{walletScan.receiptObjects} receipts</span>
-            <span>{walletScan.defiCandidates} DeFi candidates</span>
-            <span>{walletScan.packageCaps} package caps</span>
+            <span>{walletScan.receiptObjects} 个 Receipt</span>
+            <span>{walletScan.defiCandidates} 个 DeFi 候选</span>
+            <span>{walletScan.packageCaps} 个 Package 权限</span>
           </div>
 
           {walletScan.protocolHints.length > 0 ? (
-            <div className="walletProtocolHints" aria-label="Protocol hints">
+            <div className="walletProtocolHints" aria-label="协议线索">
               {visibleProtocolHints.map((hint) => {
                 const visibleRoles = hint.roles.slice(0, 3);
                 const hiddenRoles = hint.roles.length - visibleRoles.length;
@@ -235,11 +232,11 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                   </span>
                 );
               })}
-              {hiddenProtocolHintCount > 0 ? <span className="walletProtocolHintsMore">+{hiddenProtocolHintCount} protocols</span> : null}
+              {hiddenProtocolHintCount > 0 ? <span className="walletProtocolHintsMore">另有 {hiddenProtocolHintCount} 个协议</span> : null}
             </div>
           ) : null}
 
-          <div className="walletObjectListViewport" aria-label="Mainnet object preview">
+          <div className="walletObjectListViewport" aria-label="Mainnet 对象预览">
             {sampleObjectCount > 0 ? (
               <div className="walletObjectList">
                 {objectGroupOrder.map((kind) => {
@@ -279,7 +276,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                       </div>
                       {hiddenPreviewCount > 0 ? (
                         <div className="walletObjectGroupFooter">
-                          Showing {previewObjects.length} of {groupTotal} {objectKindLabel[kind].toLowerCase()} objects in preview.
+                          预览中显示 {groupTotal} 个{objectKindLabel[kind]}对象里的 {previewObjects.length} 个。
                         </div>
                       ) : null}
                     </div>
@@ -287,7 +284,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                 })}
               </div>
             ) : (
-              <div className="walletObjectEmpty">No previewable owned objects returned in this scan.</div>
+              <div className="walletObjectEmpty">本次扫描没有返回可预览的已拥有对象。</div>
             )}
           </div>
         </div>
@@ -297,7 +294,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         <div className="subPanel">
           <div className="subPanelHeader">
             <Layers3 size={14} />
-            Lending position
+            借贷仓位
           </div>
           {portfolio.lendingPositions.length > 0 ? (
             portfolio.lendingPositions.map((position) => (
@@ -309,48 +306,48 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                   </span>
                 </div>
                 <div className="positionLine subtle">
-                  <span>{position.collateralSymbol} collateral</span>
+                  <span>{position.collateralSymbol} 抵押品</span>
                   <span>{formatUsd(position.collateralUsd)}</span>
                 </div>
                 <div className="positionLine subtle">
-                  <span>{position.debtSymbol} debt</span>
+                  <span>{position.debtSymbol} 债务</span>
                   <span>{formatUsd(position.debtUsd)}</span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="positionEmpty">No decoded lending position in this wallet.</div>
+            <div className="positionEmpty">这个钱包里没有已解析的借贷仓位。</div>
           )}
         </div>
 
         <div className="subPanel">
           <div className="subPanelHeader">
             <Layers3 size={14} />
-            LP position
+            LP 仓位
           </div>
           {portfolio.liquidityPositions.length > 0 ? (
             portfolio.liquidityPositions.map((position) => (
               <div className="positionBlock" key={position.protocol}>
                 <div className="positionLine">
                   <span>{position.protocol}</span>
-                  <span className="pill pillNeutral">{position.estimatedImpermanentLossRisk}</span>
+                  <span className="pill pillNeutral">{zhDisplayText(position.estimatedImpermanentLossRisk)}</span>
                 </div>
                 <div className="positionLine subtle">
                   <span>{position.pair}</span>
                   <span>{formatUsd(position.usdValue)}</span>
                 </div>
                 <div className="positionLine subtle">
-                  <span>SUI leg</span>
+                  <span>SUI 侧</span>
                   <span>{formatUsd(position.tokenAExposureUsd)}</span>
                 </div>
                 <div className="positionLine subtle">
-                  <span>USDC leg</span>
+                  <span>USDC 侧</span>
                   <span>{formatUsd(position.tokenBExposureUsd)}</span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="positionEmpty">No decoded LP position in this wallet.</div>
+            <div className="positionEmpty">这个钱包里没有已解析的 LP 仓位。</div>
           )}
         </div>
       </div>

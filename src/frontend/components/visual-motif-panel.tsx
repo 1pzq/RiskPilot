@@ -6,24 +6,24 @@ const motifs = [
   {
     id: 'agent',
     tag: 'Agentic Web',
-    title: 'Risk agent',
-    copy: 'An AI workflow reads the portfolio, explains exposure, and stays inside policy limits.',
+    title: '风险 Agent',
+    copy: 'AI 工作流读取 Portfolio、解释敞口，并保持在 Policy 限制内。',
     tone: 'yellow',
     visual: 'key',
   },
   {
     id: 'walrus',
     tag: 'Walrus',
-    title: 'Audit memory',
-    copy: 'Every prepared action becomes a portable decision package with fallback-safe storage.',
+    title: '审计记忆',
+    copy: '每个已准备动作都会成为可携带的决策包，并带有兜底安全存储。',
     tone: 'cyan',
     visual: 'walrus',
   },
   {
     id: 'deepbook',
     tag: 'DeepBook',
-    title: 'Prepared cover',
-    copy: 'DeepBook Predict-style terms are prepared for downside protection without live submission.',
+    title: '已准备保护',
+    copy: 'DeepBook Predict 风格条款会为下行保护提前准备，但不进行 Live 提交。',
     tone: 'purple',
     visual: 'cash',
   },
@@ -67,18 +67,9 @@ function StickerVisual({ type }: { type: (typeof motifs)[number]['visual'] }) {
 
 export function VisualMotifPanel() {
   const [activeId, setActiveId] = useState<(typeof motifs)[number]['id']>('agent');
-  const [pulse, setPulse] = useState(0);
 
   return (
-    <section className="motifSection panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Visual tracks</p>
-          <h2 className="panelTitle">Mainnet primitives in motion</h2>
-        </div>
-        <span className="pill pillAccent">click cards</span>
-      </div>
-
+    <section className="motifSection panel" aria-label="Mainnet 原语流转">
       <div className="trackCardGrid">
         {motifs.map((motif) => {
           const active = motif.id === activeId;
@@ -90,7 +81,6 @@ export function VisualMotifPanel() {
               type="button"
               onClick={() => {
                 setActiveId(motif.id);
-                setPulse((value) => value + 1);
               }}
             >
               <span className="trackTag">{motif.tag}</span>
@@ -99,7 +89,7 @@ export function VisualMotifPanel() {
                 <strong>{motif.title}</strong>
               </span>
               <span className="trackArt">
-                <StickerVisual key={active ? `${motif.id}-${pulse}` : motif.id} type={motif.visual} />
+                <StickerVisual type={motif.visual} />
               </span>
               <span className="trackCopy">{motif.copy}</span>
             </button>

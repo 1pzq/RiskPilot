@@ -21,7 +21,7 @@ Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 - Sui mainnet, DeepBook, Walrus, and optional StrategyReceipt are supporting proof rails.
 - App stages: Overview -> Risk -> Strategy -> Audit -> Prepare.
 - Judge-facing workflow rail: Prime context -> Score risk -> Run what-if -> Lock strategy -> Open agent room -> Prepare archive. The rail adds UI/API-only actions before the final wallet-paid archive so the product no longer reads as one archive button.
-- Judge mode works disconnected through curated scenarios and One-click Judge Demo Mode.
+- Fixed judge-demo mode has been removed from the evaluation path. Before wallet connection, the app exposes proof rail and boundary checks only; risk, strategy, agent, and archive stages are presented as a connected-wallet mainnet workflow.
 - Connected-wallet mode reads real Sui mainnet balances and owned objects, hides scenario cards, clears synthetic demo lending/LP positions, and does not invent trades from unknown or unpriced coins.
 - Connected-wallet Overview now includes Wallet Health Summary: top concern, actionable vs non-actionable route, and unpriced/unsupported exposure. This is trust copy, not execution authority.
 - Default execution mode is `prepare_mainnet`.
@@ -60,7 +60,7 @@ Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 ## Latest Trust Layer Summary
 
 - Added Wallet Health Summary for connected-wallet mode so the user sees the strongest concern, whether it is actionable, and which assets/objects remain unpriced or unsupported.
-- Replaced repeated Prepare signer/payer cards with a single Archive Preflight panel. It shows 2 wallet approvals for prepare/simulation archive and 3 approvals for live Spot plus archive.
+- Replaced repeated Prepare signer/payer cards with a single Archive Preflight panel. It shows 2 wallet approvals for prepare archive and 3 approvals for live Spot plus archive.
 - Added progress states for package build, live Spot signing, Walrus register, upload, certify, success, and failure.
 - Changed live DeepBook fallback behavior: live failure or rejection now stops before Walrus register/certify. The user must explicitly choose `Prepare mainnet` and click archive to pay for a fallback record.
 - Added local archive history in `src/lib/walrus/archive-history.ts` and the Prepare Archive History panel. Entries include audit id, Walrus blob id, blob object id, register digest, certify digest, checksum, and readback URL.
@@ -114,7 +114,8 @@ Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 - `NEXT_PUBLIC_WALRUS_READBACK_BASE_URL=https://aggregator.mainnet.walrus.space/v1/blobs`
 - `NEXT_PUBLIC_WALRUS_UPLOAD_RELAY_MAX_TIP_MIST=10000000`
 - `NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@0.2.2/web/walrus_wasm_bg.wasm`
-- `NEXT_PUBLIC_RECEIPT_PACKAGE_ID=0x3f889b1dba8796715690b5b78f6bc7ca0f248a45368649b8116f982bda847b19`
+- `NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID=0x24972ef5274a577127dc871687e4bfe4bb4d512d810c025cbe01d87ca621c2d7`
+- `NEXT_PUBLIC_RECEIPT_PACKAGE_ID=0x24972ef5274a577127dc871687e4bfe4bb4d512d810c025cbe01d87ca621c2d7`
 - Committed AI examples stay provider-neutral and blank-key by default.
 - Local demo provider configuration belongs only in `.env.local`; never copy secret values into docs, source, screenshots, commits, or chat logs.
 
@@ -125,7 +126,7 @@ Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 - `docs/mainnet-verification.md`: latest mainnet verification report and evidence.
 - `docs/project-introduction.md`: bilingual pitch and product explanation.
 - `docs/runtime-state.md`: maintainer handoff only.
-- `move/README.md`: optional StrategyReceipt package notes.
+- `move/README.md`: optional on-chain authority package notes.
 
 ## Latest Cleanup Summary
 
@@ -139,6 +140,12 @@ Last handoff update: 2026-05-28 after Trust Layer + Reusable Archive pass.
 - Updated `move/README.md` to clarify that StrategyReceipt is optional post-archive proof, not proof of automatic execution.
 
 ## Latest Mainnet Verification Summary
+
+- 2026-06-06 P0/P1/P2 hardening pass: automated verification passed with direct CLI equivalents of `npm run typecheck`, `npm run lint`, `npm test` (21 files / 90 tests), `npm run build`, and `git diff --check`.
+- Browser smoke passed on `localhost:3000` for Overview, Risk, Strategy, Audit, and Prepare after the proof-panel, boundary-check, evidence-map, trust-boundary, and StrategyReceipt proof-rail updates.
+- `/api/boundary-check` returned `ok: true` with four local checks and `walletSignatureRequested: false`.
+- StrategyReceipt proof rail now appears before mint and labels receipt minting as post-archive proof, not trade execution. Successful receipt mints are stored back into the current audit package and local archive history with receipt tx digest and receipt object id.
+- A fresh wallet-paid Walrus archive/readback/status run was not executed during this automated pass because it requires explicit connected-wallet signing and funds. The latest completed verified mainnet proof remains audit `audit_1u99mb6` / blob `ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk` until the next manual archive run.
 
 - Latest automated checks after Trust Layer pass: `npm run lint`, `npm run typecheck`, `npm test` (20 files / 85 tests), `npm run build`, `git diff --check`, and heuristic secret scan.
 - Browser smoke passed on `127.0.0.1:3000` and `localhost:3000` for judge Risk, Strategy, Audit, and Prepare. Prepare showed Archive Preflight and Archive History, had no horizontal overflow, and kept the no-wallet archive button disabled.
@@ -172,8 +179,8 @@ git diff --check
 Also run a secret scan before sharing or committing. Browser smoke should cover:
 
 - `http://localhost:3000/`
-- `http://localhost:3000/?stage=risk&demo=judge#risk-dashboard`
-- `http://localhost:3000/?stage=strategy&demo=judge#risk-dashboard`
+- `http://localhost:3000/?stage=risk#risk-dashboard`
+- `http://localhost:3000/?stage=strategy#risk-dashboard`
 - `http://localhost:3000/?stage=audit#risk-dashboard`
 - `http://localhost:3000/?stage=prepare#risk-dashboard`
 - The same key stage links on `127.0.0.1:3000`

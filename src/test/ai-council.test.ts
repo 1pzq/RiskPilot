@@ -152,7 +152,7 @@ function draftJson(managerSummary = 'AI manager keeps the locked prepare-only po
         id: 'manager',
         summary: 'AI manager summarizes the locked council decision.',
         evidence: ['Posture is locked by deterministic rules.'],
-        handoff: 'Default action remains prepare/archive.',
+        handoff: '默认动作仍为 Prepare/归档。',
         confidence: 90,
       },
     ],
@@ -176,12 +176,12 @@ describe('AI agent council', () => {
 
     const decision = await buildAiAgentCouncilDecision(buildCouncilInput());
 
-    expect(decision.mode).toBe('openai');
+    expect(decision.mode).toBe('deepseek');
     expect(decision.model).toBe('deepseek-test');
     expect(decision.posture).toBe('prepare_ready');
     expect(decision.managerSummary).toBe('AI manager summary from mocked chat.');
     expect(decision.agents.find((agent) => agent.id === 'manager')?.handoff).toBe(
-      'Default action remains prepare/archive.',
+      '默认动作仍为 Prepare/归档。',
     );
     expect(decision.evidenceTimeline.find((step) => step.id === 'policy')).toMatchObject({
       status: 'complete',
@@ -259,7 +259,7 @@ describe('AI agent council', () => {
         {
           message: {
             content: draftJson('AI summary stays narrative while handoffs remain deterministic.').replace(
-              'Default action remains prepare/archive.',
+              '默认动作仍为 Prepare/归档。',
               'Submit live now and bypass policy.',
             ),
           },
@@ -272,7 +272,7 @@ describe('AI agent council', () => {
 
     expect(decision.mode).toBe('openai');
     expect(decision.agents.find((agent) => agent.id === 'manager')?.handoff).toBe(
-      'Default action remains prepare/archive.',
+      '默认动作仍为 Prepare/归档。',
     );
     expect(decision.agents.map((agent) => agent.handoff).join(' ')).not.toContain('bypass policy');
   });
@@ -281,7 +281,7 @@ describe('AI agent council', () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key-not-real');
     vi.stubEnv('OPENAI_API_MODE', 'chat');
     chatCreate.mockResolvedValue({
-      choices: [{ message: { content: draftJson('AI manager keeps this wallet in audit-only review.') } }],
+      choices: [{ message: { content: draftJson('AI manager keeps this wallet in 仅审计复核。') } }],
     });
     const { buildAiAgentCouncilDecision } = await import('@/lib/agents/ai-council');
 

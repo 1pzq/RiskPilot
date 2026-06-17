@@ -184,8 +184,8 @@ describe('mainnet portfolio helpers', () => {
     });
     expect(summary?.facts).toEqual(
       expect.arrayContaining([
-        { label: 'Size', value: '125 bytes' },
-        { label: 'Certified', value: 'epoch 31' },
+        { label: '大小', value: '125 bytes' },
+        { label: '已认证', value: 'epoch 31' },
       ]),
     );
   });
@@ -212,8 +212,8 @@ describe('mainnet portfolio helpers', () => {
       protocol: 'Sui',
       role: 'Coin balance',
       facts: expect.arrayContaining([
-        { label: 'Coin type', value: '0x123::spam::SPAM' },
-        { label: 'Atomic balance', value: '999999' },
+        { label: 'Coin 类型', value: '0x123::spam::SPAM' },
+        { label: '原子余额', value: '999999' },
       ]),
     });
   });
@@ -245,11 +245,11 @@ describe('mainnet portfolio helpers', () => {
       role: 'DeepBook balance manager',
       module: 'balance_manager',
       facts: expect.arrayContaining([
-        { label: 'Module', value: 'balance_manager' },
-        { label: 'Struct', value: 'BalanceManager' },
+        { label: '模块', value: 'balance_manager' },
+        { label: '结构', value: 'BalanceManager' },
         { label: 'Manager', value: '0xdeepbook' },
-        { label: 'Owner', value: '0xowner' },
-        { label: 'Orders', value: '0xorder1, 0xorder2' },
+        { label: '所有者', value: '0xowner' },
+        { label: '订单', value: '0xorder1, 0xorder2' },
       ]),
     });
   });
@@ -278,10 +278,10 @@ describe('mainnet portfolio helpers', () => {
       protocol: 'Sui',
       role: 'Package authority',
       facts: expect.arrayContaining([
-        { label: 'Cap type', value: 'UpgradeCap' },
+        { label: 'Cap 类型', value: 'UpgradeCap' },
         { label: 'Package', value: '0xpackage' },
         { label: 'Policy', value: '0' },
-        { label: 'Cap version', value: '4' },
+        { label: 'Cap 版本', value: '4' },
       ]),
     });
   });
@@ -311,7 +311,7 @@ describe('mainnet portfolio helpers', () => {
       role: 'Audit receipt',
       facts: expect.arrayContaining([
         { label: 'Strategy', value: 'sui-downside-cover' },
-        { label: 'Execution', value: 'prepare-mainnet-check' },
+        { label: '执行', value: 'prepare-mainnet-check' },
       ]),
     });
   });
@@ -339,7 +339,7 @@ describe('mainnet portfolio helpers', () => {
       protocol: 'Cetus',
       role: 'Liquidity position',
       facts: expect.arrayContaining([
-        { label: 'Liquidity', value: '1000000' },
+        { label: '流动性', value: '1000000' },
         { label: 'Ticks', value: '-100 → 100' },
       ]),
     });

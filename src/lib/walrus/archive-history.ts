@@ -25,6 +25,16 @@ export type ArchiveHistoryEntry = {
   paymentLabel?: string;
   signerLabel?: string;
   readbackUrl?: string;
+  receiptProof?: {
+    strategyId: string;
+    policyObjectId?: string;
+    auditBlobId: string;
+    executionDigest: string;
+    receiptDigest: string;
+    receiptObjectId?: string;
+    signer: string;
+    mintedAt: string;
+  };
   auditPackage: AuditPackage;
   storageResult: AuditStorageResult;
 };
@@ -113,6 +123,7 @@ export function createArchiveHistoryEntry(
     paymentLabel: storageResult.paymentLabel,
     signerLabel: storageResult.signerLabel,
     readbackUrl: buildWalrusReadbackUrl(storageResult),
+    receiptProof: auditPackage.receiptProof,
     auditPackage,
     storageResult,
   };
@@ -142,6 +153,36 @@ export function normalizeArchiveHistoryEntry(value: unknown): ArchiveHistoryEntr
   const executionStatus = stringValue(value.executionStatus) ?? stringValue(execution?.status);
   const recommendationTitle = stringValue(value.recommendationTitle) ?? stringValue(recommendation?.title);
   const riskBeforeScore = numberValue(value.riskBefore) ?? numberValue(riskBefore?.overallScore);
+  const receiptProofValue = isRecord(value.receiptProof)
+    ? {
+        strategyId: stringValue(value.receiptProof.strategyId),
+        policyObjectId: stringValue(value.receiptProof.policyObjectId),
+        auditBlobId: stringValue(value.receiptProof.auditBlobId),
+        executionDigest: stringValue(value.receiptProof.executionDigest),
+        receiptDigest: stringValue(value.receiptProof.receiptDigest),
+        receiptObjectId: stringValue(value.receiptProof.receiptObjectId),
+        signer: stringValue(value.receiptProof.signer),
+        mintedAt: stringValue(value.receiptProof.mintedAt),
+      }
+    : null;
+  const receiptProof =
+    receiptProofValue?.strategyId &&
+    receiptProofValue.auditBlobId &&
+    receiptProofValue.executionDigest &&
+    receiptProofValue.receiptDigest &&
+    receiptProofValue.signer &&
+    receiptProofValue.mintedAt
+      ? {
+          strategyId: receiptProofValue.strategyId,
+          policyObjectId: receiptProofValue.policyObjectId,
+          auditBlobId: receiptProofValue.auditBlobId,
+          executionDigest: receiptProofValue.executionDigest,
+          receiptDigest: receiptProofValue.receiptDigest,
+          receiptObjectId: receiptProofValue.receiptObjectId,
+          signer: receiptProofValue.signer,
+          mintedAt: receiptProofValue.mintedAt,
+        }
+      : undefined;
 
   if (
     !auditId ||
@@ -176,9 +217,43 @@ export function normalizeArchiveHistoryEntry(value: unknown): ArchiveHistoryEntr
     readbackUrl:
       stringValue(value.readbackUrl) ??
       buildWalrusReadbackUrl(storageResult as Pick<AuditStorageResult, 'id' | 'url'>),
+    receiptProof,
     auditPackage: auditPackage as AuditPackage,
     storageResult: storageResult as AuditStorageResult,
   };
+}
+
+export function saveArchiveReceiptProof(
+  input: {
+    auditId: string;
+    storageId: string;
+    receiptProof: NonNullable<ArchiveHistoryEntry['receiptProof']>;
+  },
+  storage: StorageLike | null = getBrowserStorage(),
+): ArchiveHistoryEntry[] {
+  const next = readArchiveHistory(storage);
+  const updated = next.map((entry) => {
+    if (entry.auditId !== input.auditId || entry.storageId !== input.storageId) {
+      return entry;
+    }
+
+    const auditPackage = {
+      ...entry.auditPackage,
+      receiptProof: input.receiptProof,
+    };
+
+    return {
+      ...entry,
+      receiptProof: input.receiptProof,
+      auditPackage,
+    };
+  });
+
+  if (storage) {
+    storage.setItem(ARCHIVE_HISTORY_STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  return updated;
 }
 
 export function readArchiveHistory(storage: StorageLike | null = getBrowserStorage()): ArchiveHistoryEntry[] {

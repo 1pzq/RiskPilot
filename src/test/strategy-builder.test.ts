@@ -12,16 +12,16 @@ import {
 function expectRichStrategyInfo(recommendation: StrategyRecommendation) {
   expect(recommendation.rationale.length).toBeGreaterThan(30);
   expect(recommendation.applicability.length).toBeGreaterThan(30);
-  expect(recommendation.prepareOnlyReason).toMatch(/prepare_mainnet|audit-only|no transaction/i);
+  expect(recommendation.prepareOnlyReason).toMatch(/prepare_mainnet|仅审计|无交易/i);
   expect(recommendation.fallback.length).toBeGreaterThan(30);
   expect(recommendation.constraints).toEqual(
-    expect.arrayContaining(['Sui mainnet only.', 'Default execution mode remains prepare_mainnet.']),
+    expect.arrayContaining(['仅限 Sui mainnet。', '默认执行模式保持为 prepare_mainnet。']),
   );
   expect(recommendation.riskTradeoffs.length).toBeGreaterThan(0);
   expect(recommendation.displayFacts).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ label: 'Risk signals' }),
-      expect.objectContaining({ label: 'Execution default', value: 'prepare_mainnet' }),
+      expect.objectContaining({ label: '风险信号' }),
+      expect.objectContaining({ label: '默认执行', value: 'prepare_mainnet' }),
     ]),
   );
 }
@@ -51,8 +51,8 @@ describe('strategy builder', () => {
     expect(recommendation.estimatedCostUsd).toBeLessThanOrEqual(5);
     expect(recommendation.targetRiskSignalIds).toContain('sui-downside');
     expectRichStrategyInfo(recommendation);
-    expect(recommendation.rationale).toMatch(/SUI downside/i);
-    expect(recommendation.fallback).toMatch(/local simulation/i);
+    expect(recommendation.rationale).toMatch(/SUI 下行|SUI downside/i);
+    expect(recommendation.fallback).toMatch(/无交易审计|review-only|no-trade audit/i);
   });
 
   it('keeps the spot downside protection fallback when DeepBook Predict is disabled', () => {
@@ -73,7 +73,7 @@ describe('strategy builder', () => {
     expect(recommendation.deepbookAction.mode).toBe('prepare_mainnet');
     expect(recommendation.deepbookAction.market).toBe('SUI/USDC');
     expectRichStrategyInfo(recommendation);
-    expect(recommendation.fallback).toMatch(/no-trade audit/i);
+    expect(recommendation.fallback).toMatch(/无交易审计|no-trade audit/i);
   });
 
   it.each([
@@ -139,8 +139,8 @@ describe('strategy builder', () => {
     expectRichStrategyInfo(recommendation);
     expect(recommendation.displayFacts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'Prepared market', value: 'No trade' }),
-        expect.objectContaining({ label: 'Prepared size', value: '$0.00' }),
+        expect.objectContaining({ label: '已准备市场', value: 'No trade' }),
+        expect.objectContaining({ label: '已准备规模', value: '$0.00' }),
       ]),
     );
   });

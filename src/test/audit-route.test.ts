@@ -69,6 +69,13 @@ function buildAuditPackage(): AuditPackage {
     deepbookMarketEvidence,
     policy,
     policyCheck,
+    policyObjectId: '0xpolicy',
+    policyObject: {
+      objectId: '0xpolicy',
+      packageId: '0xpackage',
+      status: 'minted',
+      source: 'wallet_mint',
+    },
     agentCouncil,
     incidentRoom,
     aiExplanation: 'Mock explanation.',

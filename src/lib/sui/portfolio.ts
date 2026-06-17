@@ -420,11 +420,11 @@ function buildObjectFacts(
       nestedField(fields, ['value']);
 
     if (coinType) {
-      facts.push({ label: 'Coin type', value: shortFactValue(coinType, 54) });
+      facts.push({ label: 'Coin 类型', value: shortFactValue(coinType, 54) });
     }
 
     if (balance) {
-      facts.push({ label: 'Atomic balance', value: shortFactValue(balance) });
+      facts.push({ label: '原子余额', value: shortFactValue(balance) });
     }
 
     return facts;
@@ -443,11 +443,11 @@ function buildObjectFacts(
       nestedField(fields, ['order_ids']);
 
     if (parsed?.module) {
-      facts.push({ label: 'Module', value: parsed.module });
+      facts.push({ label: '模块', value: parsed.module });
     }
 
     if (parsed?.struct) {
-      facts.push({ label: 'Struct', value: parsed.struct });
+      facts.push({ label: '结构', value: parsed.struct });
     }
 
     if (balanceManagerId) {
@@ -455,7 +455,7 @@ function buildObjectFacts(
     }
 
     if (owner) {
-      facts.push({ label: 'Owner', value: shortFactValue(owner) });
+      facts.push({ label: '所有者', value: shortFactValue(owner) });
     }
 
     if (poolId) {
@@ -463,7 +463,7 @@ function buildObjectFacts(
     }
 
     if (openOrders) {
-      facts.push({ label: 'Orders', value: shortFactValue(openOrders) });
+      facts.push({ label: '订单', value: shortFactValue(openOrders) });
     }
 
     return facts;
@@ -483,7 +483,7 @@ function buildObjectFacts(
     }
 
     if (executionDigest) {
-      facts.push({ label: 'Execution', value: shortFactValue(executionDigest) });
+      facts.push({ label: '执行', value: shortFactValue(executionDigest) });
     }
 
     return facts;
@@ -499,19 +499,19 @@ function buildObjectFacts(
     );
 
     if (size) {
-      facts.push({ label: 'Size', value: `${size} bytes` });
+      facts.push({ label: '大小', value: `${size} bytes` });
     }
 
     if (registeredEpoch) {
-      facts.push({ label: 'Registered', value: `epoch ${registeredEpoch}` });
+      facts.push({ label: '已注册', value: `epoch ${registeredEpoch}` });
     }
 
     if (certifiedEpoch) {
-      facts.push({ label: 'Certified', value: `epoch ${certifiedEpoch}` });
+      facts.push({ label: '已认证', value: `epoch ${certifiedEpoch}` });
     }
 
     if (epochRange) {
-      facts.push({ label: 'Storage', value: epochRange });
+      facts.push({ label: '存储', value: epochRange });
     }
 
     return facts;
@@ -526,7 +526,7 @@ function buildObjectFacts(
     const capVersion = nestedField(fields, ['version']);
 
     if (parsed?.struct) {
-      facts.push({ label: 'Cap type', value: parsed.struct });
+      facts.push({ label: 'Cap 类型', value: parsed.struct });
     }
 
     if (packageId) {
@@ -538,7 +538,7 @@ function buildObjectFacts(
     }
 
     if (capVersion) {
-      facts.push({ label: 'Cap version', value: capVersion });
+      facts.push({ label: 'Cap 版本', value: capVersion });
     }
 
     return facts;
@@ -568,19 +568,19 @@ function buildObjectFacts(
     const debt = nestedField(fields, ['debt']) ?? nestedField(fields, ['borrowed']) ?? nestedField(fields, ['debt_amount']);
 
     if (parsed?.module) {
-      facts.push({ label: 'Module', value: parsed.module });
+      facts.push({ label: '模块', value: parsed.module });
     }
 
     if (parsed?.struct) {
-      facts.push({ label: 'Struct', value: parsed.struct });
+      facts.push({ label: '结构', value: parsed.struct });
     }
 
     if (positionId) {
-      facts.push({ label: 'Position', value: shortFactValue(positionId) });
+      facts.push({ label: '仓位', value: shortFactValue(positionId) });
     }
 
     if (liquidity) {
-      facts.push({ label: 'Liquidity', value: shortFactValue(liquidity) });
+      facts.push({ label: '流动性', value: shortFactValue(liquidity) });
     }
 
     if (lowerTick && upperTick) {
@@ -588,11 +588,11 @@ function buildObjectFacts(
     }
 
     if (collateral) {
-      facts.push({ label: 'Collateral', value: shortFactValue(collateral) });
+      facts.push({ label: '抵押品', value: shortFactValue(collateral) });
     }
 
     if (debt) {
-      facts.push({ label: 'Debt', value: shortFactValue(debt) });
+      facts.push({ label: '债务', value: shortFactValue(debt) });
     }
   }
 

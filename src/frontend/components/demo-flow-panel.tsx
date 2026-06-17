@@ -4,38 +4,38 @@ import { PixelIcon, type PixelIconName } from './pixel-icon';
 
 const disconnectedFlowSteps = [
   {
-    label: 'Context',
-    detail: 'Start from a judge scenario or connect a Sui mainnet wallet.',
-    badge: 'input',
+    label: '上下文',
+    detail: '连接 Sui mainnet 钱包，从真实数据开始。',
+    badge: '输入',
     icon: 'case',
   },
   {
-    label: 'Risk map',
-    detail: 'Score deterministic exposure, signals, and loss scenarios.',
-    badge: 'rules',
+    label: '风险图谱',
+    detail: '用确定性规则评估敞口、信号和损失场景。',
+    badge: '规则',
     icon: 'risk',
   },
   {
     label: 'What-if',
-    detail: 'Preview shocks without mutating the real workflow.',
-    badge: 'preview',
+    detail: '预览冲击，但不改变真实工作流。',
+    badge: '预览',
     icon: 'read',
   },
   {
-    label: 'Policy route',
-    detail: 'Gate action bounds, budget, market, and manual approval.',
-    badge: 'locked',
+    label: 'Policy 路由',
+    detail: '锁定动作边界、预算、市场和人工确认。',
+    badge: '已锁定',
     icon: 'policy',
   },
   {
-    label: 'Agent room',
-    detail: 'Show bounded agent tasks, handoffs, and final command.',
-    badge: 'AI text',
+    label: 'Agent 房间',
+    detail: '展示受限 Agent 任务、交接和最终指令。',
+    badge: 'AI 文案',
     icon: 'audit',
   },
   {
-    label: 'Audit trail',
-    detail: 'Prepare the action and archive the evidence package.',
+    label: '审计轨迹',
+    detail: '准备动作并归档证据包。',
     badge: 'Walrus',
     icon: 'archive',
   },
@@ -44,37 +44,37 @@ const disconnectedFlowSteps = [
 const connectedFlowSteps = [
   {
     label: 'Wallet',
-    detail: 'Read connected Sui mainnet balances directly.',
+    detail: '直接读取已连接的 Sui mainnet 余额。',
     badge: 'mainnet',
     icon: 'case',
   },
   {
-    label: 'Objects',
-    detail: 'Attach owned mainnet objects and protocol hints.',
-    badge: 'scan',
+    label: '对象',
+    detail: '附加已拥有的 mainnet 对象和协议线索。',
+    badge: '扫描',
     icon: 'read',
   },
   {
-    label: 'Risk map',
-    detail: 'Keep unpriced assets from creating fake DeepBook trades.',
-    badge: 'rules',
+    label: '风险图谱',
+    detail: '防止未定价资产生成假的 DeepBook 交易。',
+    badge: '规则',
     icon: 'risk',
   },
   {
     label: 'What-if',
-    detail: 'Preview shocks while preserving real wallet state.',
-    badge: 'preview',
+    detail: '预览冲击，同时保留真实钱包状态。',
+    badge: '预览',
     icon: 'strategy',
   },
   {
-    label: 'Policy route',
-    detail: 'Confirm budget, asset, market, expiry, and approval locks.',
-    badge: 'locked',
+    label: 'Policy 路由',
+    detail: '确认预算、资产、市场、过期时间和审批锁。',
+    badge: '已锁定',
     icon: 'policy',
   },
   {
-    label: 'Audit trail',
-    detail: 'Prepare the mainnet action and archive the decision package.',
+    label: '审计轨迹',
+    detail: '准备 mainnet 动作并归档决策包。',
     badge: 'Walrus',
     icon: 'archive',
   },
@@ -91,12 +91,12 @@ export function DemoFlowPanel({ walletConnected }: DemoFlowPanelProps) {
     <section className="panel demoFlowPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">{walletConnected ? 'Wallet flow' : 'Judge flow'}</p>
+          <p className="eyebrow">{walletConnected ? '钱包流程' : '评审流程'}</p>
           <h2 className="panelTitle">
-            {walletConnected ? 'Real-wallet risk workflow' : 'Prepare-only risk workflow'}
+            {walletConnected ? '真实钱包风险工作流' : '仅 Prepare 的风险工作流'}
           </h2>
         </div>
-        <span className="pill pillAccent">no live submit</span>
+        <span className="pill pillAccent">不默认提交 Live</span>
       </div>
 
       <div className="flowGrid">

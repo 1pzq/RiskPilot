@@ -131,14 +131,14 @@ describe('Walrus audit storage', () => {
     expect(auditPackage.monitorRules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          label: 'SUI drawdown reaches strategy threshold',
+          label: 'SUI 回撤达到策略阈值',
           enabled: true,
           recommendedAction: expect.objectContaining({
             kind: 'prepare',
           }),
         }),
         expect.objectContaining({
-          label: 'Policy expires soon',
+          label: 'Policy 即将过期',
           recommendedAction: expect.objectContaining({
             kind: 'review',
           }),
@@ -234,7 +234,7 @@ describe('Walrus audit storage', () => {
       whitelistStatus: 'unknown',
       error: 'DeepBook market lookup failed',
     });
-    expect(evidence.fallbackReason).toContain('unavailable');
+    expect(evidence.fallbackReason).toContain('不可用');
   });
 
   it('blocks server-side Walrus archive by default', async () => {
@@ -261,7 +261,7 @@ describe('Walrus audit storage', () => {
         walletAddress: '0xDEMO',
         signAndExecute,
       }),
-    ).rejects.toThrow('What-if preview payloads cannot be submitted');
+    ).rejects.toThrow('What-if 预览 payload 不能提交');
   });
 
 });

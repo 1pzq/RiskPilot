@@ -2,5 +2,8 @@
 name = "riskpilot_receipt"
 edition = "2024.beta"
 
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "2f5992f189cd24445cd010ccf0aa7ff418ff93b1" }
+
 [addresses]
 riskpilot_receipt = "0x0"

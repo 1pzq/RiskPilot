@@ -1,12 +1,32 @@
 # RiskPilot Mainnet Verification
 
 Date: 2026-05-27
-Workspace: `/Users/puzhiqiu/Practice/suiOverflow-2026`
+Workspace: `/Users/puzhiqiu/Practice/Hackthon/suiOverflow-2026`
 Branch: `main`
 Base commit tested: `45f18b7`
 Scope: Sui mainnet wallet read, DeepBook evidence, historical pre-wallet-paid Walrus archive, preview guards, browser smoke, and regression checks.
 
 > Superseded boundary note, 2026-05-27: RiskPilot now requires wallet-paid Walrus archive. The old CLI evidence below is historical verification only; it is no longer an app runtime path. Current expected behavior is that `/api/audit` rejects server-side archive and Prepare asks the connected browser wallet to pay Walrus register/certify.
+
+## Public Proof Excerpt
+
+Use this as the short public proof card in README, submission materials, and judge demos.
+
+| Field | Value |
+| --- | --- |
+| Verification date | `2026-05-27` |
+| Audit id | `audit_1u99mb6` |
+| Walrus blob | `ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk` |
+| Blob object | `0xdbf1058c9f842f3ae577735d9ce42a76769eee7d8bb5ba8a91d797c29e175cf2` |
+| Register tx | `5PHtpzFqxz8jrXew23nW9QGmCekXNd714D7hCqpCJseS` |
+| Certify tx | `GG6KB537teUvjKMjP4xpqeD4Dao2usQx62kKmVtE69AR` |
+| Blob size | `35446` bytes |
+| Status | Certified permanent Blob through epoch 32 |
+
+```bash
+walrus read ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk --out /tmp/riskpilot-walrus-read.json
+walrus blob-status --blob-id ucjtVWMzIrYk2vczZpPGMexeJwQsendfrrb7_eQEizk
+```
 
 ## Secret Redaction
 
@@ -26,7 +46,28 @@ Public chain identifiers such as wallet addresses, transaction digests, object i
 | Walrus CLI | `/Users/puzhiqiu/.local/bin/walrus`, `walrus 1.48.1-9c5590a81e29` |
 | Walrus context | `mainnet` |
 | Execution default | `prepare_mainnet` / prepare-only mainnet |
-| Receipt package | `0x3f889b1dba8796715690b5b78f6bc7ca0f248a45368649b8116f982bda847b19` |
+| AgentPolicy + receipt package | `0x24972ef5274a577127dc871687e4bfe4bb4d512d810c025cbe01d87ca621c2d7` |
+
+## AgentPolicy Mainnet Evidence
+
+The bounded-agent authority package was published to Sui mainnet and smoke-tested with a real `AgentPolicy` object.
+
+| Field | Value |
+| --- | --- |
+| Package id | `0x24972ef5274a577127dc871687e4bfe4bb4d512d810c025cbe01d87ca621c2d7` |
+| Modules | `agent_policy`, `strategy_receipt` |
+| Publish tx | `sgoT9HA2bFSUmX3Smx7L4zkianb5UQbVJJE7eMcg5se` |
+| UpgradeCap | `0xd2b3e7db4b29ec48a23eedbe9854881d79afa9e9a6c871270efe70e0bfc8ec79` |
+| Publish cost | `0.01771148 SUI` |
+| AgentPolicy object | `0xf71d26a3f7f72bb0185e787d1857529765c1a59155195281f3b31ada1f923f87` |
+| AgentPolicy mint tx | `6tPgwgKnYjHSZV4n6dd4p7jucRGLdGySEdVFK2HD82LQ` |
+| Mint cost | `0.00219228 SUI` |
+| Owner | `0x69bb839c43b5062487b00b5efa10c6d4914e2036a8c71cea8ce92002e12a8508` |
+| Allowed market | `SUI/USDC` |
+| Allowed assets | `SUI`, `USDC` |
+| Max budget | `5 USD` |
+| Requires manual approval | `true` |
+| Revoked | `false` |
 
 ## Automated Verification
 
@@ -44,8 +85,8 @@ Public chain identifiers such as wallet addresses, transaction digests, object i
 | Route | `localhost:3000` | `127.0.0.1:3000` | Notes |
 | --- | --- | --- | --- |
 | `/` | PASS | PASS | App shell rendered RiskPilot content. |
-| `/?stage=risk&demo=judge#risk-dashboard` | PASS | PASS | Risk stage rendered. |
-| `/?stage=strategy&demo=judge#risk-dashboard` | PASS | PASS | Strategy stage rendered. |
+| `/?stage=risk#risk-dashboard` | PASS | PASS | Risk stage reachable; without a wallet it shows the connection-required proof/boundary view. |
+| `/?stage=strategy#risk-dashboard` | PASS | PASS | Strategy stage reachable; without a wallet it shows the connection-required proof/boundary view. |
 | `/?stage=audit#risk-dashboard` | PASS | PASS | Audit stage rendered. |
 | `/?stage=prepare#risk-dashboard` | PASS | PASS | Prepare stage rendered. |
 

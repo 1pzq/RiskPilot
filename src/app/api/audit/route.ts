@@ -20,6 +20,9 @@ const BodySchema = z
     deepbookMarketEvidence: z.any(),
     policy: z.any(),
     policyCheck: z.any(),
+    policyObjectId: z.string().optional(),
+    policyObject: z.any().optional(),
+    executionIntent: z.any().optional(),
     agentCouncil: z.any().optional(),
     incidentRoom: z.any().optional(),
     aiExplanation: z.string(),
@@ -30,9 +33,9 @@ const BodySchema = z
 
 export async function POST(request: Request) {
   try {
-    const auditPackage = BodySchema.parse(await request.json()) as AuditPackage;
+    const rawBody = await request.json();
 
-    if (hasWhatIfPreviewMarker(auditPackage)) {
+    if (hasWhatIfPreviewMarker(rawBody)) {
       return NextResponse.json(
         {
           error: 'What-if preview payloads cannot replace the archived audit package.',
@@ -40,6 +43,8 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    BodySchema.parse(rawBody) as AuditPackage;
 
     return NextResponse.json(
       {

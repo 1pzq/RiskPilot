@@ -149,7 +149,7 @@ describe('incident room decision', () => {
 
     expect(decision.posture).toBe('policy_blocked');
     expect(decision.severity).toBe('critical');
-    expect(decision.finalCommand).toContain('Hold the incident');
+    expect(decision.finalCommand).toContain('暂停该 Incident');
     expect(decision.tasks.find((task) => task.id === 'policy_guard')).toMatchObject({
       status: 'blocked',
       locked: true,
@@ -163,8 +163,8 @@ describe('incident room decision', () => {
     const decision = buildIncidentRoomDecision(buildIncidentInput({ walletReview: true }));
 
     expect(decision.posture).toBe('audit_only');
-    expect(decision.finalCommand).toContain('no-trade wallet review');
-    expect(decision.tasks.find((task) => task.id === 'execution_planner')?.handoff).toContain('no-trade review');
+    expect(decision.finalCommand).toContain('无交易钱包复核');
+    expect(decision.tasks.find((task) => task.id === 'execution_planner')?.handoff).toContain('无交易复核');
     expect(decision.consensus.find((item) => item.id === 'execution-consensus')).toMatchObject({
       status: 'watch',
     });
@@ -230,7 +230,7 @@ describe('incident room decision', () => {
     expect(simulation.previewOnly).toBe(true);
     expect(policyCheck.ok).toBe(false);
     expect(decision.posture).toBe('policy_blocked');
-    expect(decision.finalCommand).toContain('Hold the incident');
+    expect(decision.finalCommand).toContain('暂停该 Incident');
     expect(portfolio.totalUsdValue).toBe(simulation.basePortfolio.totalUsdValue);
   });
 });

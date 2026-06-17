@@ -16,7 +16,7 @@ import {
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
 import type { RiskReport } from '@/lib/risk/types';
 import { formatAddress, formatDateTime, formatNumber, formatRiskLevel, formatUsd } from '@/lib/utils/format';
-import { JsonViewer } from './json-viewer';
+import { zhStatus, zhYesNo } from '@/frontend/utils/zh';
 
 type ResultPanelProps = {
   auditPackage: AuditPackage | null;
@@ -33,10 +33,6 @@ function formatExecutionMode(mode: string): string {
 }
 
 function executionIdentifierLabel(mode: string): string {
-  if (mode === 'simulation') {
-    return 'Simulation ID';
-  }
-
   if (mode === 'prepare_mainnet') {
     return 'Prepared ID';
   }
@@ -45,31 +41,31 @@ function executionIdentifierLabel(mode: string): string {
 }
 
 function resultTitle(mode: string): string {
-  return mode === 'mainnet' ? 'Mainnet transaction archived' : 'Prepared action archived';
+  return mode === 'mainnet' ? 'Mainnet 交易已归档' : 'Prepared 动作已归档';
 }
 
-function formatOptionalNumber(value: number | undefined, fallback = 'n/a'): string {
+function formatOptionalNumber(value: number | undefined, fallback = '无'): string {
   return typeof value === 'number' && Number.isFinite(value) ? formatNumber(value) : fallback;
 }
 
-function formatOptionalUsd(value: number | undefined, fallback = 'n/a'): string {
+function formatOptionalUsd(value: number | undefined, fallback = '无'): string {
   return typeof value === 'number' && Number.isFinite(value) ? formatUsd(value) : fallback;
 }
 
 function yesNo(value: boolean | undefined): string {
   if (typeof value !== 'boolean') {
-    return 'unknown';
+    return '未知';
   }
 
-  return value ? 'yes' : 'no';
+  return zhYesNo(value);
 }
 
 function archivePaymentLabel(storageResult: AuditStorageResult): string {
-  return storageResult.paymentLabel ?? 'Connected wallet';
+  return storageResult.paymentLabel ?? '已连接钱包';
 }
 
 function archiveSignerLabel(storageResult: AuditStorageResult): string {
-  return storageResult.signerLabel ?? 'Connected wallet';
+  return storageResult.signerLabel ?? '已连接钱包';
 }
 
 function statusPillClass(status: string | undefined): string {
@@ -113,16 +109,15 @@ function statusPillClass(status: string | undefined): string {
 
 function postureLabel(posture: string | undefined): string {
   if (!posture) {
-    return 'not recorded';
+    return '未记录';
   }
 
-  return posture.replace(/_/g, ' ');
+  return zhStatus(posture);
 }
 
 function executionIdentifier(auditPackage: AuditPackage): string {
   return (
     auditPackage.execution.digest ??
-    auditPackage.execution.simulationId ??
     auditPackage.execution.preparedTransactionSummary ??
     auditPackage.id
   );
@@ -130,7 +125,7 @@ function executionIdentifier(auditPackage: AuditPackage): string {
 
 function scoreDelta(before: RiskReport, after: RiskReport | undefined): string {
   if (!after) {
-    return 'n/a';
+    return '无';
   }
 
   const delta = after.overallScore - before.overallScore;
@@ -203,26 +198,26 @@ function RiskEvidenceSection({
 
   return (
     <EvidenceCard
-      title="Risk before/after"
+      title="风险前后"
       icon={<ShieldCheck size={17} />}
-      badge={<span className={`pill ${after ? statusPillClass(after.overallLevel) : 'pillWarn'}`}>delta {scoreDelta(before, after)}</span>}
+      badge={<span className={`pill ${after ? statusPillClass(after.overallLevel) : 'pillWarn'}`}>变化 {scoreDelta(before, after)}</span>}
       wide
     >
       <div className="evidenceRiskGrid">
         <div className="evidenceScoreBlock">
-          <span>Before</span>
+          <span>之前</span>
           <strong>{before.overallScore}</strong>
           <small>{formatRiskLevel(before.overallLevel)}</small>
         </div>
         <div className="evidenceScoreBlock evidenceScoreAfter">
-          <span>After est.</span>
-          <strong>{after ? after.overallScore : 'n/a'}</strong>
-          <small>{after ? formatRiskLevel(after.overallLevel) : 'not archived'}</small>
+          <span>之后估算</span>
+          <strong>{after ? after.overallScore : '无'}</strong>
+          <small>{after ? formatRiskLevel(after.overallLevel) : '未归档'}</small>
         </div>
         <div className="evidenceScoreBlock evidenceScoreDelta">
-          <span>Score delta</span>
+          <span>评分变化</span>
           <strong>{scoreDelta(before, after)}</strong>
-          <small>{after?.estimated ? 'estimated' : after ? 'recorded' : 'missing'}</small>
+          <small>{after?.estimated ? '估算' : after ? '已记录' : '缺失'}</small>
         </div>
       </div>
 
@@ -234,7 +229,7 @@ function RiskEvidenceSection({
             </span>
           ))
         ) : (
-          <span className="evidenceSignal">No active priced signals</span>
+          <span className="evidenceSignal">没有活跃的已定价信号</span>
         )}
       </div>
     </EvidenceCard>
@@ -246,23 +241,50 @@ function PolicyEvidenceSection({ auditPackage }: { auditPackage: AuditPackage })
 
   return (
     <EvidenceCard
-      title="Policy Gate"
+      title="Policy 闸门"
       icon={<Scale size={17} />}
       badge={
         <span className={`pill ${auditPackage.policyCheck.ok ? 'pillSuccess' : 'pillDanger'}`}>
-          {auditPackage.policyCheck.ok ? 'passed' : 'blocked'}
+          {auditPackage.policyCheck.ok ? '通过' : '已阻断'}
         </span>
       }
     >
       <div className="evidenceRows">
-        <EvidenceRow label="Budget cap" value={formatUsd(auditPackage.policy.maxBudgetUsd)} />
-        <EvidenceRow label="Single trade" value={formatUsd(auditPackage.policy.maxSingleTradeUsd)} />
-        <EvidenceRow label="Manual approval" value={auditPackage.policy.requireManualApproval ? 'required' : 'not required'} />
-        <EvidenceRow label="Expires" value={formatDateTime(auditPackage.policy.expiresAt)} />
-        <EvidenceRow label="Assets" value={auditPackage.policy.allowedAssets.join(', ') || 'none'} />
-        <EvidenceRow label="Markets" value={auditPackage.policy.allowedMarkets.join(', ') || 'none'} />
+        <EvidenceRow label="预算上限" value={formatUsd(auditPackage.policy.maxBudgetUsd)} />
+        <EvidenceRow label="单笔交易" value={formatUsd(auditPackage.policy.maxSingleTradeUsd)} />
+        <EvidenceRow label="人工确认" value={auditPackage.policy.requireManualApproval ? '需要' : '不需要'} />
+        <EvidenceRow label="过期时间" value={formatDateTime(auditPackage.policy.expiresAt)} />
+        <EvidenceRow label="资产" value={auditPackage.policy.allowedAssets.join(', ') || '无'} />
+        <EvidenceRow label="市场" value={auditPackage.policy.allowedMarkets.join(', ') || '无'} />
       </div>
-      <EvidenceList items={policyErrors} empty="No policy errors recorded." />
+      <EvidenceList items={policyErrors} empty="没有记录到 Policy 错误。" />
+    </EvidenceCard>
+  );
+}
+
+function IntentEvidenceSection({ auditPackage }: { auditPackage: AuditPackage }) {
+  const intent = auditPackage.executionIntent;
+
+  return (
+    <EvidenceCard
+      title="Execution Intent"
+      icon={<FileCheck2 size={17} />}
+      badge={<span className={`pill ${intent ? 'pillSuccess' : 'pillWarn'}`}>{intent ? '已锁定' : '未记录'}</span>}
+    >
+      {intent ? (
+        <div className="evidenceRows">
+          <EvidenceRow label="Intent ID" value={intent.executionIntentId} />
+          <EvidenceRow label="来源" value={intent.intentSource === 'base_wallet' ? '已连接钱包' : '本地样例'} />
+          <EvidenceRow label="创建时间" value={formatDateTime(intent.intentCreatedAt)} />
+          <EvidenceRow label="过期时间" value={formatDateTime(intent.intentExpiresAt)} />
+          <EvidenceRow label="Portfolio digest" value={intent.portfolioDigest.slice(0, 24)} />
+          <EvidenceRow label="Risk digest" value={intent.riskReportDigest.slice(0, 24)} />
+          <EvidenceRow label="Recommendation digest" value={intent.recommendationDigest.slice(0, 24)} />
+          <EvidenceRow label="Policy digest" value={intent.policyDigest.slice(0, 24)} />
+        </div>
+      ) : (
+        <p className="evidenceMuted">这个归档包早于 execution intent 绑定。</p>
+      )}
     </EvidenceCard>
   );
 }
@@ -280,14 +302,17 @@ function AgentCouncilEvidenceSection({ auditPackage }: { auditPackage: AuditPack
         <>
           <p className="evidenceLead">{council.managerSummary}</p>
           <div className="evidenceRows">
-            <EvidenceRow label="Mode" value={council.mode === 'openai' ? council.model ?? 'openai' : 'rules fallback'} />
-            <EvidenceRow label="Decision ID" value={council.id} />
+            <EvidenceRow
+              label="模式"
+              value={council.mode === 'openai' || council.mode === 'deepseek' ? council.model ?? council.mode : '规则兜底'}
+            />
+            <EvidenceRow label="决策 ID" value={council.id} />
           </div>
           {council.warning ? <div className="evidenceWarning">{council.warning}</div> : null}
           <div className="evidenceAgentList">
             {council.agents.slice(0, 5).map((agent) => (
               <div className="evidenceAgentRow" key={agent.id}>
-                <span className={`pill ${statusPillClass(agent.status)}`}>{agent.status}</span>
+                <span className={`pill ${statusPillClass(agent.status)}`}>{zhStatus(agent.status)}</span>
                 <strong>{agent.name}</strong>
                 <small>{agent.summary}</small>
               </div>
@@ -295,7 +320,7 @@ function AgentCouncilEvidenceSection({ auditPackage }: { auditPackage: AuditPack
           </div>
         </>
       ) : (
-        <p className="evidenceMuted">Agent council was not recorded in this archived package.</p>
+        <p className="evidenceMuted">这个归档包里没有记录 Agent Council。</p>
       )}
     </EvidenceCard>
   );
@@ -308,21 +333,21 @@ function IncidentRoomEvidenceSection({ auditPackage }: { auditPackage: AuditPack
     <EvidenceCard
       title="Incident Room"
       icon={<Siren size={17} />}
-      badge={<span className={`pill ${statusPillClass(incidentRoom?.severity)}`}>{incidentRoom?.severity ?? 'not recorded'}</span>}
+      badge={<span className={`pill ${statusPillClass(incidentRoom?.severity)}`}>{zhStatus(incidentRoom?.severity)}</span>}
     >
       {incidentRoom ? (
         <>
           <p className="evidenceLead">{incidentRoom.managerBriefing}</p>
           <div className="evidenceRows">
-            <EvidenceRow label="Final command" value={incidentRoom.finalCommand} />
-            <EvidenceRow label="Posture" value={postureLabel(incidentRoom.posture)} />
-            <EvidenceRow label="Source council" value={incidentRoom.sourceCouncilId} />
+            <EvidenceRow label="最终指令" value={incidentRoom.finalCommand} />
+            <EvidenceRow label="姿态" value={postureLabel(incidentRoom.posture)} />
+            <EvidenceRow label="来源 Council" value={incidentRoom.sourceCouncilId} />
           </div>
           {incidentRoom.warning ? <div className="evidenceWarning">{incidentRoom.warning}</div> : null}
           <div className="evidenceConsensusList">
             {incidentRoom.consensus.slice(0, 4).map((item) => (
               <div className="evidenceConsensusRow" key={item.id}>
-                <span className={`pill ${statusPillClass(item.status)}`}>{item.status}</span>
+                <span className={`pill ${statusPillClass(item.status)}`}>{zhStatus(item.status)}</span>
                 <strong>{item.label}</strong>
                 <small>{item.evidenceRef}</small>
               </div>
@@ -330,7 +355,7 @@ function IncidentRoomEvidenceSection({ auditPackage }: { auditPackage: AuditPack
           </div>
         </>
       ) : (
-        <p className="evidenceMuted">Incident room was not recorded in this archived package.</p>
+        <p className="evidenceMuted">这个归档包里没有记录 Incident Room。</p>
       )}
     </EvidenceCard>
   );
@@ -341,18 +366,18 @@ function DeepBookEvidenceSection({ auditPackage }: { auditPackage: AuditPackage 
 
   return (
     <EvidenceCard
-      title="DeepBook Evidence"
+      title="DeepBook 证据"
       icon={<Landmark size={17} />}
-      badge={<span className={`pill ${statusPillClass(evidence.status)}`}>{evidence.status}</span>}
+      badge={<span className={`pill ${statusPillClass(evidence.status)}`}>{zhStatus(evidence.status)}</span>}
     >
       <div className="evidenceRows">
         <EvidenceRow label="Pool" value={evidence.poolKey} />
-        <EvidenceRow label="Route" value={evidence.routeStatus ?? 'unknown'} />
-        <EvidenceRow label="Mid price" value={formatOptionalNumber(evidence.midPrice)} />
+        <EvidenceRow label="路线" value={zhStatus(evidence.routeStatus)} />
+        <EvidenceRow label="中间价" value={formatOptionalNumber(evidence.midPrice)} />
         <EvidenceRow label="Quote out" value={formatOptionalNumber(evidence.quoteOutForOneBase)} />
-        <EvidenceRow label="Pool status" value={evidence.poolStatus ?? yesNo(evidence.registeredPool)} />
-        <EvidenceRow label="Whitelist" value={evidence.whitelistStatus ?? yesNo(evidence.whitelisted)} />
-        <EvidenceRow label="Fetched" value={evidence.fetchedAt ? formatDateTime(evidence.fetchedAt) : 'not recorded'} />
+        <EvidenceRow label="池状态" value={evidence.poolStatus ? zhStatus(evidence.poolStatus) : yesNo(evidence.registeredPool)} />
+        <EvidenceRow label="白名单" value={evidence.whitelistStatus ? zhStatus(evidence.whitelistStatus) : yesNo(evidence.whitelisted)} />
+        <EvidenceRow label="获取时间" value={evidence.fetchedAt ? formatDateTime(evidence.fetchedAt) : '未记录'} />
         {evidence.poolAddress ? <EvidenceRow label="Pool address" value={formatAddress(evidence.poolAddress)} /> : null}
       </div>
       {evidence.vaultBalances ? (
@@ -385,22 +410,22 @@ function ArchiveEvidenceSection({
 }) {
   return (
     <EvidenceCard
-      title="Wallet-Paid Walrus Archive"
+      title="钱包支付的 Walrus 归档"
       icon={<Archive size={17} />}
       badge={<span className="pill pillSuccess">{storageResult.mode}</span>}
     >
       <div className="evidenceRows">
         <EvidenceRow label="Audit ID" value={auditPackage.id} />
-        <EvidenceRow label="Created" value={formatDateTime(auditPackage.createdAt)} />
-        <EvidenceRow label="Subject wallet" value={formatAddress(auditPackage.walletAddress)} />
-        <EvidenceRow label="Provider" value={storageResult.provider ?? 'unknown'} />
-        <EvidenceRow label="Archive payer" value={archivePaymentLabel(storageResult)} />
-        <EvidenceRow label="Archive signer" value={archiveSignerLabel(storageResult)} />
-        <EvidenceRow label="Wallet pays archive" value={storageResult.walletPaysArchive ? 'yes' : 'no'} />
+        <EvidenceRow label="创建时间" value={formatDateTime(auditPackage.createdAt)} />
+        <EvidenceRow label="主体钱包" value={formatAddress(auditPackage.walletAddress)} />
+        <EvidenceRow label="提供方" value={storageResult.provider ?? '未知'} />
+        <EvidenceRow label="归档支付方" value={archivePaymentLabel(storageResult)} />
+        <EvidenceRow label="归档签名者" value={archiveSignerLabel(storageResult)} />
+        <EvidenceRow label="钱包支付归档" value={storageResult.walletPaysArchive ? '是' : '否'} />
         <EvidenceRow label="Archive ID" value={storageResult.id} />
-        <EvidenceRow label="Checksum" value={storageResult.checksum ? storageResult.checksum.slice(0, 24) : 'not recorded'} />
-        <EvidenceRow label="Size" value={storageResult.sizeBytes ? `${formatNumber(storageResult.sizeBytes)} bytes` : 'not recorded'} />
-        <EvidenceRow label="Fallback" value={typeof storageResult.fallback === 'boolean' ? yesNo(storageResult.fallback) : 'not recorded'} />
+        <EvidenceRow label="Checksum" value={storageResult.checksum ? storageResult.checksum.slice(0, 24) : '未记录'} />
+        <EvidenceRow label="大小" value={storageResult.sizeBytes ? `${formatNumber(storageResult.sizeBytes)} bytes` : '未记录'} />
+        <EvidenceRow label="兜底" value={typeof storageResult.fallback === 'boolean' ? yesNo(storageResult.fallback) : '未记录'} />
         {storageResult.url ? <EvidenceRow label="URL" value={storageResult.url} /> : null}
       </div>
       {storageResult.warning || storageResult.error ? (
@@ -418,32 +443,48 @@ function ReceiptEvidenceSection({
   auditPackage: AuditPackage;
   storageResult: AuditStorageResult;
 }) {
-  const receiptState = 'mint-ready fields';
+  const receiptProof = auditPackage.receiptProof;
+  const receiptState = receiptProof ? '已 mint 证明' : '可 mint 字段';
 
   return (
     <EvidenceCard
       title="Receipt"
       icon={<FileCheck2 size={17} />}
-      badge={<span className="pill pillSuccess">{receiptState}</span>}
+      badge={<span className={`pill ${receiptProof ? 'pillSuccess' : 'pillWarn'}`}>{receiptState}</span>}
     >
       <div className="evidenceRows">
         <EvidenceRow label="Strategy ID" value={auditPackage.recommendation.id} />
+        <EvidenceRow label="AgentPolicy object" value={auditPackage.policyObjectId ?? '未绑定'} />
+        <EvidenceRow label="Prepared PTB" value={auditPackage.execution.preparedPtb?.status ?? '未构建'} />
+        <EvidenceRow
+          label="Signed PTB"
+          value={auditPackage.execution.signedPreparedPtb ? 'signed, not submitted' : '未签名'}
+        />
         <EvidenceRow label="Audit blob" value={storageResult.id} />
         <EvidenceRow label={executionIdentifierLabel(auditPackage.execution.mode)} value={executionIdentifier(auditPackage)} />
-        <EvidenceRow label="Execution" value={`${auditPackage.execution.mode} / ${auditPackage.execution.status}`} />
+        {receiptProof ? (
+          <>
+            <EvidenceRow label="Receipt tx" value={receiptProof.receiptDigest} />
+            <EvidenceRow label="Receipt object" value={receiptProof.receiptObjectId ?? '钱包响应中创建对象待定'} />
+            <EvidenceRow label="Receipt policy" value={receiptProof.policyObjectId ?? '未绑定'} />
+            <EvidenceRow label="Receipt 签名者" value={formatAddress(receiptProof.signer)} />
+            <EvidenceRow label="Mint 时间" value={formatDateTime(receiptProof.mintedAt)} />
+          </>
+        ) : null}
+        <EvidenceRow label="执行" value={`${zhStatus(auditPackage.execution.mode)} / ${zhStatus(auditPackage.execution.status)}`} />
         {auditPackage.execution.authority ? (
           <>
-            <EvidenceRow label="Tx signer" value={auditPackage.execution.authority.signerLabel} />
-            <EvidenceRow label="Tx payer" value={auditPackage.execution.authority.payerLabel} />
+            <EvidenceRow label="Tx 签名者" value={auditPackage.execution.authority.signerLabel} />
+            <EvidenceRow label="Tx 支付方" value={auditPackage.execution.authority.payerLabel} />
           </>
         ) : null}
         {auditPackage.execution.effectsStatus ? (
           <EvidenceRow
             label="Sui effects"
-            value={`${auditPackage.execution.effectsStatus}${auditPackage.execution.effectsError ? ` · ${auditPackage.execution.effectsError}` : ''}`}
+            value={`${zhStatus(auditPackage.execution.effectsStatus)}${auditPackage.execution.effectsError ? ` · ${auditPackage.execution.effectsError}` : ''}`}
           />
         ) : null}
-        <EvidenceRow label="Estimated cost" value={formatOptionalUsd(auditPackage.recommendation.estimatedCostUsd)} />
+        <EvidenceRow label="预估成本" value={formatOptionalUsd(auditPackage.recommendation.estimatedCostUsd)} />
       </div>
       {auditPackage.execution.warning || auditPackage.execution.error ? (
         <div className="evidenceWarning">{auditPackage.execution.warning ?? auditPackage.execution.error}</div>
@@ -451,6 +492,9 @@ function ReceiptEvidenceSection({
       {auditPackage.execution.authority?.note ? (
         <div className="evidenceWarning">{auditPackage.execution.authority.note}</div>
       ) : null}
+      <div className="evidenceWarning">
+        StrategyReceipt 是归档后证明，用来连接 strategy id、Walrus blob id 和 execution digest。它独立于交易执行，并且需要自己的钱包签名。
+      </div>
     </EvidenceCard>
   );
 }
@@ -463,11 +507,11 @@ function AuditEvidenceExplorer({
   storageResult: AuditStorageResult;
 }) {
   return (
-    <div className="evidenceExplorer" aria-label="Audit package evidence explorer">
+    <div className="evidenceExplorer" aria-label="审计包证据浏览器">
       <div className="evidenceExplorerHeader">
         <div>
-          <p className="eyebrow">Evidence explorer</p>
-          <h3>Archived audit package</h3>
+          <p className="eyebrow">证据浏览器</p>
+          <h3>已归档审计包</h3>
         </div>
         <div className="evidenceExplorerStamp">
           <span>{auditPackage.execution.mode}</span>
@@ -477,12 +521,36 @@ function AuditEvidenceExplorer({
 
       <div className="evidenceExplorerGrid">
         <RiskEvidenceSection before={auditPackage.riskReportBefore} after={auditPackage.riskReportAfter} />
+        <IntentEvidenceSection auditPackage={auditPackage} />
         <PolicyEvidenceSection auditPackage={auditPackage} />
         <AgentCouncilEvidenceSection auditPackage={auditPackage} />
         <IncidentRoomEvidenceSection auditPackage={auditPackage} />
         <DeepBookEvidenceSection auditPackage={auditPackage} />
         <ArchiveEvidenceSection auditPackage={auditPackage} storageResult={storageResult} />
         <ReceiptEvidenceSection auditPackage={auditPackage} storageResult={storageResult} />
+      </div>
+    </div>
+  );
+}
+
+function ResultProofStrip({ auditPackage, storageResult }: { auditPackage: AuditPackage; storageResult: AuditStorageResult }) {
+  return (
+    <div className="resultProofStrip" aria-label="核心归档证明">
+      <div>
+        <span>Walrus blob</span>
+        <strong>{storageResult.id}</strong>
+      </div>
+      <div>
+        <span>Register tx</span>
+        <strong>{storageResult.registerDigest ?? '等待证据'}</strong>
+      </div>
+      <div>
+        <span>Certify tx</span>
+        <strong>{storageResult.certifyDigest ?? '等待证据'}</strong>
+      </div>
+      <div>
+        <span>最终指令</span>
+        <strong>{auditPackage.incidentRoom?.finalCommand ?? auditPackage.agentCouncil?.managerSummary ?? '未记录'}</strong>
       </div>
     </div>
   );
@@ -508,7 +576,7 @@ export function ResultPanel({
     <section className="panel resultPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Prepared result</p>
+          <p className="eyebrow">准备结果</p>
           <h2 className="panelTitle">{resultTitle(auditPackage.execution.mode)}</h2>
         </div>
         <span className="pill pillSuccess">
@@ -520,7 +588,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <ShieldCheck size={14} />
-            Execution
+            执行
           </div>
           <div className="metricValue">{formatExecutionMode(executionMode)}</div>
           <div className="metricSub">{executionStatus}</div>
@@ -528,7 +596,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <CheckCircle2 size={14} />
-            Before
+            之前
           </div>
           <div className="metricValue">
             {archivedRiskBefore.overallScore}{' '}
@@ -538,7 +606,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <CheckCircle2 size={14} />
-            After est.
+            之后估算
           </div>
           <div className="metricValue">
             {archivedRiskAfter ? archivedRiskAfter.overallScore : '—'}{' '}
@@ -547,18 +615,22 @@ export function ResultPanel({
         </div>
       </div>
 
-      <AuditEvidenceExplorer auditPackage={auditPackage} storageResult={storageResult} />
+      <ResultProofStrip auditPackage={auditPackage} storageResult={storageResult} />
 
       {warning ? <div className="warningStrip inline">{warning}</div> : null}
 
-      <JsonViewer title="Audit JSON" value={auditPackage} />
+      <details className="compactDetailsPanel evidenceDetailsPanel">
+        <summary>
+          <span>完整归档证据</span>
+          <strong>打开浏览器</strong>
+        </summary>
+        <AuditEvidenceExplorer auditPackage={auditPackage} storageResult={storageResult} />
+      </details>
 
       <div className="noteRow">
         <FileJson2 size={14} />
         <span>
-          {auditPackage.execution.mode === 'mainnet'
-            ? 'Real mainnet transaction digest, effects status, audit evidence, and estimated post-risk are recorded.'
-            : 'Prepared action details and estimated post-risk are recorded without live submission.'}
+          完整字段级证据和源 JSON 仍可在浏览器内查看，但默认视图会保持归档证明轨的聚焦。
         </span>
       </div>
     </section>

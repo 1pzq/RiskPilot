@@ -4,6 +4,8 @@ import type { StrategyRecommendation } from '@/lib/strategy/strategy-builder';
 import type { MonitorRule } from '@/lib/strategy/monitor';
 import type { AgentCouncilDecision } from '@/lib/agents/decision-council';
 import type { IncidentRoomDecision } from '@/lib/agents/incident-room';
+import type { ExecutionIntent } from '@/lib/security/execution-intent';
+import type { PreparedDeepBookPtb, SignedPreparedPtb } from '@/lib/sui/prepared-ptb';
 
 export type DeepBookMarketEvidence = {
   source: '/api/deepbook-market';
@@ -47,23 +49,43 @@ export type AuditPackage = {
   deepbookMarketEvidence: DeepBookMarketEvidence;
   policy: ExecutionPolicy;
   policyCheck: PolicyCheckResult;
+  policyObjectId?: string;
+  policyObject?: {
+    objectId: string;
+    owner?: string;
+    packageId: string;
+    status: 'not_minted' | 'minted' | 'selected' | 'revoked' | 'expired' | 'mismatch';
+    source: 'wallet_mint' | 'manual_selection' | 'archive_history';
+  };
+  executionIntent?: ExecutionIntent;
+  receiptProof?: {
+    strategyId: string;
+    policyObjectId?: string;
+    auditBlobId: string;
+    executionDigest: string;
+    receiptDigest: string;
+    receiptObjectId?: string;
+    signer: string;
+    mintedAt: string;
+  };
   agentCouncil?: AgentCouncilDecision;
   incidentRoom?: IncidentRoomDecision;
   aiExplanation: string;
   execution: {
-    mode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+    mode: 'prepare_mainnet' | 'mainnet';
     status: 'prepared' | 'submitted' | 'confirmed' | 'failed';
     digest?: string;
-    simulationId?: string;
     effectsStatus?: 'success' | 'failure';
     effectsError?: string;
     error?: string;
     warning?: string;
     preparedTransactionSummary?: string;
     transactionBytes?: string;
+    preparedPtb?: PreparedDeepBookPtb;
+    signedPreparedPtb?: SignedPreparedPtb;
     adapter?: {
-      venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet' | 'local simulation';
-      requestedMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+      venue: 'DeepBook mainnet' | 'DeepBook Predict mainnet';
+      requestedMode: 'prepare_mainnet' | 'mainnet';
       mainnetOnly: true;
     };
     authority?: {

@@ -39,12 +39,12 @@ describe('monitor rules', () => {
     expect(rules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          label: 'SUI drawdown reaches strategy threshold',
+          label: 'SUI 回撤达到策略阈值',
           sourceRiskSignalId: 'sui-downside',
           enabled: true,
         }),
         expect.objectContaining({
-          label: 'Policy expires soon',
+          label: 'Policy 即将过期',
           recommendedAction: expect.objectContaining({
             kind: 'review',
           }),

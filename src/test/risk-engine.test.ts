@@ -18,7 +18,7 @@ describe('risk engine', () => {
       expect.arrayContaining(['concentration-top-asset', 'sui-downside', 'stablecoin-concentration']),
     );
     expect(report.scenarioResults.map((scenario) => scenario.scenario)).toEqual(
-      expect.arrayContaining(['SUI -10%', 'SUI -20%', 'Stablecoin depeg -5%']),
+      expect.arrayContaining(['SUI -10%', 'SUI -20%', 'Stablecoin 脱锚 -5%']),
     );
   });
 
@@ -34,4 +34,3 @@ describe('risk engine', () => {
     expect(after.estimated).toBe(true);
   });
 });
-

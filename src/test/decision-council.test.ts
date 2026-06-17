@@ -113,7 +113,7 @@ describe('agent council decision', () => {
     });
 
     expect(decision.posture).toBe('policy_blocked');
-    expect(decision.managerSummary).toContain('blocks execution');
+    expect(decision.managerSummary).toContain('阻断执行');
     expect(decision.agents.find((agent) => agent.id === 'policy_guard')).toMatchObject({
       status: 'blocked',
     });
@@ -175,8 +175,8 @@ describe('agent council decision', () => {
     });
 
     expect(decision.posture).toBe('audit_only');
-    expect(decision.managerSummary).toContain('audit-only review');
-    expect(decision.agents.find((agent) => agent.id === 'manager')?.handoff).toBe('Default action remains prepare/archive.');
+    expect(decision.managerSummary).toContain('仅审计');
+    expect(decision.agents.find((agent) => agent.id === 'manager')?.handoff).toBe('默认动作仍为 Prepare/归档。');
   });
 
   it('marks DeepBook evidence as pending or warning when the market snapshot is unavailable', () => {

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ExecutionPolicy, PolicyCheckResult } from '@/lib/strategy/policy';
 import { validateExecutionPolicy } from '@/lib/strategy/policy';
 import type { StrategyRecommendation } from '@/lib/strategy/strategy-builder';
+import { verifyExecutionIntent, type ExecutionIntent } from '@/lib/security/execution-intent';
 import {
   executeDeepBookTransaction,
   executionModeFromEnvironment,
@@ -23,7 +24,7 @@ const RecommendationSchema = z
     estimatedCostUsd: z.number(),
     expectedRiskReduction: z.number(),
     deepbookAction: z.object({
-      mode: z.enum(['simulate', 'prepare_mainnet', 'mainnet']),
+      mode: z.enum(['prepare_mainnet', 'mainnet']),
       kind: z.enum(['spot', 'predict_binary']).default('spot'),
       market: z.string(),
       side: z.enum(['buy', 'sell']),
@@ -46,6 +47,18 @@ const PolicySchema = z
   })
   .passthrough();
 
+const ExecutionIntentSchema = z.object({
+  executionIntentId: z.string(),
+  portfolioDigest: z.string(),
+  riskReportDigest: z.string(),
+  recommendationDigest: z.string(),
+  policyDigest: z.string(),
+  policyObjectId: z.string().optional(),
+  intentCreatedAt: z.string(),
+  intentExpiresAt: z.string(),
+  intentSource: z.enum(['base_wallet', 'local_sample']),
+});
+
 const BodySchema = z.object({
   recommendation: RecommendationSchema,
   policy: PolicySchema,
@@ -53,22 +66,19 @@ const BodySchema = z.object({
     ok: z.boolean(),
     errors: z.array(z.string()),
   }),
+  executionIntent: ExecutionIntentSchema.optional(),
+  portfolioSnapshot: z.any().optional(),
+  riskReport: z.any().optional(),
   walletAddress: z.string(),
-  executionMode: z.enum(['simulation', 'prepare_mainnet', 'mainnet']).optional(),
+  executionMode: z.enum(['prepare_mainnet', 'mainnet']).optional(),
 })
   .passthrough();
 
 export async function POST(request: Request) {
   try {
-    const body = BodySchema.parse(await request.json()) as {
-      recommendation: StrategyRecommendation;
-      policy: ExecutionPolicy;
-      policyCheck: PolicyCheckResult;
-      walletAddress: string;
-      executionMode?: 'simulation' | 'prepare_mainnet' | 'mainnet';
-    };
+    const rawBody = await request.json();
 
-    if (hasWhatIfPreviewMarker(body)) {
+    if (hasWhatIfPreviewMarker(rawBody)) {
       return NextResponse.json(
         {
           error: 'What-if preview payloads cannot be submitted for execution.',
@@ -76,6 +86,17 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const body = BodySchema.parse(rawBody) as {
+      recommendation: StrategyRecommendation;
+      policy: ExecutionPolicy;
+      policyCheck: PolicyCheckResult;
+      executionIntent?: ExecutionIntent;
+      portfolioSnapshot?: unknown;
+      riskReport?: unknown;
+      walletAddress: string;
+      executionMode?: 'prepare_mainnet' | 'mainnet';
+    };
 
     const serverPolicyCheck = validateExecutionPolicy(body.policy, body.recommendation, new Date());
 
@@ -88,13 +109,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const intentCheck = await verifyExecutionIntent({
+      intent: body.executionIntent,
+      portfolioSnapshot: body.portfolioSnapshot as never,
+      riskReport: body.riskReport as never,
+      recommendation: body.recommendation,
+      policy: body.policy,
+    });
+
+    if (!intentCheck.ok) {
+      return NextResponse.json(
+        {
+          error: intentCheck.errors.join(' '),
+        },
+        { status: 400 },
+      );
+    }
+
     const executionMode = (process.env.NEXT_PUBLIC_MAINNET_EXECUTION_MODE ?? 'prepare').toLowerCase();
-    const enableRealDeepBook = (process.env.NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL ?? 'true').toLowerCase() !== 'false';
     const requestedMode = body.executionMode ?? executionModeFromEnvironment(executionMode);
     const result = await executeDeepBookTransaction(body.recommendation.deepbookAction, body.walletAddress, {
       requestedMode,
-      enableRealDeepBook,
-      allowLocalFallback: true,
     });
 
     return NextResponse.json(result);

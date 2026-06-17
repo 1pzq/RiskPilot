@@ -26,15 +26,15 @@ export function ArchiveHistoryPanel({
     <section className={`panel archiveHistoryPanel ${compact ? 'archiveHistoryPanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Archive history</p>
-          <h2 className="panelTitle">Recent reusable evidence</h2>
+          <p className="eyebrow">归档历史</p>
+          <h2 className="panelTitle">最近可复用的证据</h2>
         </div>
         <div className="panelHeaderMeta">
           <span className={`pill ${latest ? 'pillSuccess' : 'pillMuted'}`}>
-            {latest ? `${entries.length} local` : 'empty'}
+            {latest ? `${entries.length} 条本地记录` : '空'}
           </span>
           {onClear && entries.length > 0 ? (
-            <button className="iconButton" type="button" onClick={onClear} aria-label="Clear archive history">
+            <button className="iconButton" type="button" onClick={onClear} aria-label="清空归档历史">
               <Trash2 size={15} />
             </button>
           ) : null}
@@ -42,7 +42,7 @@ export function ArchiveHistoryPanel({
       </div>
 
       {entries.length > 0 ? (
-        <div className="archiveHistoryList" aria-label="Recent Walrus archives">
+        <div className="archiveHistoryList" aria-label="最近的 Walrus 归档">
           {entries.map((entry) => {
             const active = entry.auditId === activeAuditId;
 
@@ -54,13 +54,13 @@ export function ArchiveHistoryPanel({
                     <strong>{entry.auditId}</strong>
                   </div>
                   <span className={`pill ${active ? 'pillSuccess' : 'pillNeutral'}`}>
-                    {active ? 'open' : entry.executionStatus}
+                    {active ? '已打开' : entry.executionStatus}
                   </span>
                 </div>
 
                 <div className="archiveHistoryFields">
                   <div>
-                    <span>Wallet</span>
+                    <span>钱包</span>
                     <strong>{formatAddress(entry.walletAddress)}</strong>
                   </div>
                   <div>
@@ -69,23 +69,39 @@ export function ArchiveHistoryPanel({
                   </div>
                   <div>
                     <span>Register digest</span>
-                    <strong>{entry.registerDigest ?? 'pending evidence'}</strong>
+                    <strong>{entry.registerDigest ?? '证据待定'}</strong>
                   </div>
                   <div>
                     <span>Certify digest</span>
-                    <strong>{entry.certifyDigest ?? 'pending evidence'}</strong>
+                    <strong>{entry.certifyDigest ?? '证据待定'}</strong>
                   </div>
                 </div>
+
+                {entry.receiptProof ? (
+                  <details className="archiveHistoryMore">
+                    <summary>StrategyReceipt 证明</summary>
+                    <div className="archiveHistoryFields archiveHistoryFieldsSecondary">
+                      <div>
+                        <span>Receipt tx</span>
+                        <strong>{entry.receiptProof.receiptDigest}</strong>
+                      </div>
+                      <div>
+                        <span>Receipt object</span>
+                        <strong>{entry.receiptProof.receiptObjectId ?? '创建对象待定'}</strong>
+                      </div>
+                    </div>
+                  </details>
+                ) : null}
 
                 <div className="archiveHistoryFooter">
                   <button className="button buttonGhost" type="button" onClick={() => onOpen(entry)}>
                     <RotateCcw size={15} />
-                    Open result
+                    打开结果
                   </button>
                   {entry.readbackUrl ? (
                     <a className="button buttonGhost" href={entry.readbackUrl} target="_blank" rel="noreferrer">
                       <ExternalLink size={15} />
-                      Verify Walrus
+                      验证 Walrus
                     </a>
                   ) : null}
                 </div>
@@ -96,8 +112,8 @@ export function ArchiveHistoryPanel({
       ) : (
         <div className="archiveHistoryEmpty">
           <History size={18} />
-          <strong>No local archive history yet.</strong>
-          <span>After a wallet-paid Walrus archive succeeds, RiskPilot stores a local readback card with audit id, blob id, and Sui digests.</span>
+          <strong>还没有本地归档历史。</strong>
+          <span>钱包支付的 Walrus 归档成功后，RiskPilot 会保存本地回读卡片，包含 audit id、blob id 和 Sui digests。</span>
         </div>
       )}
     </section>

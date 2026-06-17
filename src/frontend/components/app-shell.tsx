@@ -9,7 +9,6 @@ export type DemoSection = 'overview' | 'risk' | 'strategy' | 'audit' | 'prepare'
 
 type AppShellProps = {
   networkBadge: string;
-  executionBadge: string;
   walletLabel: string;
   walletButton: ReactNode;
   warnings: string[];
@@ -19,28 +18,15 @@ type AppShellProps = {
 };
 
 const demoSections = [
-  { id: 'overview', label: 'Overview', step: '01', icon: 'overview' },
-  { id: 'risk', label: 'Risk', step: '02', icon: 'risk' },
-  { id: 'strategy', label: 'Strategy', step: '03', icon: 'strategy' },
-  { id: 'audit', label: 'Audit', step: '04', icon: 'audit' },
-  { id: 'prepare', label: 'Prepare', step: '05', icon: 'prepare' },
+  { id: 'overview', label: 'Observe', subtitle: '读取钱包风险', step: '01', icon: 'overview' },
+  { id: 'risk', label: 'Plan', subtitle: '生成应对方案', step: '02', icon: 'risk' },
+  { id: 'strategy', label: 'Verify Policy', subtitle: '检查授权边界', step: '03', icon: 'policy' },
+  { id: 'audit', label: 'Act', subtitle: '准备 PTB 证明', step: '04', icon: 'strategy' },
+  { id: 'prepare', label: 'Remember', subtitle: '归档审计记忆', step: '05', icon: 'archive' },
 ] as const;
-
-function formatExecutionBadge(value: string): string {
-  if (value === 'prepare_mainnet') {
-    return 'prepare-only mainnet';
-  }
-
-  if (value === 'simulation') {
-    return 'local simulation';
-  }
-
-  return value.replace(/_/g, ' ');
-}
 
 export function AppShell({
   networkBadge,
-  executionBadge,
   walletLabel,
   walletButton,
   warnings,
@@ -57,6 +43,7 @@ export function AppShell({
     onSectionChange(section);
     const url = new URL(window.location.href);
     url.searchParams.set('stage', section);
+    url.searchParams.delete('demo');
     url.hash = 'risk-dashboard';
     window.history.replaceState(null, '', url);
     window.requestAnimationFrame(() => {
@@ -75,25 +62,24 @@ export function AppShell({
 
       <header className="eventHeader">
         <div className="eventBrand">
-          <span className="eventMark" aria-hidden="true">
-            RP
-          </span>
+          <PixelIcon name="wallet" className="eventMark eventMarkPixel" />
           <span className="eventBrandCopy">
-            <strong>RiskPilot Overflow 2026</strong>
-            <small>Sui mainnet prepare desk</small>
+            <small>RiskPilot</small>
+            <strong>在授权边界内行动的 Sui DeFi Agent</strong>
           </span>
         </div>
         <div className="eventDate">
-          <span className="eventModeDot" aria-hidden="true" />
-          <span className="eventCode">&lt;mode&gt;</span>
-          <strong>{formatExecutionBadge(executionBadge)}</strong>
-          <span className="eventCode">&lt;/mode&gt;</span>
+          <span className="pill pillNeutral">{networkBadge}</span>
+          <div className="walletCluster eventWalletCluster">
+            <span className="pill pillMuted">{walletLabel}</span>
+            <div className="walletSlot">{walletButton}</div>
+          </div>
         </div>
       </header>
 
       <section className="overflowHero" aria-label="RiskPilot overview">
         <div className="heroCopy">
-          <p className="heroKicker">Sui mainnet risk workflow</p>
+          <p className="heroKicker">The Agentic Web · Sui mainnet</p>
           <h1 className="heroTitle">
             Risk
             <br />
@@ -101,31 +87,32 @@ export function AppShell({
             <br />
             2026
           </h1>
+          <p className="heroOneLiner">
+            RiskPilot 让 Sui DeFi Agent 会分析风险，但不能越权行动：AI 只给建议，Policy 先做边界检查，钱包确认后才准备 PTB，最后用 Walrus 留下可验证记忆。
+          </p>
           <div className="heroMeta">
-            <span>Mainnet prepare mode</span>
-            <span>Walrus audit trail</span>
-            <span>DeepBook risk action</span>
+            <span>
+              <strong>Policy-gated Agent</strong>
+              AI 只建议，不越权
+            </span>
+            <span>
+              <strong>Prepared PTB, not submitted</strong>
+              钱包不签名就不提交
+            </span>
+            <span>
+              <strong>Walrus audit memory</strong>
+              每次决策可回放验证
+            </span>
           </div>
           <div className="heroActionRow">
             <a className="heroButton" href="#risk-dashboard">
-              Open dashboard <span aria-hidden="true">↗</span>
+              打开 Agent Loop <span aria-hidden="true">↗</span>
             </a>
-            <div className="heroPartnerLines">
-              <span>Execution primitive: <strong>DeepBook</strong></span>
-              <span>Audit layer: <strong>Walrus</strong></span>
-            </div>
           </div>
         </div>
 
         <div className="heroVisual" aria-hidden="true">
           <div className="visualGrid" />
-          <div className="floatBlock blockR">R</div>
-          <div className="floatBlock blockI">I</div>
-          <div className="floatBlock blockS">S</div>
-          <div className="floatBlock blockK">K</div>
-          <div className="floatBlock blockAi">AI</div>
-          <div className="floatBlock blockWal">WAL</div>
-          <div className="cursorBlock">↗</div>
         </div>
       </section>
 
@@ -143,33 +130,13 @@ export function AppShell({
               <span className="navText">
                 <span className="navStep">Stage {section.step}</span>
                 <strong>{section.label}</strong>
+                <span className="navSubtitle">{section.subtitle}</span>
               </span>
               <span className="navBit" aria-hidden="true" />
             </a>
           );
         })}
       </nav>
-
-      <header className="topBar" id="risk-dashboard">
-        <div className="brandBlock">
-          <PixelIcon name="wallet" className="brandMark brandMarkPixel" />
-          <div>
-            <p className="eyebrow">RiskPilot</p>
-            <h1 className="brandTitle">Verifiable AI risk manager for Sui DeFi</h1>
-          </div>
-        </div>
-
-        <div className="headerMeta">
-          <div className="statusPills">
-            <span className="pill pillNeutral">{networkBadge}</span>
-            <span className="pill pillAccent">{formatExecutionBadge(executionBadge)}</span>
-          </div>
-          <div className="walletCluster">
-            <span className="pill pillMuted">{walletLabel}</span>
-            <div className="walletSlot">{walletButton}</div>
-          </div>
-        </div>
-      </header>
 
       {warnings.length > 0 ? (
         <section className="warningStrip" aria-label="Warnings">
@@ -182,7 +149,7 @@ export function AppShell({
         </section>
       ) : null}
 
-      <main className="shellBody">{children}</main>
+      <main className="shellBody" id="risk-dashboard">{children}</main>
     </div>
   );
 }

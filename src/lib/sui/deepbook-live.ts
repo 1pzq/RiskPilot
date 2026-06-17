@@ -5,6 +5,7 @@ import type { StrategyRecommendation } from '../strategy/strategy-builder';
 import { createMainnetSuiClient } from './client';
 
 export const LIVE_DEEPBOOK_POOL_KEY = 'SUI_USDC';
+export const MAINNET_DEEPBOOK_PACKAGE_ID = mainnetPackageIds.DEEPBOOK_PACKAGE_ID;
 
 export type DeepBookLiveMarketSnapshot = {
   poolKey: string;
@@ -60,7 +61,7 @@ export type DeepBookLiveGateInput = {
   accountAddress?: string | null;
   recommendation: Pick<StrategyRecommendation, 'deepbookAction'>;
   policyOk: boolean;
-  selectedExecutionMode: 'simulation' | 'prepare_mainnet' | 'mainnet';
+  selectedExecutionMode: 'prepare_mainnet' | 'mainnet';
   marketSnapshot: DeepBookLiveMarketSnapshot | null;
   marketStatus?: 'idle' | 'loading' | 'ready' | 'error';
   featureEnabled?: boolean;

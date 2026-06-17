@@ -17,12 +17,13 @@ const BodySchema = z.object({
   }),
   monitorRules: z.array(z.any()),
   deepbookMarketEvidence: z.any(),
-  explanationMode: z.enum(['mock', 'openai']),
+  explanationMode: z.enum(['mock', 'deepseek', 'openai']),
   walletConnected: z.boolean(),
   auditArchived: z.boolean(),
   receiptEnabled: z.boolean(),
   liveGate: z.any().optional(),
   agentCouncil: z.any().optional(),
+  policyObject: z.any().optional(),
 });
 
 export async function POST(request: Request) {

@@ -129,7 +129,7 @@ function draftJson(managerBriefing = 'AI manager runs the incident room without 
       {
         id: 'risk_analyst',
         findings: ['AI risk analyst summarizes risk evidence.'],
-        handoff: 'Pass risk context to Liquidity Scout.',
+        handoff: '将风险上下文交给 Liquidity Scout。',
       },
       {
         id: 'liquidity_scout',
@@ -172,7 +172,7 @@ describe('AI incident room', () => {
 
     const decision = await buildAiIncidentRoomDecision(buildIncidentInput());
 
-    expect(decision.mode).toBe('openai');
+    expect(decision.mode).toBe('deepseek');
     expect(decision.model).toBe('deepseek-test');
     expect(decision.posture).toBe('prepare_ready');
     expect(decision.managerBriefing).toBe('AI incident manager briefing from mocked chat.');
@@ -253,7 +253,7 @@ describe('AI incident room', () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key-not-real');
     vi.stubEnv('OPENAI_API_MODE', 'chat');
     chatCreate.mockResolvedValue({
-      choices: [{ message: { content: draftJson('AI manager keeps this as no-trade review.') } }],
+      choices: [{ message: { content: draftJson('AI manager keeps this as 无交易复核。') } }],
     });
     const { buildAiIncidentRoomDecision } = await import('@/lib/agents/ai-incident-room');
 
@@ -261,7 +261,7 @@ describe('AI incident room', () => {
 
     expect(decision.mode).toBe('openai');
     expect(decision.posture).toBe('audit_only');
-    expect(decision.finalCommand).toContain('no-trade wallet review');
+    expect(decision.finalCommand).toContain('无交易钱包复核');
     expect(decision.tasks.find((task) => task.id === 'execution_planner')).toMatchObject({
       status: 'watch',
     });

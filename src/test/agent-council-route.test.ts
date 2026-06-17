@@ -80,7 +80,7 @@ describe('agent council route', () => {
 
     expect(response.status).toBe(200);
     expect(payload.decision.mode).toBe('deterministic_fallback');
-    expect(payload.decision.warning).toContain('OPENAI_API_KEY');
+    expect(payload.decision.warning).toContain('OpenAI-compatible API key');
   });
 
   it('returns an AI council from mocked chat completion', async () => {
@@ -98,7 +98,7 @@ describe('agent council route', () => {
                   id: 'manager',
                   summary: 'Route manager keeps the locked posture.',
                   evidence: ['Locked posture from deterministic council.'],
-                  handoff: 'Default action remains prepare/archive.',
+                  handoff: '默认动作仍为 Prepare/归档。',
                   confidence: 90,
                 },
               ],
@@ -118,7 +118,7 @@ describe('agent council route', () => {
     const payload = (await response.json()) as { decision: { mode: string; model?: string; managerSummary: string } };
 
     expect(response.status).toBe(200);
-    expect(payload.decision.mode).toBe('openai');
+    expect(payload.decision.mode).toBe('deepseek');
     expect(payload.decision.model).toBe('deepseek-test');
     expect(payload.decision.managerSummary).toBe('Route AI manager summary.');
   });

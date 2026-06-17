@@ -5,6 +5,7 @@ import { Activity, ArrowRight, BadgeAlert, Gauge, RouteOff, ShieldAlert, Sparkle
 import type { WhatIfScenarioId, WhatIfSimulation } from '@/lib/risk/what-if-scenarios';
 import { WHAT_IF_SCENARIOS } from '@/lib/risk/what-if-scenarios';
 import { formatRiskLevel, formatUsd } from '@/lib/utils/format';
+import { zhDisplayText } from '@/frontend/utils/zh';
 
 type WhatIfSimulatorPanelProps = {
   simulation: WhatIfSimulation;
@@ -58,16 +59,16 @@ export function WhatIfSimulatorPanel({
     <section className="panel whatIfPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">What-if simulator</p>
-          <h2 className="panelTitle">Preview risk shocks</h2>
+          <p className="eyebrow">What-if 模拟器</p>
+          <h2 className="panelTitle">预览风险冲击</h2>
         </div>
         <span className="pill pillAccent">
           <Sparkles size={14} />
-          preview
+          预览
         </span>
       </div>
 
-      <div className="whatIfPresetGroup" role="radiogroup" aria-label="What-if scenario">
+      <div className="whatIfPresetGroup" role="radiogroup" aria-label="What-if 场景">
         {WHAT_IF_SCENARIOS.map((scenario) => (
           <button
             className={`optionChip ${selectedScenarioId === scenario.id ? 'optionChipActive' : ''}`}
@@ -78,21 +79,21 @@ export function WhatIfSimulatorPanel({
             onClick={() => onScenarioChange(scenario.id)}
           >
             <span>{scenario.shortLabel}</span>
-            <small>{scenario.intensityLabel}</small>
+            <small>{zhDisplayText(scenario.intensityLabel)}</small>
           </button>
         ))}
       </div>
 
       <div className="whatIfScenarioBrief">
         <BadgeAlert size={16} />
-        <p>{simulation.scenario.summary}</p>
+        <p>{zhDisplayText(simulation.scenario.summary)}</p>
       </div>
 
       <div className="whatIfProjectionGrid">
         <div className="metricCard">
           <div className="metricLabel">
             <Gauge size={14} />
-            Base score
+            基准评分
           </div>
           <div className="metricValue">{base.overallScore}</div>
           <span className={`pill ${riskPillClass(base.overallLevel)}`}>{formatRiskLevel(base.overallLevel)}</span>
@@ -100,7 +101,7 @@ export function WhatIfSimulatorPanel({
         <div className="metricCard">
           <div className="metricLabel">
             <Activity size={14} />
-            Simulated
+            模拟后
           </div>
           <div className="metricValue">{simulated.overallScore}</div>
           <span className={`pill ${riskPillClass(simulated.overallLevel)}`}>{formatRiskLevel(simulated.overallLevel)}</span>
@@ -108,51 +109,51 @@ export function WhatIfSimulatorPanel({
         <div className="metricCard">
           <div className="metricLabel">
             <ArrowRight size={14} />
-            Score delta
+            分数变化
           </div>
           <div className="metricValue">{deltaLabel(simulation.delta.scoreDelta)}</div>
-          <span className={`pill ${deltaClass(simulation.delta.scoreDelta)}`}>risk move</span>
+          <span className={`pill ${deltaClass(simulation.delta.scoreDelta)}`}>风险变化</span>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <ShieldAlert size={14} />
-            Worst loss
+            最坏损失
           </div>
           <div className="metricValue">{formatUsd(worstSimulatedLoss)}</div>
-          <span className="pill pillNeutral">base {formatUsd(worstBaseLoss)}</span>
+          <span className="pill pillNeutral">基准 {formatUsd(worstBaseLoss)}</span>
         </div>
       </div>
 
       <div className="ticketRows whatIfImpactRows">
         <div className="ticketRow">
-          <span>Portfolio value</span>
+          <span>组合价值</span>
           <strong>
             {formatUsd(simulation.simulatedPortfolio.totalUsdValue)} ({formatUsd(simulation.delta.totalValueDeltaUsd)})
           </strong>
         </div>
         <div className="ticketRow">
-          <span>Active signals</span>
+          <span>活跃信号</span>
           <strong>
             {simulated.signals.length} ({deltaLabel(simulation.delta.activeSignalDelta)})
           </strong>
         </div>
         <div className="ticketRow">
-          <span>Top new signal</span>
-          <strong>{simulation.delta.topNewSignal ?? 'No new signal'}</strong>
+          <span>新增首要信号</span>
+          <strong>{simulation.delta.topNewSignal ?? '无新增信号'}</strong>
         </div>
         <div className="ticketRow">
-          <span>Preview status</span>
-          <strong>Does not mutate wallet or archive by default</strong>
+          <span>预览状态</span>
+          <strong>默认不改变钱包，也不写入归档</strong>
         </div>
       </div>
 
       {simulation.delta.policyNote || simulation.delta.marketNote ? (
         <div className="whatIfNotes">
-          {simulation.delta.policyNote ? <span>{simulation.delta.policyNote}</span> : null}
+          {simulation.delta.policyNote ? <span>{zhDisplayText(simulation.delta.policyNote)}</span> : null}
           {simulation.delta.marketNote ? (
             <span>
               <RouteOff size={14} />
-              {simulation.delta.marketNote}
+              {zhDisplayText(simulation.delta.marketNote)}
             </span>
           ) : null}
         </div>

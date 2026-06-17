@@ -98,7 +98,7 @@ describe('incident room route', () => {
     expect(response.status).toBe(200);
     expect(payload.incidentRoom.mode).toBe('deterministic_fallback');
     expect(payload.incidentRoom.posture).toBe('prepare_ready');
-    expect(payload.incidentRoom.warning).toContain('OPENAI_API_KEY');
+    expect(payload.incidentRoom.warning).toContain('OpenAI-compatible API key');
     expect(payload.incidentRoom.tasks).toHaveLength(6);
   });
 
@@ -138,9 +138,9 @@ describe('incident room route', () => {
     };
 
     expect(response.status).toBe(200);
-    expect(payload.incidentRoom.mode).toBe('openai');
+    expect(payload.incidentRoom.mode).toBe('deepseek');
     expect(payload.incidentRoom.model).toBe('deepseek-test');
     expect(payload.incidentRoom.managerBriefing).toBe('Route AI incident manager briefing.');
-    expect(payload.incidentRoom.finalCommand).toContain('Prepare the mainnet action package');
+    expect(payload.incidentRoom.finalCommand).toContain('Prepare mainnet 动作包');
   });
 });

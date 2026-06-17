@@ -19,63 +19,63 @@ export function WalletSourcePanel({ address, assets, walletScan }: WalletSourceP
   const unpricedAssetSummary =
     unpricedAssets.length > 0
       ? `${visibleUnpricedAssets.map((asset) => `${formatCompact(asset.amount)} ${asset.symbol}`).join(', ')}${
-          hiddenUnpricedCount > 0 ? `, +${hiddenUnpricedCount} more` : ''
-        } shown without USD value.`
-      : 'Every displayed coin has a known local price.';
+          hiddenUnpricedCount > 0 ? `，另有 ${hiddenUnpricedCount} 项` : ''
+        }，显示时不含 USD 估值。`
+      : '每个显示出来的 coin 都有已知的本地价格。';
 
   return (
     <section className="panel walletSourcePanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Wallet source</p>
-          <h2 className="panelTitle">Mainnet wallet context</h2>
+          <p className="eyebrow">钱包来源</p>
+          <h2 className="panelTitle">Mainnet 钱包上下文</h2>
         </div>
-        <span className="pill pillSuccess">real data</span>
+        <span className="pill pillSuccess">真实数据</span>
       </div>
 
       <div className="walletSourceGrid">
         <div className="walletSourceTile walletSourceTileBlue">
           <WalletCards size={16} />
-          <span>Address</span>
+          <span>地址</span>
           <strong>{formatAddress(address)}</strong>
         </div>
         <div className="walletSourceTile walletSourceTileMint">
           <CircleDollarSign size={16} />
-          <span>Priced value</span>
+          <span>已定价价值</span>
           <strong>{formatUsd(pricedValue)}</strong>
         </div>
         <div className="walletSourceTile walletSourceTileYellow">
           <Boxes size={16} />
-          <span>Objects</span>
-          <strong>{walletScan ? walletScan.totalObjects : 'Scanning'}</strong>
+          <span>对象</span>
+          <strong>{walletScan ? walletScan.totalObjects : '扫描中'}</strong>
         </div>
         <div className="walletSourceTile walletSourceTilePurple">
           <ShieldCheck size={16} />
-          <span>Unpriced coins</span>
+          <span>未定价 coin</span>
           <strong>{unpricedAssets.length}</strong>
         </div>
       </div>
 
-      <div className="walletSourceList" aria-label="Wallet data rules">
+      <div className="walletSourceList" aria-label="钱包数据规则">
         <div>
-          <strong>Coin balances</strong>
-          <span>{assets.length > 0 ? `${assets.length} live balance rows from Sui mainnet.` : 'Waiting for mainnet balances.'}</span>
+        <strong>Coin 余额</strong>
+        <span>{assets.length > 0 ? `${assets.length} 行来自 Sui mainnet 的实时余额。` : '等待 mainnet 余额。'}</span>
         </div>
         <div>
-          <strong>Object scan</strong>
+          <strong>对象扫描</strong>
           <span>
             {walletScan
-              ? `${walletScan.deepbookObjects} DeepBook, ${walletScan.walrusBlobs} Walrus, ${walletScan.receiptObjects} receipt, ${walletScan.defiCandidates} DeFi candidate, and ${walletScan.packageCaps} package-cap objects detected.`
-              : 'Waiting for owned-object scan results.'}
+              ? `检测到 ${walletScan.deepbookObjects} 个 DeepBook、${walletScan.walrusBlobs} 个 Walrus、${walletScan.receiptObjects} 个 receipt、${walletScan.defiCandidates} 个 DeFi 候选和 ${walletScan.packageCaps} 个 package-cap 对象。`
+              : '等待已拥有对象的扫描结果。'}
           </span>
         </div>
         <div>
-          <strong>Unknown tokens</strong>
+          <strong>未知代币</strong>
           <span>{unpricedAssetSummary}</span>
         </div>
         <div>
-          <strong>Position policy</strong>
-          <span>No synthetic lending or LP positions are inserted after wallet connection.</span>
+          <strong>仓位策略</strong>
+          <span>连接钱包后不会插入任何虚构的借贷或 LP 仓位。</span>
         </div>
       </div>
     </section>

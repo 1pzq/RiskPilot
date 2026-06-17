@@ -1,41 +1,42 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSignTransaction, useSuiClient } from '@mysten/dapp-kit';
 import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
 
 import { AppShell, type DemoSection } from './app-shell';
 import { AgentCouncilPanel } from './agent-council-panel';
+import { AgentPolicyPanel } from './agent-policy-panel';
 import { ArchiveHistoryPanel } from './archive-history-panel';
 import { ArchivePreflightPanel, type ArchiveProgressPhase } from './archive-preflight-panel';
 import { AuditLogPanel } from './audit-log-panel';
-import { AuditPackageExplorer } from './audit-package-explorer';
-import { EvidenceTimeline } from './evidence-timeline';
-import { IncidentRoomPanel } from './incident-room-panel';
+import { BoundaryCheckPanel } from './boundary-check-panel';
+import { JudgeGuidePanel, type JudgeGuideStep } from './judge-guide-panel';
+import { AgentToolTimeline, type AgentToolStep } from './agent-tool-timeline';
 import { PortfolioOverview } from './portfolio-overview';
 import { PolicyReview } from './policy-review';
+import { PreparedPtbPanel } from './prepared-ptb-panel';
+import { RememberEvidencePanel } from './remember-evidence-panel';
+import { ProofOfAgentActionPanel } from './proof-of-agent-action-panel';
 import { ResultPanel } from './result-panel';
 import { ReceiptMintPanel } from './receipt-mint-panel';
+import { MonitorPanel } from './monitor-panel';
 import { RiskBreakdown } from './risk-breakdown';
 import { RiskScoreCard } from './risk-score-card';
-import { ScenarioSelector } from './scenario-selector';
 import { StrategyPanel } from './strategy-panel';
-import { MonitorPanel } from './monitor-panel';
-import { VisualMotifPanel } from './visual-motif-panel';
+import { VerificationPanel } from './verification-panel';
 import { WalletConnectButton } from './wallet-connect';
 import { WalletHealthSummary } from './wallet-health-summary';
+import { WalletRequiredPanel } from './wallet-required-panel';
 import { WalletSourcePanel } from './wallet-source-panel';
 import { WhatIfSimulatorPanel } from './what-if-simulator-panel';
-import { WhatIfStrategyDiff } from './what-if-strategy-diff';
 
 import { buildMockExplanation } from '@/lib/ai/explain';
 import { buildAgentCouncilDecision, type AgentCouncilDecision } from '@/lib/agents/decision-council';
 import { buildIncidentRoomDecision, type IncidentRoomDecision } from '@/lib/agents/incident-room';
 import {
   DEFAULT_DEMO_SCENARIO_ID,
-  DEMO_SCENARIOS,
   createDemoPortfolio,
-  type DemoScenarioId,
 } from '@/lib/risk/fixtures';
 import { calculateRiskReport, estimatePostStrategyRisk } from '@/lib/risk/risk-engine';
 import { buildWhatIfSimulation } from '@/lib/risk/what-if-engine';
@@ -44,6 +45,7 @@ import {
   type WhatIfScenarioId,
 } from '@/lib/risk/what-if-scenarios';
 import { MAINNET_RPC_URL } from '@/lib/sui/client';
+import { createExecutionIntent, type ExecutionIntent } from '@/lib/security/execution-intent';
 import {
   buildWalletAssetsPortfolio,
   readMainnetWalletAssets,
@@ -55,6 +57,7 @@ import { buildMonitorRules, type MonitorRule } from '@/lib/strategy/monitor';
 import {
   buildStrategyRecommendation,
   type DeepBookPredictSettings,
+  type StrategyRecommendation,
 } from '@/lib/strategy/strategy-builder';
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
 import { createAuditPackage, createDeepBookMarketEvidence } from '@/lib/walrus/audit-package';
@@ -62,24 +65,35 @@ import {
   clearArchiveHistory,
   createArchiveHistoryEntry,
   readArchiveHistory,
+  saveArchiveReceiptProof,
   saveArchiveHistoryEntry,
   type ArchiveHistoryEntry,
 } from '@/lib/walrus/archive-history';
 import { formatAddress, formatUsd } from '@/lib/utils/format';
 import type { AssetBalance, WalletScanSummary } from '@/lib/risk/types';
 import {
-  buildDeepBookLiveTradePlan,
-  buildDeepBookLiveTransaction,
-  buildLiveDeepBookFailureWarning,
   getDeepBookLiveGate,
   type DeepBookLiveMarketSnapshot,
 } from '@/lib/sui/deepbook-live';
-import { prepareDeepBookTransaction, simulateDeepBookAction } from '@/lib/sui/deepbook';
+import { prepareDeepBookTransaction } from '@/lib/sui/deepbook';
+import {
+  buildPreparedDeepBookPtbTransaction,
+  buildPreparedDeepBookPtb,
+  createSignedPreparedPtb,
+  type SignedPreparedPtb,
+} from '@/lib/sui/prepared-ptb';
+import {
+  AGENT_POLICY_PACKAGE_ID,
+  buildAgentPolicyObjectFromPolicy,
+  buildCreateAgentPolicyTransaction,
+  extractAgentPolicyObjectId,
+  validateAgentPolicyObject,
+  type AgentPolicyObject,
+} from '@/lib/sui/agent-policy';
 
 type ExplanationStatus = 'idle' | 'ready' | 'loading' | 'fallback';
-type SelectedExecutionMode = 'simulation' | 'prepare_mainnet' | 'mainnet';
-type WorkflowStepId = 'context' | 'risk' | 'whatIf' | 'strategy' | 'agents' | 'archive';
-type WorkflowStepStatus = 'ready' | 'active' | 'done' | 'blocked';
+type ExplanationMode = 'mock' | 'deepseek' | 'openai';
+type SelectedExecutionMode = 'prepare_mainnet' | 'mainnet';
 const ARCHIVE_AI_TIMEOUT_MS = 4500;
 
 function selectedModeLabel(mode: SelectedExecutionMode) {
@@ -91,13 +105,11 @@ function selectedModeLabel(mode: SelectedExecutionMode) {
     return 'Live mainnet';
   }
 
-  return 'Local simulation';
+  return 'Prepare mainnet';
 }
 
-function formatTradeAmount(value: number, asset: string): string {
-  return `${value.toLocaleString(undefined, {
-    maximumFractionDigits: asset === 'USDC' ? 2 : 6,
-  })} ${asset}`;
+function isAiProviderMode(mode: string): boolean {
+  return mode === 'openai' || mode === 'deepseek';
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -118,15 +130,14 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 }
 
 function archivePaymentLabel(storage: AuditStorageResult | null): string {
-  return storage?.paymentLabel ?? 'Connected wallet required';
+  return storage?.paymentLabel ?? '需要连接钱包';
 }
 
 type RiskPilotAppProps = {
-  initialJudgeDemo?: boolean;
   initialSection?: DemoSection;
 };
 
-export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overview' }: RiskPilotAppProps) {
+export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps) {
   const account = useCurrentAccount();
   const client = useSuiClient();
   const signAndExecute = useSignAndExecuteTransaction<SuiTransactionBlockResponse>({
@@ -140,21 +151,30 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         },
       }),
   });
+  const signTransaction = useSignTransaction();
 
   const walletAddress = account?.address ?? '0xDEMO';
-  const connectionStatus = account ? `Connected ${formatAddress(account.address)}` : 'Demo mode';
-  const sourceLabel = account ? 'mainnet wallet' : 'judge scenario';
+  const connectionStatus = account ? `已连接 ${formatAddress(account.address)}` : '需要钱包';
+  const sourceLabel = account ? 'mainnet wallet' : 'local sample';
 
   const [walletAssets, setWalletAssets] = useState<AssetBalance[] | null>(null);
   const [walletScan, setWalletScan] = useState<WalletScanSummary | null>(null);
   const [walletWarning, setWalletWarning] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string>('');
-  const [explanationMode, setExplanationMode] = useState<'mock' | 'openai'>('mock');
+  const [explanationMode, setExplanationMode] = useState<ExplanationMode>('mock');
   const [explanationStatus, setExplanationStatus] = useState<ExplanationStatus>('idle');
   const [executeWarning, setExecuteWarning] = useState<string>('');
   const [executionBusy, setExecutionBusy] = useState(false);
   const [auditPackage, setAuditPackage] = useState<AuditPackage | null>(null);
   const [auditStorage, setAuditStorage] = useState<AuditStorageResult | null>(null);
+  const [executionIntent, setExecutionIntent] = useState<ExecutionIntent | null>(null);
+  const [executionIntentStatus, setExecutionIntentStatus] = useState<'locking' | 'locked' | 'error'>('locking');
+  const [executionIntentError, setExecutionIntentError] = useState('');
+  const [signedPreparedPtb, setSignedPreparedPtb] = useState<SignedPreparedPtb | null>(null);
+  const [preparedPtbError, setPreparedPtbError] = useState('');
+  const [agentPolicyObject, setAgentPolicyObject] = useState<AgentPolicyObject | null>(null);
+  const [agentPolicyMinting, setAgentPolicyMinting] = useState(false);
+  const [agentPolicyWarning, setAgentPolicyWarning] = useState('');
   const [archiveHistory, setArchiveHistory] = useState<ArchiveHistoryEntry[]>([]);
   const [archiveProgressPhase, setArchiveProgressPhase] = useState<ArchiveProgressPhase>('idle');
   const [executionMode, setExecutionMode] = useState('pending');
@@ -167,25 +187,21 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   const [aiWhatIfAgentCouncil, setAiWhatIfAgentCouncil] = useState<AgentCouncilDecision | null>(null);
   const [whatIfAgentCouncilStatus, setWhatIfAgentCouncilStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
   const [aiWhatIfIncidentRoom, setAiWhatIfIncidentRoom] = useState<IncidentRoomDecision | null>(null);
-  const [whatIfIncidentRoomStatus, setWhatIfIncidentRoomStatus] = useState<'idle' | 'loading' | 'ready' | 'fallback'>('idle');
-  const [selectedExecutionMode, setSelectedExecutionMode] = useState<SelectedExecutionMode>('prepare_mainnet');
-  const [completedWorkflowSteps, setCompletedWorkflowSteps] = useState<WorkflowStepId[]>([]);
-  const [workflowFeedback, setWorkflowFeedback] = useState<Partial<Record<WorkflowStepId, string>>>({});
+  const [selectedExecutionMode] = useState<SelectedExecutionMode>('prepare_mainnet');
   const [deepbookMarketSnapshot, setDeepbookMarketSnapshot] = useState<DeepBookLiveMarketSnapshot | null>(null);
   const [deepbookMarketStatus, setDeepbookMarketStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [deepbookMarketError, setDeepbookMarketError] = useState<string | null>(null);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<DemoScenarioId>(
-    initialJudgeDemo ? 'leveraged_lending_user' : DEFAULT_DEMO_SCENARIO_ID,
-  );
   const [selectedWhatIfScenarioId, setSelectedWhatIfScenarioId] = useState<WhatIfScenarioId>(
-    initialJudgeDemo ? 'sui_drawdown_15' : DEFAULT_WHAT_IF_SCENARIO_ID,
+    DEFAULT_WHAT_IF_SCENARIO_ID,
   );
   const [activeSection, setActiveSection] = useState<DemoSection>(initialSection);
-  const [judgeDemoActive, setJudgeDemoActive] = useState(initialJudgeDemo);
+  const visibleSection: DemoSection = activeSection;
   const [monitorRuleEnabledOverrides, setMonitorRuleEnabledOverrides] = useState<Record<string, boolean>>({});
   const defaultBudgetCap = Number(process.env.NEXT_PUBLIC_DEFAULT_MAX_BUDGET_USD ?? 5);
   const receiptPackageId = process.env.NEXT_PUBLIC_RECEIPT_PACKAGE_ID?.trim() ?? '';
   const liveDeepBookFeatureEnabled = (process.env.NEXT_PUBLIC_ENABLE_DEEPBOOK_REAL ?? 'true').toLowerCase() !== 'false';
+  const defaultPolicyNow = useMemo(() => new Date('2026-06-15T00:00:00.000Z'), []);
+  const monitorNow = defaultPolicyNow;
   const [predictSettings, setPredictSettings] = useState<DeepBookPredictSettings>({
     thresholdPct: -10,
     expiryDays: 7,
@@ -195,7 +211,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
   const portfolio = useMemo(() => {
     const demoPortfolio = createDemoPortfolio(walletAddress, {
-      scenarioId: selectedScenarioId,
+      scenarioId: DEFAULT_DEMO_SCENARIO_ID,
     });
     const mergedPortfolio = account ? buildWalletAssetsPortfolio(demoPortfolio, walletAssets ?? []) : demoPortfolio;
 
@@ -205,7 +221,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
           walletScan,
         }
       : mergedPortfolio;
-  }, [account, selectedScenarioId, walletAddress, walletAssets, walletScan]);
+  }, [account, walletAddress, walletAssets, walletScan]);
 
   const riskReport = useMemo(() => calculateRiskReport(portfolio), [portfolio]);
   const whatIfSimulation = useMemo(
@@ -247,7 +263,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     [recommendation.expectedRiskReduction, riskReport],
   );
 
-  const [policy, setPolicy] = useState<ExecutionPolicy>(() => createDefaultPolicy(recommendation));
+  const [policy, setPolicy] = useState<ExecutionPolicy>(() => createDefaultPolicy(recommendation, defaultPolicyNow));
   const [policyTouched, setPolicyTouched] = useState(false);
 
   const openDemoSection = useCallback((section: DemoSection) => {
@@ -271,6 +287,13 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       return undefined;
     }
 
+    const currentUrl = new URL(window.location.href);
+
+    if (currentUrl.searchParams.has('demo')) {
+      currentUrl.searchParams.delete('demo');
+      window.history.replaceState(null, '', currentUrl);
+    }
+
     const frame = window.requestAnimationFrame(() => {
       setArchiveHistory(readArchiveHistory());
     });
@@ -278,20 +301,12 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const markWorkflowStep = useCallback((stepId: WorkflowStepId, feedback: string) => {
-    setCompletedWorkflowSteps((current) => (current.includes(stepId) ? current : [...current, stepId]));
-    setWorkflowFeedback((current) => ({
-      ...current,
-      [stepId]: feedback,
-    }));
-  }, []);
-
   const effectivePolicy = useMemo(
-    () => (policyTouched ? policy : createDefaultPolicy(recommendation)),
-    [policy, policyTouched, recommendation],
+    () => (policyTouched ? policy : createDefaultPolicy(recommendation, defaultPolicyNow)),
+    [defaultPolicyNow, policy, policyTouched, recommendation],
   );
   const whatIfPolicy = useMemo(() => {
-    const basePolicy = createDefaultPolicy(whatIfRecommendation);
+    const basePolicy = createDefaultPolicy(whatIfRecommendation, defaultPolicyNow);
 
     if (!whatIfSimulation.policyOverride) {
       return basePolicy;
@@ -305,11 +320,48 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         basePolicy.maxSingleTradeUsd * (whatIfSimulation.policyOverride.maxSingleTradeMultiplier ?? 1),
       ),
     };
-  }, [whatIfRecommendation, whatIfSimulation.policyOverride]);
+  }, [defaultPolicyNow, whatIfRecommendation, whatIfSimulation.policyOverride]);
 
   useEffect(() => {
     policyRef.current = effectivePolicy;
   }, [effectivePolicy]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function lockExecutionIntent() {
+      setExecutionIntentStatus('locking');
+      setExecutionIntentError('');
+
+      try {
+        const intent = await createExecutionIntent({
+        portfolioSnapshot: portfolio,
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        policyObjectId: agentPolicyObject?.objectId,
+        source: account ? 'base_wallet' : 'local_sample',
+      });
+
+        if (!cancelled) {
+          setExecutionIntent(intent);
+          setExecutionIntentStatus('locked');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setExecutionIntent(null);
+          setExecutionIntentStatus('error');
+          setExecutionIntentError(error instanceof Error ? error.message : 'Could not lock execution intent.');
+        }
+      }
+    }
+
+    void lockExecutionIntent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account, agentPolicyObject?.objectId, effectivePolicy, portfolio, recommendation, riskReport]);
 
   const resetAiPreviewState = useCallback(() => {
     setAiAgentCouncil(null);
@@ -319,8 +371,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setAiWhatIfAgentCouncil(null);
     setWhatIfAgentCouncilStatus('idle');
     setAiWhatIfIncidentRoom(null);
-    setWhatIfIncidentRoomStatus('idle');
-    setCompletedWorkflowSteps((current) => current.filter((step) => step !== 'agents' && step !== 'archive'));
   }, []);
 
   useEffect(() => {
@@ -410,6 +460,10 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     () => validateExecutionPolicy(effectivePolicy, recommendation, new Date()),
     [effectivePolicy, recommendation],
   );
+  const agentPolicyObjectCheck = useMemo(
+    () => validateAgentPolicyObject(agentPolicyObject, effectivePolicy, recommendation, new Date()),
+    [agentPolicyObject, effectivePolicy, recommendation],
+  );
   const whatIfPolicyCheck = useMemo(
     () => validateExecutionPolicy(whatIfPolicy, whatIfRecommendation, new Date()),
     [whatIfPolicy, whatIfRecommendation],
@@ -426,11 +480,13 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         walletScan: portfolio.walletScan ?? walletScan,
         deepbookMarketStatus,
         deepbookMarketError,
+        now: monitorNow,
       }),
     [
       deepbookMarketError,
       deepbookMarketStatus,
       effectivePolicy,
+      monitorNow,
       policyCheck,
       portfolio,
       recommendation,
@@ -448,13 +504,38 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     [defaultMonitorRules, monitorRuleEnabledOverrides],
   );
 
-  const liveTradePlan = useMemo(
-    () =>
-      deepbookMarketSnapshot
-        ? buildDeepBookLiveTradePlan(recommendation, deepbookMarketSnapshot)
-        : null,
-    [deepbookMarketSnapshot, recommendation],
+  const spotPtbRecommendation = useMemo<Pick<StrategyRecommendation, 'deepbookAction' | 'title' | 'type'>>(
+    () => ({
+      title: 'DeepBook Spot PTB proof path',
+      type: 'sui_downside_protection' as const,
+      deepbookAction: {
+        mode: 'prepare_mainnet' as const,
+        kind: 'spot' as const,
+        market: 'SUI/USDC',
+        side: 'sell' as const,
+        assetIn: 'SUI' as const,
+        assetOut: 'USDC' as const,
+        amountUsd: Math.max(1, Math.min(effectivePolicy.maxSingleTradeUsd, recommendation.estimatedCostUsd || 5)),
+        description:
+          'Judge-facing prepared DeepBook Spot PTB proof path. Wallet signs bytes for authorization evidence; RiskPilot does not submit.',
+      },
+    }),
+    [effectivePolicy.maxSingleTradeUsd, recommendation.estimatedCostUsd],
   );
+  const preparedPtb = useMemo(
+    () =>
+      buildPreparedDeepBookPtb({
+        recommendation: spotPtbRecommendation,
+        marketSnapshot: deepbookMarketSnapshot,
+      }),
+    [deepbookMarketSnapshot, spotPtbRecommendation],
+  );
+  const signedPreparedPtbForCurrentIntent =
+    signedPreparedPtb &&
+    signedPreparedPtb.policyObjectId === agentPolicyObject?.objectId &&
+    signedPreparedPtb.executionIntentId === executionIntent?.executionIntentId
+      ? signedPreparedPtb
+      : null;
   const liveDeepBookGate = useMemo(
     () =>
       getDeepBookLiveGate({
@@ -525,9 +606,18 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         auditArchived: Boolean(auditPackage && auditStorage),
         receiptEnabled: Boolean(receiptPackageId),
         liveGate: liveDeepBookGate,
+        policyObject: agentPolicyObject
+          ? {
+              objectId: agentPolicyObject.objectId,
+              status: agentPolicyObjectCheck.status,
+              source: agentPolicyObject.source,
+            }
+          : null,
       }),
     [
       account,
+      agentPolicyObject,
+      agentPolicyObjectCheck.status,
       auditPackage,
       auditStorage,
       deepbookMarketEvidencePreview,
@@ -558,10 +648,19 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         receiptEnabled: Boolean(receiptPackageId),
         liveGate: liveDeepBookGate,
         agentCouncil: agentCouncilDecision,
+        policyObject: agentPolicyObject
+          ? {
+              objectId: agentPolicyObject.objectId,
+              status: agentPolicyObjectCheck.status,
+              source: agentPolicyObject.source,
+            }
+          : null,
       }),
     [
       account,
       agentCouncilDecision,
+      agentPolicyObject,
+      agentPolicyObjectCheck.status,
       auditPackage,
       auditStorage,
       deepbookMarketEvidencePreview,
@@ -594,6 +693,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
           eligible: false,
           reasons: ['What-if preview does not authorize live submission.', ...liveDeepBookGate.reasons],
         },
+        policyObject: null,
       }),
     [
       account,
@@ -659,9 +759,18 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       auditArchived: input?.auditArchived ?? Boolean(auditPackage && auditStorage),
       receiptEnabled: Boolean(receiptPackageId),
       liveGate: liveDeepBookGate,
+      policyObject: agentPolicyObject
+        ? {
+            objectId: agentPolicyObject.objectId,
+            status: agentPolicyObjectCheck.status,
+            source: agentPolicyObject.source,
+          }
+        : null,
     }),
     [
       account,
+      agentPolicyObject,
+      agentPolicyObjectCheck.status,
       auditPackage,
       auditStorage,
       deepbookMarketEvidencePreview,
@@ -704,7 +813,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
         const payload = (await response.json()) as { decision: AgentCouncilDecision };
         setAiAgentCouncil(payload.decision);
-        setAgentCouncilStatus(payload.decision.mode === 'openai' ? 'ready' : 'fallback');
+        setAgentCouncilStatus(isAiProviderMode(payload.decision.mode) ? 'ready' : 'fallback');
         return payload.decision;
       } catch (error) {
         const warning = error instanceof Error ? error.message : 'AI council unavailable.';
@@ -738,10 +847,19 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       receiptEnabled: Boolean(receiptPackageId),
       liveGate: liveDeepBookGate,
       agentCouncil: input?.agentCouncil ?? agentCouncilDecision,
+      policyObject: agentPolicyObject
+        ? {
+            objectId: agentPolicyObject.objectId,
+            status: agentPolicyObjectCheck.status,
+            source: agentPolicyObject.source,
+          }
+        : null,
     }),
     [
       account,
       agentCouncilDecision,
+      agentPolicyObject,
+      agentPolicyObjectCheck.status,
       auditPackage,
       auditStorage,
       deepbookMarketEvidencePreview,
@@ -785,7 +903,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
         const payload = (await response.json()) as { incidentRoom: IncidentRoomDecision };
         setAiIncidentRoom(payload.incidentRoom);
-        setIncidentRoomStatus(payload.incidentRoom.mode === 'openai' ? 'ready' : 'fallback');
+        setIncidentRoomStatus(isAiProviderMode(payload.incidentRoom.mode) ? 'ready' : 'fallback');
         return payload.incidentRoom;
       } catch (error) {
         const warning = error instanceof Error ? error.message : 'AI incident room unavailable.';
@@ -800,138 +918,6 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     },
     [buildIncidentRoomRequest, deterministicIncidentRoomDecision],
   );
-
-  const whatIfLiveGate = useMemo(
-    () => ({
-      ...liveDeepBookGate,
-      canSubmitLive: false,
-      eligible: false,
-      reasons: ['What-if preview does not authorize live submission.', ...liveDeepBookGate.reasons],
-    }),
-    [liveDeepBookGate],
-  );
-
-  const buildWhatIfAgentCouncilRequest = useCallback(
-    () => ({
-      riskReport: whatIfSimulation.simulatedRiskReport,
-      recommendation: whatIfRecommendation,
-      policy: whatIfPolicy,
-      policyCheck: whatIfPolicyCheck,
-      monitorRules,
-      deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
-      explanationMode,
-      walletConnected: Boolean(account),
-      auditArchived: false,
-      receiptEnabled: Boolean(receiptPackageId),
-      liveGate: whatIfLiveGate,
-    }),
-    [
-      account,
-      explanationMode,
-      monitorRules,
-      receiptPackageId,
-      whatIfDeepbookMarketEvidencePreview,
-      whatIfLiveGate,
-      whatIfPolicy,
-      whatIfPolicyCheck,
-      whatIfRecommendation,
-      whatIfSimulation.simulatedRiskReport,
-    ],
-  );
-
-  const refreshWhatIfAgentCouncil = useCallback(async () => {
-    setWhatIfAgentCouncilStatus('loading');
-
-    try {
-      const response = await fetch('/api/agent-council', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(buildWhatIfAgentCouncilRequest()),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Agent council endpoint returned ${response.status}`);
-      }
-
-      const payload = (await response.json()) as { decision: AgentCouncilDecision };
-      setAiWhatIfAgentCouncil(payload.decision);
-      setWhatIfAgentCouncilStatus(payload.decision.mode === 'openai' ? 'ready' : 'fallback');
-      return payload.decision;
-    } catch (error) {
-      const warning = error instanceof Error ? error.message : 'AI council unavailable.';
-      const nextFallback = {
-        ...whatIfAgentCouncilDecision,
-        warning: `AI council fallback used: ${warning}`,
-      };
-      setAiWhatIfAgentCouncil(nextFallback);
-      setWhatIfAgentCouncilStatus('fallback');
-      return nextFallback;
-    }
-  }, [buildWhatIfAgentCouncilRequest, whatIfAgentCouncilDecision]);
-
-  const buildWhatIfIncidentRoomRequest = useCallback(
-    (agentCouncil: AgentCouncilDecision) => ({
-      riskReport: whatIfSimulation.simulatedRiskReport,
-      recommendation: whatIfRecommendation,
-      policy: whatIfPolicy,
-      policyCheck: whatIfPolicyCheck,
-      monitorRules,
-      deepbookMarketEvidence: whatIfDeepbookMarketEvidencePreview,
-      explanationMode,
-      walletConnected: Boolean(account),
-      auditArchived: false,
-      receiptEnabled: Boolean(receiptPackageId),
-      liveGate: whatIfLiveGate,
-      agentCouncil,
-    }),
-    [
-      account,
-      explanationMode,
-      monitorRules,
-      receiptPackageId,
-      whatIfDeepbookMarketEvidencePreview,
-      whatIfLiveGate,
-      whatIfPolicy,
-      whatIfPolicyCheck,
-      whatIfRecommendation,
-      whatIfSimulation.simulatedRiskReport,
-    ],
-  );
-
-  const refreshWhatIfIncidentRoom = useCallback(async () => {
-    setWhatIfIncidentRoomStatus('loading');
-
-    try {
-      const refreshedCouncil = await refreshWhatIfAgentCouncil();
-      const response = await fetch('/api/incident-room', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(buildWhatIfIncidentRoomRequest(refreshedCouncil)),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Incident room endpoint returned ${response.status}`);
-      }
-
-      const payload = (await response.json()) as { incidentRoom: IncidentRoomDecision };
-      setAiWhatIfIncidentRoom(payload.incidentRoom);
-      setWhatIfIncidentRoomStatus(payload.incidentRoom.mode === 'openai' ? 'ready' : 'fallback');
-      return payload.incidentRoom;
-    } catch (error) {
-      const warning = error instanceof Error ? error.message : 'AI incident room unavailable.';
-      const nextFallback = {
-        ...whatIfIncidentRoomDecision,
-        warning: `AI incident room fallback used: ${warning}`,
-      };
-      setAiWhatIfIncidentRoom(nextFallback);
-      setWhatIfIncidentRoomStatus('fallback');
-      return nextFallback;
-    }
-  }, [buildWhatIfIncidentRoomRequest, refreshWhatIfAgentCouncil, whatIfIncidentRoomDecision]);
 
   const loadDeepBookMarketSnapshot = useCallback(async () => {
     const snapshotWalletAddress = account?.address ?? '0x2';
@@ -1013,7 +999,8 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
         const payload = (await response.json()) as {
           explanation: string;
-          mode: 'mock' | 'openai';
+          mode: ExplanationMode;
+          model?: string;
         };
 
         setExplanation(payload.explanation);
@@ -1042,13 +1029,12 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setAuditPackage(null);
       setAuditStorage(null);
       setArchiveProgressPhase('idle');
+      setSignedPreparedPtb(null);
+      setPreparedPtbError('');
       resetAiPreviewState();
       setExecutionMode('pending');
       setExecutionStatus('awaiting approval');
       setExecuteWarning('');
-      setCompletedWorkflowSteps((current) =>
-        current.filter((step) => step !== 'strategy' && step !== 'agents' && step !== 'archive'),
-      );
     },
     [resetAiPreviewState, setPolicy],
   );
@@ -1058,68 +1044,20 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setAuditPackage(null);
     setAuditStorage(null);
     setArchiveProgressPhase('idle');
+    setSignedPreparedPtb(null);
+    setPreparedPtbError('');
     resetAiPreviewState();
     setExecutionMode('pending');
-    setExecutionStatus('awaiting approval');
+    setExecutionStatus('等待确认');
     setExecuteWarning('');
     setWalletArchiveStatus('');
-    setCompletedWorkflowSteps((current) =>
-      current.filter((step) => step !== 'strategy' && step !== 'agents' && step !== 'archive'),
-    );
   }, [resetAiPreviewState]);
-
-  const handleScenarioChange = useCallback((scenarioId: DemoScenarioId) => {
-    setSelectedScenarioId(scenarioId);
-    setPolicyTouched(false);
-    setAuditPackage(null);
-    setAuditStorage(null);
-    setArchiveProgressPhase('idle');
-    resetAiPreviewState();
-    setExecutionMode('pending');
-    setExecutionStatus('awaiting approval');
-    setExecuteWarning('');
-    setCompletedWorkflowSteps([]);
-    setWorkflowFeedback({});
-  }, [resetAiPreviewState]);
-
-  const startJudgeDemo = useCallback(() => {
-    setJudgeDemoActive(true);
-    setSelectedScenarioId('leveraged_lending_user');
-    setSelectedWhatIfScenarioId('sui_drawdown_15');
-    setPolicyTouched(false);
-    setAuditPackage(null);
-    setAuditStorage(null);
-    setArchiveProgressPhase('idle');
-    resetAiPreviewState();
-    setExecutionMode('pending');
-    setExecutionStatus('awaiting approval');
-    setExecuteWarning('');
-    setCompletedWorkflowSteps(['context']);
-    setWorkflowFeedback({
-      context: 'Context primed: leveraged lending wallet with SUI -15% what-if.',
-    });
-    openDemoSection('risk');
-
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('demo', 'judge');
-      window.history.replaceState(null, '', url);
-    }
-  }, [openDemoSection, resetAiPreviewState]);
-
-  const exitJudgeDemo = useCallback(() => {
-    setJudgeDemoActive(false);
-    const url = new URL(window.location.href);
-    url.searchParams.delete('demo');
-    window.history.replaceState(null, '', url);
-  }, []);
 
   const handleWhatIfScenarioChange = useCallback((scenarioId: WhatIfScenarioId) => {
     setSelectedWhatIfScenarioId(scenarioId);
     setAiWhatIfAgentCouncil(null);
     setWhatIfAgentCouncilStatus('idle');
     setAiWhatIfIncidentRoom(null);
-    setWhatIfIncidentRoomStatus('idle');
   }, []);
 
   const handleMonitorRuleToggle = useCallback((ruleId: string, enabled: boolean) => {
@@ -1130,119 +1068,187 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     setAuditPackage(null);
     setAuditStorage(null);
     setArchiveProgressPhase('idle');
+    setSignedPreparedPtb(null);
+    setPreparedPtbError('');
     resetAiPreviewState();
     setExecutionMode('pending');
     setExecutionStatus('awaiting approval');
     setExecuteWarning('');
-    setCompletedWorkflowSteps((current) => current.filter((step) => step !== 'agents' && step !== 'archive'));
   }, [resetAiPreviewState]);
 
+  const mintAgentPolicyObject = useCallback(async () => {
+    if (!account?.address) {
+      setAgentPolicyWarning('Mint AgentPolicy 前请先连接 Sui mainnet 钱包。');
+      return;
+    }
+
+    if (!AGENT_POLICY_PACKAGE_ID) {
+      setAgentPolicyWarning('NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID 或 NEXT_PUBLIC_RECEIPT_PACKAGE_ID 未配置。');
+      return;
+    }
+
+    if (!policyCheck.ok) {
+      setAgentPolicyWarning('当前 app/server Policy Gate 未通过，不能 mint 链上授权对象。');
+      return;
+    }
+
+    setAgentPolicyMinting(true);
+    setAgentPolicyWarning('');
+
+    try {
+      const tx = buildCreateAgentPolicyTransaction({ policy: effectivePolicy });
+      const result = await signAndExecute.mutateAsync({ transaction: tx, chain: 'sui:mainnet' });
+      const objectId = extractAgentPolicyObjectId(result.objectChanges);
+
+      if (!objectId) {
+        throw new Error('钱包响应中没有找到新建的 AgentPolicy object。');
+      }
+
+      setAgentPolicyObject(
+        buildAgentPolicyObjectFromPolicy({
+          objectId,
+          policy: effectivePolicy,
+          owner: account.address,
+          packageId: AGENT_POLICY_PACKAGE_ID,
+        }),
+      );
+      setAuditPackage(null);
+      setAuditStorage(null);
+      setArchiveProgressPhase('idle');
+      resetAiPreviewState();
+      setWalletArchiveStatus(`AgentPolicy 已 mint：${formatAddress(objectId)}。`);
+    } catch (error) {
+      setAgentPolicyWarning(error instanceof Error ? error.message : 'AgentPolicy mint 失败。');
+    } finally {
+      setAgentPolicyMinting(false);
+    }
+  }, [
+    account,
+    effectivePolicy,
+    policyCheck.ok,
+    resetAiPreviewState,
+    signAndExecute,
+  ]);
+
+  const signPreparedPtb = useCallback(async () => {
+    if (!account?.address) {
+      setPreparedPtbError('Connect a Sui mainnet wallet before signing the prepared PTB.');
+      return;
+    }
+
+    if (!executionIntent || !preparedPtb.eligible || !preparedPtb.plan) {
+      setPreparedPtbError(preparedPtb.reason ?? 'Prepared PTB is not ready yet.');
+      return;
+    }
+
+    if (!agentPolicyObjectCheck.ok) {
+      setPreparedPtbError('AgentPolicy object must be aligned before signing the prepared PTB.');
+      return;
+    }
+
+    setPreparedPtbError('');
+
+    try {
+      const tx = buildPreparedDeepBookPtbTransaction({
+        walletAddress: account.address,
+        recommendation: spotPtbRecommendation,
+        marketSnapshot: deepbookMarketSnapshot,
+      });
+      const { bytes, signature } = await signTransaction.mutateAsync({
+        transaction: tx.transaction,
+        chain: 'sui:mainnet',
+      });
+      const signed = await createSignedPreparedPtb({
+        bytes,
+        signature,
+        signer: account.address,
+        policyObjectId: agentPolicyObject?.objectId,
+        executionIntentId: executionIntent.executionIntentId,
+      });
+      setSignedPreparedPtb(signed);
+      setWalletArchiveStatus(`Prepared PTB 已签名：${signed.bytesDigest}。`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Prepared PTB signing unavailable.';
+      setPreparedPtbError(message);
+      setSignedPreparedPtb(null);
+    }
+  }, [
+    account,
+    agentPolicyObject,
+    agentPolicyObjectCheck.ok,
+    deepbookMarketSnapshot,
+    executionIntent,
+    preparedPtb,
+    signTransaction,
+    spotPtbRecommendation,
+  ]);
+
   const prepareAndArchive = useCallback(async () => {
-    if (!policyCheck.ok || executionBusy) {
+    if (!policyCheck.ok || executionBusy || !executionIntent) {
       return;
     }
 
     setExecutionBusy(true);
     setExecuteWarning('');
     setArchiveProgressPhase('package');
-    setWalletArchiveStatus('Preparing wallet-paid audit package.');
+    setWalletArchiveStatus('正在准备钱包支付的审计包。');
 
     try {
       if (!account?.address) {
-        throw new Error('Connect a Sui mainnet wallet before preparing and archiving. Paid archive storage must be signed by the connected wallet.');
+        throw new Error('准备和归档前请先连接 Sui mainnet 钱包。付费归档存储必须由已连接钱包签名。');
+      }
+
+      if (!preparedPtb.eligible || !preparedPtb.plan) {
+        throw new Error(preparedPtb.reason ?? 'Prepared PTB is not eligible yet.');
+      }
+
+      if (!signedPreparedPtbForCurrentIntent) {
+        throw new Error('Please sign the prepared PTB before archiving evidence.');
       }
 
       const currentPolicy = policyRef.current ?? effectivePolicy;
-      const currentExplanation = buildMockExplanation(portfolio, riskReport, recommendation, currentPolicy);
-      let auditMarketSnapshot = deepbookMarketSnapshot;
+      const currentExecutionIntent = executionIntent;
+
+      if (new Date(currentExecutionIntent.intentExpiresAt).getTime() <= Date.now()) {
+        throw new Error('Execution intent 已过期。请重新检查策略以刷新锁定的 digests。');
+      }
+
+      const currentExplanation =
+        explanation.trim() || buildMockExplanation(portfolio, riskReport, recommendation, currentPolicy);
+      const auditMarketSnapshot = deepbookMarketSnapshot;
       let execution: AuditPackage['execution'];
 
-      if (effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookEligible) {
-        try {
-          const marketSnapshot = deepbookMarketSnapshot;
-
-          if (!account?.address || !marketSnapshot) {
-            throw new Error('Live DeepBook execution requires a connected wallet and ready market snapshot.');
-          }
-
-          auditMarketSnapshot = marketSnapshot;
-          const liveExecution = buildDeepBookLiveTransaction(
-            account.address,
-            recommendation,
-            marketSnapshot,
-          );
-          setArchiveProgressPhase('live');
-          setWalletArchiveStatus('Waiting for connected wallet to sign live DeepBook transaction.');
-          const liveResult = await signAndExecute.mutateAsync({
-            transaction: liveExecution.transaction,
-            chain: 'sui:mainnet',
-          });
-          const effectsStatus = liveResult.effects?.status?.status;
-          const effectsError = liveResult.effects?.status?.error;
-          const liveStatus =
-            effectsStatus === 'success'
-              ? 'confirmed'
-              : effectsStatus === 'failure'
-                ? 'failed'
-                : 'submitted';
-
-          if (liveStatus === 'failed') {
-            setExecuteWarning(
-              `Live DeepBook Spot transaction was submitted but failed on Sui mainnet: ${effectsError ?? 'effects status failure'}`,
-            );
-          }
-
-          execution = {
-            mode: 'mainnet',
-            status: liveStatus,
-            digest: liveResult.digest,
-            effectsStatus,
-            effectsError,
-            error: liveStatus === 'failed' ? effectsError : undefined,
-            warning:
-              liveStatus === 'failed'
-                ? `Submitted real Sui mainnet transaction failed: ${effectsError ?? 'effects status failure'}`
-                : undefined,
-            preparedTransactionSummary: liveExecution.plan.summary,
-            adapter: {
-              venue: 'DeepBook mainnet',
-              requestedMode: 'mainnet',
-              mainnetOnly: true,
-            },
-            authority: {
-              signer: 'connected_wallet',
-              payer: 'connected_wallet',
-              signerLabel: 'Connected Sui wallet',
-              payerLabel: 'Connected Sui wallet',
-              walletAddress: account.address,
-              note: 'The connected wallet signs and pays this live Sui transaction and then signs the Walrus archive transactions.',
-            },
-          };
-        } catch (liveError) {
-          const liveWarning = buildLiveDeepBookFailureWarning(liveError);
-          setExecuteWarning(liveWarning);
-          setArchiveProgressPhase('failed');
-          setWalletArchiveStatus('Live DeepBook did not complete. Walrus archive has not started.');
-          throw new Error(liveWarning);
-        }
-      } else {
-        execution =
-          effectiveSelectedExecutionMode === 'simulation'
-            ? {
-                ...simulateDeepBookAction(recommendation.deepbookAction),
-                warning:
-                  'Local simulation mode selected. No DeepBook transaction is submitted; the connected wallet still pays Walrus archive storage.',
-              }
-            : prepareDeepBookTransaction(
-                recommendation.deepbookAction,
-                account.address,
-                effectiveSelectedExecutionMode === 'mainnet' ? 'prepare_mainnet' : effectiveSelectedExecutionMode,
-              );
-      }
+      execution = prepareDeepBookTransaction(
+        recommendation.deepbookAction,
+        account.address,
+        'prepare_mainnet',
+      );
 
       if (execution.warning) {
         setExecuteWarning(execution.warning);
       }
+
+      execution = {
+        ...execution,
+        mode: 'prepare_mainnet',
+        status: 'prepared',
+        preparedPtb: {
+          ...preparedPtb,
+          status: 'signed',
+        },
+        signedPreparedPtb: signedPreparedPtbForCurrentIntent,
+        digest: signedPreparedPtbForCurrentIntent.bytesDigest,
+        preparedTransactionSummary: preparedPtb.plan.summary,
+        authority: {
+          signer: 'connected_wallet',
+          payer: 'none',
+          signerLabel: '已连接钱包已签名 PTB',
+          payerLabel: '未提交，无 gas 支付',
+          walletAddress: account.address,
+          note: '钱包只签名 prepared PTB bytes；RiskPilot 不提交这笔交易，Walrus 归档记录签名证据。',
+        },
+      };
 
       const deepbookMarketEvidence = createDeepBookMarketEvidence({
         snapshot: auditMarketSnapshot,
@@ -1290,6 +1296,17 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
         deepbookMarketEvidence,
         policy: currentPolicy,
         policyCheck,
+        policyObjectId: agentPolicyObject?.objectId,
+        policyObject: agentPolicyObject
+          ? {
+              objectId: agentPolicyObject.objectId,
+              owner: agentPolicyObject.owner,
+              packageId: agentPolicyObject.packageId,
+              status: agentPolicyObjectCheck.status,
+              source: agentPolicyObject.source,
+            }
+          : undefined,
+        executionIntent: currentExecutionIntent,
         agentCouncil: archivedAgentCouncil,
         incidentRoom: archivedIncidentRoom,
         aiExplanation: currentExplanation,
@@ -1301,9 +1318,9 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setAgentCouncilStatus('fallback');
       setAiIncidentRoom(archivedIncidentRoom);
       setIncidentRoomStatus('fallback');
-      setWalletArchiveStatus('Loading wallet-paid Walrus archive module.');
+      setWalletArchiveStatus('正在加载钱包支付的 Walrus 归档模块。');
       const { storeAuditPackageWithConnectedWallet } = await import('@/lib/walrus/wallet-archive');
-      setWalletArchiveStatus('Audit package ready. Opening wallet for Walrus register.');
+      setWalletArchiveStatus('审计包已就绪。正在打开钱包进行 Walrus register。');
       const storage = await storeAuditPackageWithConnectedWallet({
         auditPackage: auditPayload,
         walletAddress: account.address,
@@ -1321,8 +1338,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setExecutionMode(execution.mode);
       setExecutionStatus(execution.status);
       setArchiveProgressPhase('certified');
-      setWalletArchiveStatus('Wallet-paid Walrus archive certified.');
-      markWorkflowStep('archive', `Archive certified: ${storage.id}`);
+      setWalletArchiveStatus('钱包支付的 Walrus 归档已认证。');
       void refreshAgentCouncil({
         deepbookMarketEvidence,
         auditArchived: true,
@@ -1338,7 +1354,7 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     } catch (error) {
       setArchiveProgressPhase('failed');
       setExecuteWarning(
-        error instanceof Error ? error.message : 'Execution or audit preparation failed.',
+        error instanceof Error ? error.message : '执行或审计准备失败。',
       );
       setExecutionMode('failed');
       setExecutionStatus('failed');
@@ -1348,16 +1364,19 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   }, [
     estimatedAfterRisk,
     effectivePolicy,
-    effectiveSelectedExecutionMode,
     executionBusy,
+    executionIntent,
     account,
+    agentPolicyObject,
+    agentPolicyObjectCheck.status,
     deepbookMarketError,
     deepbookMarketSnapshot,
     deepbookMarketStatus,
+    explanation,
     explanationMode,
-    liveDeepBookEligible,
     liveDeepBookGate,
     monitorRules,
+    preparedPtb,
     policyCheck,
     portfolio,
     receiptPackageId,
@@ -1366,113 +1385,28 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
     refreshIncidentRoom,
     riskReport,
     signAndExecute,
+    signedPreparedPtbForCurrentIntent,
     setWalletArchiveStatus,
-    markWorkflowStep,
   ]);
 
   const liveModeFallbackWarning =
     selectedExecutionMode === 'mainnet' && !liveDeepBookGate.canSubmitLive
-      ? `Live mainnet is blocked: ${liveDeepBookGate.reasons
+      ? `Live mainnet 已阻断：${liveDeepBookGate.reasons
           .filter((reason) => reason !== 'Select live mainnet explicitly.')
-          .join(' ')} RiskPilot will prepare the action without live submission.`
+          .join(' ')} RiskPilot 会准备动作，但不会提交 Live。`
       : null;
   const warnings = [
     walletWarning,
-    policyTouched && !policyCheck.ok ? 'Policy edits are currently blocking execution.' : null,
+    agentPolicyWarning,
+    executionIntentStatus === 'error' ? `Execution intent 锁定失败：${executionIntentError}` : null,
     liveModeFallbackWarning,
     executeWarning,
   ].filter(Boolean) as string[];
-  const policyState = policyCheck.ok ? 'Ready' : 'Blocked';
   const selectedMode = selectedModeLabel(effectiveSelectedExecutionMode);
-  const liveSubmitSelected = effectiveSelectedExecutionMode === 'mainnet' && liveDeepBookGate.canSubmitLive;
-  const isWorkflowStepDone = useCallback(
-    (stepId: WorkflowStepId) => completedWorkflowSteps.includes(stepId),
-    [completedWorkflowSteps],
-  );
-  const runWorkflowAction = useCallback(
-    (stepId: WorkflowStepId) => {
-      if (stepId === 'context') {
-        if (account) {
-          markWorkflowStep('context', `Live wallet context attached: ${formatAddress(account.address)}.`);
-          openDemoSection('overview');
-          return;
-        }
-
-        startJudgeDemo();
-        return;
-      }
-
-      if (stepId === 'risk') {
-        markWorkflowStep(
-          'risk',
-          `Risk map ready: ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals.`,
-        );
-        openDemoSection('risk');
-        return;
-      }
-
-      if (stepId === 'whatIf') {
-        handleWhatIfScenarioChange('sui_drawdown_15');
-        markWorkflowStep(
-          'whatIf',
-          'SUI -15% preview is primed. It cannot mutate the real archive payload.',
-        );
-        openDemoSection('risk');
-        return;
-      }
-
-      if (stepId === 'strategy') {
-        markWorkflowStep(
-          'strategy',
-          policyCheck.ok
-            ? `Strategy locked: ${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} max cost.`
-            : `Policy gate blocked: ${policyCheck.errors[0] ?? 'review policy settings'}.`,
-        );
-        openDemoSection('strategy');
-        return;
-      }
-
-      if (stepId === 'agents') {
-        markWorkflowStep(
-          'agents',
-          `Agent room opened: ${activeWhatIfIncidentRoomDecision.tasks.length} tasks · ${activeWhatIfAgentCouncilDecision.agents.length} agents.`,
-        );
-        openDemoSection('audit');
-        void refreshWhatIfIncidentRoom();
-        return;
-      }
-
-      if (auditStorage) {
-        markWorkflowStep('archive', `Archive certified: ${auditStorage.id}.`);
-      } else {
-        setWorkflowFeedback((current) => ({
-          ...current,
-          archive: account
-            ? 'Prepare desk opened. Use the wallet-paid archive button when ready.'
-            : 'Archive needs a connected Sui mainnet wallet.',
-        }));
-      }
-      openDemoSection('prepare');
-    },
-    [
-      account,
-      activeWhatIfAgentCouncilDecision.agents.length,
-      activeWhatIfIncidentRoomDecision.tasks.length,
-      auditStorage,
-      handleWhatIfScenarioChange,
-      markWorkflowStep,
-      openDemoSection,
-      policyCheck.errors,
-      policyCheck.ok,
-      recommendation.deepbookAction.market,
-      recommendation.estimatedCostUsd,
-      refreshWhatIfIncidentRoom,
-      riskReport.overallScore,
-      riskReport.signals.length,
-      startJudgeDemo,
-    ],
-  );
-
+  const liveSubmitSelected = false;
+  const executionDigestPreview = `intent:${executionIntent?.executionIntentId ?? recommendation.id}`;
+  const activeRememberHistoryEntry =
+    archiveHistory.find((entry) => entry.auditId === auditPackage?.id) ?? archiveHistory[0];
   const openArchiveHistoryEntry = useCallback(
     (entry: ArchiveHistoryEntry) => {
       setAuditPackage(entry.auditPackage);
@@ -1480,235 +1414,261 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       setExecutionMode(entry.executionMode);
       setExecutionStatus(entry.executionStatus);
       setArchiveProgressPhase('certified');
-      setWalletArchiveStatus(`Loaded local archive history for ${entry.storageId}.`);
-      markWorkflowStep('archive', `Archive loaded: ${entry.storageId}.`);
+      setWalletArchiveStatus(`已加载 ${entry.storageId} 的本地归档历史。`);
       openDemoSection('prepare');
     },
-    [markWorkflowStep, openDemoSection],
+    [openDemoSection],
   );
 
   const clearLocalArchiveHistory = useCallback(() => {
     setArchiveHistory(clearArchiveHistory());
   }, []);
 
-  const workflowSteps = useMemo(
-    () => {
-      const contextDone = isWorkflowStepDone('context') || Boolean(account) || judgeDemoActive;
-      const riskDone = isWorkflowStepDone('risk');
-      const whatIfDone = isWorkflowStepDone('whatIf');
-      const strategyDone = isWorkflowStepDone('strategy') && policyCheck.ok;
-      const agentsDone =
-        isWorkflowStepDone('agents') ||
-        Boolean(aiWhatIfAgentCouncil || aiWhatIfIncidentRoom) ||
-        whatIfAgentCouncilStatus === 'fallback' ||
-        whatIfIncidentRoomStatus === 'fallback';
-      const archiveDone = Boolean(auditPackage && auditStorage);
+  const handleReceiptMinted = useCallback(
+    (proof: NonNullable<AuditPackage['receiptProof']>) => {
+      if (!auditPackage || !auditStorage) {
+        return;
+      }
 
-      const getStatus = (stepId: WorkflowStepId, section: DemoSection): WorkflowStepStatus => {
-        if (stepId === 'strategy' && !policyCheck.ok) {
-          return activeSection === section ? 'active' : 'blocked';
-        }
-
-        if (stepId === 'archive' && !account) {
-          return 'blocked';
-        }
-
-        if (
-          (stepId === 'context' && contextDone) ||
-          (stepId === 'risk' && riskDone) ||
-          (stepId === 'whatIf' && whatIfDone) ||
-          (stepId === 'strategy' && strategyDone) ||
-          (stepId === 'agents' && agentsDone) ||
-          (stepId === 'archive' && archiveDone)
-        ) {
-          return 'done';
-        }
-
-        if (stepId === 'risk') {
-          return activeSection === 'risk' && contextDone ? 'active' : 'ready';
-        }
-
-        if (stepId === 'whatIf') {
-          return activeSection === 'risk' && riskDone ? 'active' : 'ready';
-        }
-
-        if (
-          activeSection === section ||
-          (stepId === 'agents' &&
-            (whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading')) ||
-          (stepId === 'archive' && executionBusy)
-        ) {
-          return 'active';
-        }
-
-        return 'ready';
-      };
-
-      return [
-        {
-          id: 'context' as const,
-          step: '01',
-          title: 'Prime context',
-          detail: account ? 'Use connected wallet data.' : 'Load the judge scenario.',
-          actionLabel: account ? 'Use wallet context' : 'Start judge scenario',
-          status: getStatus('context', 'overview'),
-          feedback:
-            workflowFeedback.context ??
-            (account ? `Live wallet: ${formatAddress(account.address)}` : 'Demo context is ready to prime.'),
-        },
-        {
-          id: 'risk' as const,
-          step: '02',
-          title: 'Score risk',
-          detail: 'Build the deterministic risk map.',
-          actionLabel: 'Score risk',
-          status: getStatus('risk', 'risk'),
-          feedback:
-            workflowFeedback.risk ??
-            `Score ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals.`,
-        },
-        {
-          id: 'whatIf' as const,
-          step: '03',
-          title: 'Run what-if',
-          detail: 'Preview a stress scenario only.',
-          actionLabel: 'Run SUI -15%',
-          status: getStatus('whatIf', 'risk'),
-          feedback:
-            workflowFeedback.whatIf ??
-            `${whatIfSimulation.scenario.label}: ${whatIfSimulation.baseRiskReport.overallScore} → ${whatIfSimulation.simulatedRiskReport.overallScore}.`,
-        },
-        {
-          id: 'strategy' as const,
-          step: '04',
-          title: 'Lock strategy',
-          detail: 'Review policy-gated action bounds.',
-          actionLabel: policyCheck.ok ? 'Review action' : 'Fix policy',
-          status: getStatus('strategy', 'strategy'),
-          feedback:
-            workflowFeedback.strategy ??
-            (policyCheck.ok
-              ? `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} cost.`
-              : policyCheck.errors[0] ?? 'Policy needs review.'),
-        },
-        {
-          id: 'agents' as const,
-          step: '05',
-          title: 'Open agent room',
-          detail: 'Show council, handoffs, and final command.',
-          actionLabel:
-            whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading'
-              ? 'Convening...'
-              : 'Convene agents',
-          status: getStatus('agents', 'audit'),
-          feedback:
-            workflowFeedback.agents ??
-            `${activeWhatIfIncidentRoomDecision.tasks.length} tasks · ${activeWhatIfAgentCouncilDecision.agents.length} agents.`,
-        },
-        {
-          id: 'archive' as const,
-          step: '06',
-          title: 'Prepare archive',
-          detail: 'Enter the wallet-paid Walrus desk.',
-          actionLabel: auditStorage ? 'Verify archive' : 'Open prepare desk',
-          status: getStatus('archive', 'prepare'),
-          feedback:
-            workflowFeedback.archive ??
-            (auditStorage ? `Walrus ${archivePaymentLabel(auditStorage)}` : 'Wallet-paid archive is explicit.'),
-        },
-      ];
+      setAuditPackage((current) => (current ? { ...current, receiptProof: proof } : current));
+      setArchiveHistory(
+        saveArchiveReceiptProof({
+          auditId: auditPackage.id,
+          storageId: auditStorage.id,
+          receiptProof: proof,
+        }),
+      );
     },
-    [
-      account,
-      activeSection,
-      activeWhatIfAgentCouncilDecision.agents.length,
-      activeWhatIfIncidentRoomDecision.tasks.length,
-      aiWhatIfAgentCouncil,
-      aiWhatIfIncidentRoom,
-      auditPackage,
-      auditStorage,
-      executionBusy,
-      isWorkflowStepDone,
-      judgeDemoActive,
-      policyCheck.errors,
-      policyCheck.ok,
-      recommendation.deepbookAction.market,
-      recommendation.estimatedCostUsd,
-      riskReport.overallScore,
-      riskReport.signals.length,
-      whatIfAgentCouncilStatus,
-      whatIfIncidentRoomStatus,
-      whatIfSimulation.baseRiskReport.overallScore,
-      whatIfSimulation.scenario.label,
-      whatIfSimulation.simulatedRiskReport.overallScore,
-      workflowFeedback,
-    ],
+    [auditPackage, auditStorage],
   );
 
   const sectionMeta: Record<DemoSection, { eyebrow: string; title: string; copy: string }> = {
     overview: {
-      eyebrow: 'Stage 01',
-      title: account ? 'Read the connected wallet first' : 'Choose the story, then let the workflow unfold',
-      copy: account
-        ? 'RiskPilot uses live Sui mainnet balances and owned-object scan results for the portfolio view.'
-        : 'A judge can start from the visual primitive cards, pick a portfolio case, and see the exact mainnet-ready context before moving deeper.',
+      eyebrow: 'Observe',
+      title: '读取钱包风险',
+      copy: '动作：读取 Sui mainnet 钱包资产与对象。结果：把风险暴露转成可检查证据。安全意义：没有钱包确认时，RiskPilot 不会移动任何资产。',
     },
     risk: {
-      eyebrow: 'Stage 02',
-      title: 'Risk reads like a board, not a spreadsheet',
-      copy: 'The deterministic score, scenario losses, and evidence chips are grouped as a focused risk stage.',
+      eyebrow: 'Plan',
+      title: '生成风险应对方案',
+      copy: '场景：Sui 风险上升时，普通 Agent 可能直接动作；RiskPilot 只生成受 Policy 约束的建议，并等待后续钱包确认。',
     },
     strategy: {
-      eyebrow: 'Stage 03',
-      title: 'Turn risk into a bounded DeepBook action',
-      copy: 'The recommendation and policy gate sit together so the safety boundary is visible before preparation.',
+      eyebrow: 'Verify Policy',
+      title: '检查授权边界',
+      copy: '动作：检查预算、市场、资产和过期时间。结果：Policy Gate 先给出通过或阻断。安全意义：Agent 必须先证明自己没有越权。',
     },
     audit: {
-      eyebrow: 'Stage 04',
-      title: 'Explain and archive the agent decision',
-      copy: 'RiskPilot keeps the agent legible with a short explanation, watch rules, storage status, and audit trail preview.',
+      eyebrow: 'Act',
+      title: '准备 PTB 与证明',
+      copy: '动作：准备可复核的 PTB、监控规则和审计说明。结果：得到可签名、可检查的行动包。安全意义：没有钱包确认时不会提交交易。',
     },
     prepare: {
-      eyebrow: 'Stage 05',
-      title: 'Prepare by default, submit Spot only by opt-in',
-      copy: 'This final stage keeps prepare-only as the default while exposing a wallet-signed DeepBook Spot path only when every live gate is green.',
+      eyebrow: 'Remember',
+      title: '归档审计记忆',
+      copy: '动作：把决策、签名和证据写入 Walrus。结果：生成可回放的 StrategyReceipt 记忆。安全意义：后续可以追溯 Agent 为什么这么做。',
     },
   };
 
   const stageCue: Record<DemoSection, { proof: string; evidence: string; boundary: string }> = {
     overview: {
-      proof: account ? 'Live wallet context' : 'Judge scenario context',
-      evidence: account ? 'Mainnet balances + owned-object scan' : 'Curated portfolio cases with deterministic risk',
-      boundary: account ? 'No synthetic demo positions after connect' : 'Wallet connection remains optional',
+      proof: account ? '证明钱包真实风险上下文' : '证明真实钱包数据只在连接后读取',
+      evidence: account ? 'Mainnet 余额、已拥有对象、风险信号' : 'Walrus 样例证明轨 + 安全本地检查',
+      boundary: '不请求签名，不移动资产',
     },
     risk: {
-      proof: 'Deterministic risk map',
-      evidence: `Score ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals · what-if preview ready`,
-      boundary: 'What-if changes preview state only',
+      proof: '证明风险上升时 Agent 只生成建议',
+      evidence: `评分 ${riskReport.overallScore}/100 · ${riskReport.signals.length} 个信号 · What-if 预览`,
+      boundary: 'AI 没有执行权限，不直接交易',
     },
     strategy: {
-      proof: 'Bounded action route',
-      evidence: `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)} estimated cost`,
-      boundary: policyCheck.ok ? 'Policy gate is open' : 'Policy gate is blocking execution',
+      proof: agentPolicyObject ? '证明链上授权对象已存在' : '证明 Policy 会先阻断越权',
+      evidence: agentPolicyObject ? formatAddress(agentPolicyObject.objectId) : `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)}`,
+      boundary: agentPolicyObjectCheck.ok ? '只允许 Policy 内动作' : '未通过前不能继续执行',
     },
     audit: {
-      proof: 'Agentic decision trail',
-      evidence: `${activeWhatIfIncidentRoomDecision.tasks.length} room tasks · ${activeWhatIfAgentCouncilDecision.agents.length} council agents`,
-      boundary: 'Preview room is separate from real archive payload',
+      proof: '证明行动包可复核但未提交',
+      evidence: `${activeWhatIfIncidentRoomDecision.tasks.length} 个任务 · ${activeWhatIfAgentCouncilDecision.agents.length} 个 Agent · prepared PTB`,
+      boundary: '只准备 PTB，不替用户提交交易',
     },
     prepare: {
-      proof: 'Mainnet prepare desk',
-      evidence: auditStorage ? 'wallet-paid Walrus archive ready' : 'Wallet-paid Walrus archive pending',
-      boundary: liveSubmitSelected ? 'Every paid action requires wallet approval' : 'Prepare-only still requires wallet-paid archive',
+      proof: '证明本次决策可以被回放',
+      evidence: auditStorage ? 'Walrus blob、register/certify、StrategyReceipt' : '等待钱包签名和 Walrus 归档',
+      boundary: signedPreparedPtbForCurrentIntent ? '归档 signed PTB 作为未提交证据' : '没有签名就不生成最终记忆',
     },
   };
 
+  const stageOutcome: Record<DemoSection, { label: string; value: string; tone: 'safe' | 'watch' | 'proof' }> = {
+    overview: {
+      label: '当前结论',
+      value: account ? '已接入真实钱包上下文' : '未连接钱包时只展示样例和安全检查',
+      tone: account ? 'safe' : 'watch',
+    },
+    risk: {
+      label: '核心结果',
+      value: 'Sui 风险上升时，AI 已给建议，但无执行权限',
+      tone: 'proof',
+    },
+    strategy: {
+      label: '安全闸门',
+      value: policyCheck.ok ? 'Policy 已通过，可以进入准备阶段' : 'Policy 已阻断，Agent 不能越权',
+      tone: policyCheck.ok ? 'safe' : 'watch',
+    },
+    audit: {
+      label: '执行边界',
+      value: signedPreparedPtbForCurrentIntent ? 'PTB 已签名但仍未提交' : '只准备 PTB，不提交交易',
+      tone: 'proof',
+    },
+    prepare: {
+      label: '可验证记忆',
+      value: auditStorage ? 'Walrus 归档已生成，可回放审计' : '等待钱包签名后写入 Walrus',
+      tone: auditStorage ? 'safe' : 'watch',
+    },
+  };
+
+  const policyGuideError = policyCheck.errors[0]
+    ? policyCheck.errors[0].replace('Policy expired. Choose an expiry in the future.', 'Policy 已过期，请选择未来的过期时间。')
+    : '等待修复';
+
+  const judgeGuideSteps: JudgeGuideStep[] = [
+    {
+      id: 'overview',
+      label: '发现风险',
+      input: account ? formatAddress(account.address) : '安全样例钱包',
+      output: `风险评分 ${riskReport.overallScore}/100`,
+      evidence: account ? 'mainnet 钱包扫描已接入' : '先展示 Walrus 样例和本地安全检查',
+      walletSignature: 'none',
+      complete: Boolean(account || riskReport.signals.length > 0),
+    },
+    {
+      id: 'risk',
+      label: '生成建议',
+      input: `${riskReport.signals.length} 个风险信号`,
+      output: '只生成受限建议，不执行',
+      evidence: `${riskReport.overallScore}/100 · ${riskReport.signals.length} 个信号`,
+      walletSignature: 'none',
+      complete: riskReport.signals.length > 0,
+    },
+    {
+      id: 'strategy',
+      label: 'Policy 阻断/放行',
+      input: agentPolicyObject ? formatAddress(agentPolicyObject.objectId) : 'Policy 条款',
+      output: policyCheck.ok ? '授权边界已通过' : '执行前已阻断',
+      evidence: policyCheck.ok ? 'Policy 已通过' : `Policy 已阻断：${policyGuideError}`,
+      walletSignature: 'optional',
+      complete: policyCheck.ok || policyCheck.errors.length > 0,
+    },
+    {
+      id: 'audit',
+      label: '准备 PTB',
+      input: preparedPtb.plan ? `${preparedPtb.plan.assetIn}->${preparedPtb.plan.assetOut}` : recommendation.deepbookAction.market,
+      output: signedPreparedPtbForCurrentIntent ? '钱包已签 PTB bytes' : '只准备，等待签名',
+      evidence: signedPreparedPtbForCurrentIntent?.bytesDigest ?? (preparedPtb.eligible ? 'prepared PTB 已构建' : 'prepared PTB 暂不可用'),
+      walletSignature: 'required',
+      complete: Boolean(preparedPtb.eligible || signedPreparedPtbForCurrentIntent),
+    },
+    {
+      id: 'prepare',
+      label: 'Walrus 归档',
+      input: signedPreparedPtbForCurrentIntent?.bytesDigest ?? 'signed PTB required',
+      output: auditPackage?.receiptProof ? 'Walrus + StrategyReceipt' : auditStorage ? 'Walrus blob 已归档' : '等待归档',
+      evidence: auditPackage?.receiptProof?.receiptDigest ?? auditStorage?.id ?? '等待 Walrus 归档',
+      walletSignature: 'required',
+      complete: Boolean(auditStorage),
+    },
+  ];
+
+  const signedPtbDigest = signedPreparedPtbForCurrentIntent?.bytesDigest;
+  const proofExecutionDigest = auditPackage
+    ? auditPackage.execution.signedPreparedPtb?.bytesDigest ??
+      auditPackage.execution.digest ??
+      auditPackage.execution.preparedTransactionSummary ??
+      auditPackage.id
+    : signedPtbDigest ?? executionDigestPreview;
+  const agentToolSteps: AgentToolStep[] = [
+    {
+      id: 'read_wallet_objects',
+      label: 'read_wallet_objects',
+      status: account || riskReport.signals.length > 0 ? 'complete' : 'pending',
+      input: account ? formatAddress(account.address) : 'local sample wallet',
+      output: `${portfolio.assets.length} assets · risk ${riskReport.overallScore}/100`,
+      evidenceRef: account ? 'mainnet wallet scan' : 'sample portfolio digest',
+      walletSignature: 'none',
+    },
+    {
+      id: 'fetch_deepbook_market',
+      label: 'fetch_deepbook_market',
+      status: deepbookMarketStatus === 'ready' ? 'complete' : deepbookMarketStatus === 'loading' ? 'active' : 'warning',
+      input: recommendation.deepbookAction.market,
+      output: deepbookMarketSnapshot
+        ? `${deepbookMarketSnapshot.poolKey} · ${formatAddress(deepbookMarketSnapshot.poolAddress)}`
+        : deepbookMarketError || 'market snapshot pending',
+      evidenceRef: 'DeepBook v3 mainnet',
+      walletSignature: 'none',
+    },
+    {
+      id: 'validate_policy_object',
+      label: 'validate_policy_object',
+      status: agentPolicyObjectCheck.ok ? 'complete' : agentPolicyObject ? 'blocked' : 'warning',
+      input: agentPolicyObject?.objectId ? formatAddress(agentPolicyObject.objectId) : 'policy terms',
+      output: agentPolicyObjectCheck.ok ? 'authority boundary verified' : agentPolicyObjectCheck.errors[0] ?? 'mint/select required',
+      evidenceRef: 'Sui Policy Object',
+      walletSignature: 'optional',
+    },
+    {
+      id: 'build_strategy',
+      label: 'build_strategy',
+      status: policyCheck.ok ? 'complete' : 'blocked',
+      input: `${riskReport.signals.length} risk signals`,
+      output: recommendation.title,
+      evidenceRef: recommendation.id,
+      walletSignature: 'none',
+    },
+    {
+      id: 'build_ptb_prepare_action',
+      label: 'build_ptb_prepare_action',
+      status: signedPreparedPtbForCurrentIntent ? 'complete' : preparedPtb.eligible ? 'active' : 'blocked',
+      input: preparedPtb.plan ? `${preparedPtb.plan.assetIn}->${preparedPtb.plan.assetOut}` : recommendation.deepbookAction.market,
+      output: signedPreparedPtbForCurrentIntent
+        ? signedPreparedPtbForCurrentIntent.bytesDigest
+        : preparedPtb.eligible
+          ? 'PTB bytes built, waiting wallet signature'
+          : preparedPtb.reason ?? 'not eligible',
+      evidenceRef: proofExecutionDigest,
+      walletSignature: 'required',
+    },
+    {
+      id: 'archive_walrus',
+      label: 'archive_walrus',
+      status: auditStorage ? 'complete' : signedPreparedPtbForCurrentIntent ? 'active' : 'pending',
+      input: signedPreparedPtbForCurrentIntent ? signedPreparedPtbForCurrentIntent.bytesDigest : 'signed PTB required',
+      output: auditStorage?.id ?? 'Walrus blob pending',
+      evidenceRef: auditStorage?.registerDigest ?? auditStorage?.id ?? 'archive not started',
+      walletSignature: 'required',
+    },
+    {
+      id: 'mint_strategy_receipt',
+      label: 'mint_strategy_receipt',
+      status: auditPackage?.receiptProof ? 'complete' : auditStorage ? 'active' : 'pending',
+      input: auditStorage?.id ?? 'Walrus blob required',
+      output: auditPackage?.receiptProof?.receiptObjectId ?? auditPackage?.receiptProof?.receiptDigest ?? 'receipt pending',
+      evidenceRef: auditPackage?.receiptProof?.executionDigest ?? proofExecutionDigest,
+      walletSignature: 'required',
+    },
+  ];
+
   function renderActiveSection() {
-    if (activeSection === 'overview') {
+    if (visibleSection === 'overview') {
       if (account) {
         return (
           <div className="stageGrid stageGridOverview stageGridConnectedWallet">
             <div className="stageColumn stageColumnWalletContext">
+              <JudgeGuidePanel
+                steps={judgeGuideSteps}
+                activeSection={visibleSection}
+                onOpenSection={openDemoSection}
+                compact
+              />
               <WalletHealthSummary
                 address={walletAddress}
                 assets={walletAssets ?? []}
@@ -1728,25 +1688,30 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       return (
         <div className="stageGrid stageGridOverview">
           <div className="stageColumn">
-            <VisualMotifPanel />
+            <JudgeGuidePanel
+              steps={judgeGuideSteps}
+              activeSection={visibleSection}
+              onOpenSection={openDemoSection}
+              compact
+            />
+            <VerificationPanel
+              auditPackage={auditPackage}
+              storageResult={auditStorage}
+              onOpenAudit={() => openDemoSection(auditPackage && auditStorage ? 'prepare' : 'audit')}
+            />
           </div>
           <div className="stageColumn">
-            <ScenarioSelector
-              scenarios={DEMO_SCENARIOS}
-              selectedScenarioId={selectedScenarioId}
-              onChange={handleScenarioChange}
-            />
-            <PortfolioOverview portfolio={portfolio} sourceLabel={sourceLabel} walletStatus={connectionStatus} />
+            <WalletRequiredPanel />
+            <BoundaryCheckPanel />
           </div>
         </div>
       );
     }
 
-    if (activeSection === 'risk') {
+    if (visibleSection === 'risk') {
       return (
         <div className="stageGrid stageGridRisk">
           <div className="stageColumn riskPrimaryColumn">
-            <RiskScoreCard report={riskReport} />
             <WhatIfSimulatorPanel
               simulation={whatIfSimulation}
               selectedScenarioId={selectedWhatIfScenarioId}
@@ -1754,19 +1719,19 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             />
           </div>
           <div className="stageColumn riskSignalColumn">
-            <RiskBreakdown signals={riskReport.signals} />
-            <WhatIfStrategyDiff
-              simulation={whatIfSimulation}
-              baseRecommendation={recommendation}
-              simulatedRecommendation={whatIfRecommendation}
-              simulatedPolicyCheck={whatIfPolicyCheck}
+            <RiskScoreCard report={riskReport} />
+            <AgentCouncilPanel
+              decision={activeWhatIfAgentCouncilDecision}
+              refreshing={whatIfAgentCouncilStatus === 'loading'}
+              compact
             />
+            <RiskBreakdown signals={riskReport.signals} />
           </div>
         </div>
       );
     }
 
-    if (activeSection === 'strategy') {
+    if (visibleSection === 'strategy') {
       return (
         <div className="stageGrid stageGridStrategy">
           <div className="stageColumn strategyPrimaryColumn">
@@ -1780,37 +1745,40 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
             />
           </div>
           <div className="stageColumn strategyPreviewColumn">
-            <details className="panel compactDetailsPanel">
-              <summary>
-                <span>What-if strategy diff</span>
-                <strong>
-                  {whatIfSimulation.baseRiskReport.overallScore} → {whatIfSimulation.simulatedRiskReport.overallScore}
-                </strong>
-              </summary>
-              <WhatIfStrategyDiff
-                simulation={whatIfSimulation}
-                baseRecommendation={recommendation}
-                simulatedRecommendation={whatIfRecommendation}
-                simulatedPolicyCheck={whatIfPolicyCheck}
-              />
-            </details>
-            <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
+            <PolicyReview
+              policy={effectivePolicy}
+              policyCheck={policyCheck}
+              onChange={handlePolicyChange}
+              assetOptions={[recommendation.deepbookAction.assetIn, recommendation.deepbookAction.assetOut]}
+              marketOptions={[recommendation.deepbookAction.market]}
+            />
+            <AgentPolicyPanel
+              accountAddress={account?.address}
+              policy={effectivePolicy}
+              policyCheck={policyCheck}
+              policyObject={agentPolicyObject}
+              policyObjectCheck={agentPolicyObjectCheck}
+              minting={agentPolicyMinting}
+              onMint={() => void mintAgentPolicyObject()}
+            />
           </div>
         </div>
       );
     }
 
-    if (activeSection === 'audit') {
+    if (visibleSection === 'audit') {
       return (
         <div className="stageGrid stageGridAudit">
-          <div className="whatIfAuditPreview">
-            <span className="pill pillAccent">what-if preview</span>
-            <strong>{whatIfSimulation.scenario.label}</strong>
-            <p>
-              Incident Room and council preview use simulated risk. Prepare/archive still uses the real wallet or judge scenario.
-            </p>
-          </div>
           <div className="stageColumn auditPrimaryColumn">
+            <ProofOfAgentActionPanel
+              policyObjectId={agentPolicyObject?.objectId}
+              executionIntent={executionIntent}
+              preparedPtb={preparedPtb}
+              signedPreparedPtb={signedPreparedPtbForCurrentIntent}
+              auditPackage={auditPackage}
+              storageResult={auditStorage}
+              receiptPackageId={receiptPackageId}
+            />
             <AuditLogPanel
               explanation={explanation}
               explanationMode={explanationMode}
@@ -1821,33 +1789,26 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
               storagePaymentLabel={archivePaymentLabel(auditStorage)}
               onRefresh={() => void refreshExplanation(policyRef.current ?? effectivePolicy)}
               refreshing={explanationStatus === 'loading' || executionBusy}
+              compact
             />
-            <AgentCouncilPanel
-              decision={activeWhatIfAgentCouncilDecision}
-              refreshing={whatIfAgentCouncilStatus === 'loading'}
-            />
-            <button
-              className="button buttonGhost auditRefreshButton"
-              type="button"
-              onClick={() => void refreshWhatIfAgentCouncil()}
-              disabled={whatIfAgentCouncilStatus === 'loading'}
-            >
-              {whatIfAgentCouncilStatus === 'loading' ? 'Refreshing what-if council' : 'Refresh what-if council'}
-            </button>
-            <EvidenceTimeline steps={activeWhatIfAgentCouncilDecision.evidenceTimeline} />
+            <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} compact />
           </div>
           <div className="stageColumn auditCommandColumn">
-            <IncidentRoomPanel
-              incidentRoom={activeWhatIfIncidentRoomDecision}
-              refreshing={whatIfIncidentRoomStatus === 'loading'}
-              onRefresh={() => void refreshWhatIfIncidentRoom()}
+            <AgentToolTimeline steps={agentToolSteps} compact />
+            <PreparedPtbPanel
+              accountAddress={account?.address}
+              preparedPtb={preparedPtb}
+              signedPreparedPtb={signedPreparedPtbForCurrentIntent}
+              signing={signTransaction.isPending}
+              error={preparedPtbError}
+              policyObjectId={agentPolicyObject?.objectId}
+              executionIntent={executionIntent}
+              onSign={() => void signPreparedPtb()}
             />
-            <MonitorPanel rules={monitorRules} onToggleRule={handleMonitorRuleToggle} />
             {auditPackage && auditStorage ? (
               <div className="auditArchiveSummary">
-                <AuditPackageExplorer auditPackage={auditPackage} storageResult={auditStorage} />
                 <div className="noteRow">
-                  Full result review and optional receipt mint live in Prepare to avoid duplicate archive panels.
+                  归档已认证。完整证据浏览器、结果审查和可选 receipt mint 都在 Prepare 中查看。
                 </div>
               </div>
             ) : null}
@@ -1856,203 +1817,114 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
       );
     }
 
-    const liveGateReasons = liveDeepBookGate.reasons.filter(
-      (reason) => reason !== 'Select live mainnet explicitly.',
-    );
     const prepareButtonLabel = liveSubmitSelected
-      ? 'Submit real Sui mainnet transaction and archive'
-      : 'Prepare and wallet-paid archive';
+      ? '提交真实 Sui mainnet 交易并归档'
+      : 'Archive signed prepared PTB';
 
     return (
       <div className="stageGrid stageGridPrepare">
         <div className="stageColumn preparePrimaryColumn">
-          <PolicyReview policy={effectivePolicy} policyCheck={policyCheck} onChange={handlePolicyChange} />
-          <div className="field executionModeControl">
-            <span className="fieldLabel">Action mode</span>
-            <div className="optionGroup optionGroupWide" role="radiogroup" aria-label="Action mode">
-              {[
-                { value: 'prepare_mainnet' as const, label: 'Prepare mainnet', detail: 'wallet archive' },
-                { value: 'simulation' as const, label: 'Local simulation', detail: 'wallet archive' },
-                {
-                  value: 'mainnet' as const,
-                  label: 'Live Spot mainnet',
-                  detail: liveDeepBookEligible ? 'real tx opt-in' : 'SUI/USDC only',
-                },
-              ].map((mode) => (
-                <button
-                  className={`optionChip ${effectiveSelectedExecutionMode === mode.value ? 'optionChipActive' : ''}`}
-                  key={mode.value}
-                  type="button"
-                  disabled={mode.value === 'mainnet' && !liveDeepBookEligible}
-                  onClick={() => {
-                    setSelectedExecutionMode(mode.value);
-                    setAuditPackage(null);
-                    setAuditStorage(null);
-                    setArchiveProgressPhase('idle');
-                    setExecutionMode('pending');
-                    setExecutionStatus('awaiting approval');
-                    setExecuteWarning('');
-                    setWalletArchiveStatus('');
-                  }}
-                >
-                  <span>{mode.label}</span>
-                  <small>{mode.detail}</small>
-                </button>
-              ))}
+          <div className="prepareActionSpine" aria-label="Prepare main action path">
+            <div className="prepareStepCard prepareStepCardPolicy">
+              <div className="prepareStepMarker" aria-hidden="true">01</div>
+              <AgentPolicyPanel
+                accountAddress={account?.address}
+                policy={effectivePolicy}
+                policyCheck={policyCheck}
+                policyObject={agentPolicyObject}
+                policyObjectCheck={agentPolicyObjectCheck}
+                minting={agentPolicyMinting}
+                onMint={() => void mintAgentPolicyObject()}
+                compact
+              />
+            </div>
+
+            <div className="prepareStepCard prepareStepCardPtb">
+              <div className="prepareStepMarker" aria-hidden="true">02</div>
+              <PreparedPtbPanel
+                accountAddress={account?.address}
+                preparedPtb={preparedPtb}
+                signedPreparedPtb={signedPreparedPtbForCurrentIntent}
+                signing={signTransaction.isPending}
+                error={preparedPtbError}
+                policyObjectId={agentPolicyObject?.objectId}
+                executionIntent={executionIntent}
+                onSign={() => void signPreparedPtb()}
+                compact
+              />
+            </div>
+
+            <div className="prepareStepCard prepareStepCardArchive">
+              <div className="prepareStepMarker" aria-hidden="true">03</div>
+              <ArchivePreflightPanel
+                accountAddress={account?.address}
+                selectedMode={selectedMode}
+                liveSubmitSelected={liveSubmitSelected}
+                policyOk={policyCheck.ok}
+                executionBusy={executionBusy}
+                archiveProgressPhase={archiveProgressPhase}
+                walletArchiveStatus={walletArchiveStatus}
+                auditStorage={auditStorage}
+                executionIntent={executionIntent}
+                executionIntentStatus={executionIntentStatus}
+                compact
+              />
+
+              <button
+                className="button buttonPrimary prepareButton"
+                type="button"
+                onClick={() => void prepareAndArchive()}
+                disabled={
+                  !policyCheck.ok ||
+                  !agentPolicyObjectCheck.ok ||
+                  executionBusy ||
+                  !account ||
+                  !executionIntent ||
+                  executionIntentStatus !== 'locked'
+                }
+              >
+                {executionBusy ? '准备中…' : prepareButtonLabel}
+              </button>
             </div>
           </div>
 
-          {liveSubmitSelected && liveTradePlan ? (
-            <section className="liveExecutionPreview" aria-label="Live DeepBook Spot safety preview">
-              <div className="panelHeader">
-                <div>
-                  <p className="eyebrow">Live Spot opt-in</p>
-                  <h2 className="panelTitle">Real Sui mainnet transaction preview</h2>
-                </div>
-                <span className="pill pillDanger">real submit</span>
-              </div>
-
-              <div className="ticketRows">
-                <div className="ticketRow">
-                  <span>Market</span>
-                  <strong>{liveTradePlan.marketLabel}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>Side</span>
-                  <strong>{liveTradePlan.side}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>Amount in</span>
-                  <strong>{formatTradeAmount(liveTradePlan.amountIn, liveTradePlan.assetIn)}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>Estimated out</span>
-                  <strong>{formatTradeAmount(liveTradePlan.estimatedOut, liveTradePlan.assetOut)}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>Minimum out</span>
-                  <strong>
-                    {formatTradeAmount(liveTradePlan.minimumOut, liveTradePlan.assetOut)} · {liveTradePlan.slippagePct}% max slippage
-                  </strong>
-                </div>
-                <div className="ticketRow">
-                  <span>Wallet</span>
-                  <strong>{account ? formatAddress(account.address) : 'Not connected'}</strong>
-                </div>
-              </div>
-
-              <div className="warningStrip inline">
-                This button submits a real Sui mainnet DeepBook Spot transaction. Your connected wallet must sign and confirm it.
-                Walrus archive storage is also signed and paid by the connected wallet.
-              </div>
-            </section>
-          ) : selectedExecutionMode === 'mainnet' && liveGateReasons.length > 0 ? (
-            <div className="warningStrip inline">
-              Live Spot mainnet is blocked: {liveGateReasons.join(' ')}
-            </div>
-          ) : liveDeepBookEligible && liveTradePlan ? (
-            <div className="noteRow">
-              <span>Live Spot mainnet is available for this SUI/USDC route, but it only runs after selecting Live Spot mainnet and confirming in the wallet.</span>
-            </div>
-          ) : null}
-
-          <ArchivePreflightPanel
-            accountAddress={account?.address}
-            selectedMode={selectedMode}
-            liveSubmitSelected={liveSubmitSelected}
-            policyOk={policyCheck.ok}
-            executionBusy={executionBusy}
-            archiveProgressPhase={archiveProgressPhase}
-            walletArchiveStatus={walletArchiveStatus}
-            auditStorage={auditStorage}
-          />
-
-          <button
-            className="button buttonPrimary prepareButton"
-            type="button"
-            onClick={() => void prepareAndArchive()}
-            disabled={!policyCheck.ok || executionBusy || !account}
-          >
-            {executionBusy ? 'Preparing…' : prepareButtonLabel}
-          </button>
-
           {!account ? (
             <div className="warningStrip inline">
-              Connect a Sui mainnet wallet before Prepare/archive. Walrus storage has no backend or local-wallet payer.
+              Prepare / 归档前请先连接 Sui mainnet 钱包。Walrus 存储没有后端或本地钱包支付方。
             </div>
           ) : null}
         </div>
 
         <div className="stageColumn prepareRailColumn">
-          <section className="panel prepareCompanionPanel">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Prepare ticket</p>
-                <h2 className="panelTitle">Mainnet action preview</h2>
-              </div>
-              <span className={`pill ${policyCheck.ok ? 'pillSuccess' : 'pillDanger'}`}>
-                {policyCheck.ok ? 'ready' : 'fix policy'}
-              </span>
-            </div>
+          <RememberEvidencePanel
+            auditPackage={auditPackage}
+            storageResult={auditStorage}
+            signedPreparedPtb={signedPreparedPtbForCurrentIntent}
+            accountAddress={account?.address}
+            onOpenLatest={activeRememberHistoryEntry ? () => openArchiveHistoryEntry(activeRememberHistoryEntry) : undefined}
+          />
 
-            <div className="prepareRoute" aria-label="Prepare route">
-              <div className={`prepareRouteStep ${policyCheck.ok ? 'prepareRouteReady' : 'prepareRouteBlocked'}`}>
-                <span>01</span>
-                <strong>Policy</strong>
-                <small>{policyState}</small>
-              </div>
-              <div className="prepareRouteStep prepareRouteReady">
-                <span>02</span>
-                <strong>Mode</strong>
-                <small>{selectedMode}</small>
-              </div>
-              <div className="prepareRouteStep">
-                <span>03</span>
-                <strong>Archive</strong>
-                <small>{auditStorage ? archivePaymentLabel(auditStorage) : 'wallet payer required'}</small>
-              </div>
-            </div>
-
-            <div className="ticketRows">
-              <div className="ticketRow">
-                <span>Mode</span>
-                <strong>{selectedMode}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Market</span>
-                <strong>{recommendation.deepbookAction.market}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Budget</span>
-                <strong>{formatUsd(effectivePolicy.maxBudgetUsd)}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Manual approval</span>
-                <strong>{effectivePolicy.requireManualApproval ? 'Required' : 'Not required'}</strong>
-              </div>
-              <div className="ticketRow">
-                <span>Receipt package</span>
-                <strong>{receiptPackageId ? formatAddress(receiptPackageId) : 'Not configured'}</strong>
-              </div>
-            </div>
-
-            <p className="panelCopy">
-              {liveSubmitSelected
-                ? 'Live Spot mode is selected. The connected wallet signs the Sui transaction, then signs and pays Walrus register and certify.'
-                : 'The action is staged as a prepared record first, then the connected wallet signs and pays Walrus register and certify. No off-browser wallet is used.'}
-            </p>
-          </section>
+          <ProofOfAgentActionPanel
+            policyObjectId={agentPolicyObject?.objectId}
+            executionIntent={executionIntent}
+            preparedPtb={preparedPtb}
+            signedPreparedPtb={signedPreparedPtbForCurrentIntent}
+            auditPackage={auditPackage}
+            storageResult={auditStorage}
+            receiptPackageId={receiptPackageId}
+            compact
+          />
 
           <ArchiveHistoryPanel
             entries={archiveHistory}
             activeAuditId={auditPackage?.id}
+            compact
             onOpen={openArchiveHistoryEntry}
             onClear={clearLocalArchiveHistory}
           />
 
           {auditPackage && auditStorage ? (
             <>
-              <AuditPackageExplorer auditPackage={auditPackage} storageResult={auditStorage} />
               <ResultPanel
                 auditPackage={auditPackage}
                 storageResult={auditStorage}
@@ -2066,16 +1938,17 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
                 key={`${auditPackage.id}-${auditStorage.id}`}
                 auditPackage={auditPackage}
                 storageResult={auditStorage}
+                onReceiptMinted={handleReceiptMinted}
               />
             </>
           ) : (
             <section className="panel prepareResultPlaceholder">
               <div className="panelHeader">
                 <div>
-                  <p className="eyebrow">Next output</p>
-                  <h2 className="panelTitle">Prepared record lands here</h2>
+                  <p className="eyebrow">下一个输出</p>
+                  <h2 className="panelTitle">准备记录会落在这里</h2>
                 </div>
-                <span className="pill pillWarn">waiting</span>
+                <span className="pill pillWarn">等待中</span>
               </div>
 
               <div className="placeholderLedger" aria-hidden="true">
@@ -2087,16 +1960,16 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
 
               <div className="ticketRows">
                 <div className="ticketRow">
-                  <span>Before risk</span>
+                  <span>之前风险</span>
                   <strong>{riskReport.overallScore}</strong>
                 </div>
                 <div className="ticketRow">
-                  <span>After est.</span>
+                  <span>之后估算</span>
                   <strong>{estimatedAfterRisk.overallScore}</strong>
                 </div>
                 <div className="ticketRow">
-                  <span>Status</span>
-                  <strong>{policyCheck.ok ? 'Ready to prepare' : policyCheck.errors[0]}</strong>
+                  <span>状态</span>
+                  <strong>{policyCheck.ok ? '可准备' : policyCheck.errors[0]}</strong>
                 </div>
               </div>
             </section>
@@ -2109,89 +1982,50 @@ export function RiskPilotApp({ initialJudgeDemo = false, initialSection = 'overv
   return (
     <AppShell
       networkBadge={`Sui mainnet · ${MAINNET_RPC_URL.replace('https://', '')}`}
-      executionBadge={effectiveSelectedExecutionMode}
       walletLabel={connectionStatus}
       walletButton={<WalletConnectButton />}
       warnings={warnings}
-      activeSection={activeSection}
+      activeSection={visibleSection}
       onSectionChange={setActiveSection}
     >
       <div className="workspaceDeck">
-        <div className={`stageIntro ${activeSection === 'prepare' ? 'stageIntroPrepare' : ''}`}>
+        <div className={`stageIntro ${visibleSection === 'prepare' ? 'stageIntroPrepare' : ''}`}>
           <div className="stageIntroText">
-            <p className="eyebrow">{sectionMeta[activeSection].eyebrow}</p>
-            <h2>{sectionMeta[activeSection].title}</h2>
-            <p>{sectionMeta[activeSection].copy}</p>
-            <div className="stageCue" aria-label="Demo proof points">
+            <p className="eyebrow">{sectionMeta[visibleSection].eyebrow}</p>
+            <h2>{sectionMeta[visibleSection].title}</h2>
+            <p>{sectionMeta[visibleSection].copy}</p>
+            <div className={`stageOutcome stageOutcome-${stageOutcome[visibleSection].tone}`}>
+              <span>{stageOutcome[visibleSection].label}</span>
+              <strong>{stageOutcome[visibleSection].value}</strong>
+            </div>
+            <div className="stageCue" aria-label="演示证据点">
               <div className="stageCueItem stageCueProof">
-                <span>Proof</span>
-                <strong>{stageCue[activeSection].proof}</strong>
+                <span>这一页证明什么</span>
+                <strong>{stageCue[visibleSection].proof}</strong>
               </div>
               <div className="stageCueItem stageCueEvidence">
-                <span>Evidence</span>
-                <strong>{stageCue[activeSection].evidence}</strong>
+                <span>用什么证明</span>
+                <strong>{stageCue[visibleSection].evidence}</strong>
               </div>
               <div className="stageCueItem stageCueBoundary">
-                <span>Boundary</span>
-                <strong>{stageCue[activeSection].boundary}</strong>
+                <span>不做什么</span>
+                <strong>{stageCue[visibleSection].boundary}</strong>
               </div>
-            </div>
-            <div className="judgeDemoCue" aria-label="One-click judge demo mode">
-              <div>
-                <span>{judgeDemoActive ? 'Judge demo active' : 'Completeness mode'}</span>
-                <strong>
-                  {judgeDemoActive
-                    ? 'Risk stage is primed with leveraged lending + SUI -15% what-if.'
-                  : 'One click primes the highest-signal demo path without submitting or archiving.'}
-                </strong>
-              </div>
-              <button
-                className="button buttonGhost"
-                type="button"
-                onClick={judgeDemoActive ? exitJudgeDemo : startJudgeDemo}
-              >
-                {judgeDemoActive ? 'Exit demo cue' : 'Start judge demo'}
-              </button>
-            </div>
-            <div className="workflowRail" aria-label="Interactive demo workflow">
-              {workflowSteps.map((step) => (
-                <article className={`workflowStep workflowStep-${step.status}`} key={step.id}>
-                  <div className="workflowStepTop">
-                    <span>{step.step}</span>
-                    <em>{step.status}</em>
-                  </div>
-                  <h3>{step.title}</h3>
-                  <p>{step.detail}</p>
-                  <strong>{step.feedback}</strong>
-                  <button
-                    className="button buttonGhost workflowStepButton"
-                    type="button"
-                    onClick={() => runWorkflowAction(step.id)}
-                    disabled={
-                      (step.id === 'agents' &&
-                        (whatIfAgentCouncilStatus === 'loading' || whatIfIncidentRoomStatus === 'loading')) ||
-                      (step.id === 'archive' && executionBusy)
-                    }
-                  >
-                    {step.actionLabel}
-                  </button>
-                </article>
-              ))}
             </div>
           </div>
 
-          {activeSection === 'prepare' ? (
-            <div className="stageIntroAside" aria-label="Prepare stage summary">
+          {visibleSection === 'prepare' ? (
+            <div className="stageIntroAside" aria-label="Prepare 阶段摘要">
               <div className="stageAsideTile stageAsideTileBlue">
-                <span>Mode</span>
+                <span>模式</span>
                 <strong>{selectedModeLabel(effectiveSelectedExecutionMode)}</strong>
               </div>
               <div className={`stageAsideTile ${policyCheck.ok ? 'stageAsideTileMint' : 'stageAsideTilePink'}`}>
                 <span>Policy</span>
-                <strong>{policyCheck.ok ? 'Open' : 'Blocked'}</strong>
+                <strong>{policyCheck.ok ? '打开' : '已阻断'}</strong>
               </div>
               <div className="stageAsideTile stageAsideTileWide">
-                <span>Risk path</span>
+                <span>风险路径</span>
                 <strong>
                   {riskReport.overallScore} → {estimatedAfterRisk.overallScore}
                 </strong>

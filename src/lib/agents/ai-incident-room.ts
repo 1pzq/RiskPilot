@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 
+import { getAiProviderConfig, missingAiProviderMessage } from '@/lib/ai/provider';
 import {
   buildIncidentRoomDecision,
   type BuildIncidentRoomInput,
@@ -36,22 +37,6 @@ const AiIncidentDraftSchema = z.object({
     }),
   ),
 });
-
-function normalizeApiMode(value: string | undefined): 'responses' | 'chat' {
-  return value?.toLowerCase() === 'responses' ? 'responses' : 'chat';
-}
-
-function normalizeReasoningEffort(value: string | undefined) {
-  const normalized = value?.toLowerCase();
-  return normalized === 'none' ||
-    normalized === 'minimal' ||
-    normalized === 'low' ||
-    normalized === 'medium' ||
-    normalized === 'high' ||
-    normalized === 'xhigh'
-    ? normalized
-    : undefined;
-}
 
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
@@ -143,6 +128,7 @@ function buildIncidentPayload(input: BuildIncidentRoomInput, deterministic: Inci
       allowedMarkets: input.policy.allowedMarkets,
       requireManualApproval: input.policy.requireManualApproval,
     },
+    policyObject: input.policyObject,
     deepbookMarketEvidence: input.deepbookMarketEvidence,
     monitorRules: input.monitorRules.map((rule) => ({
       label: rule.label,
@@ -175,12 +161,13 @@ function mergeAiDraft(
   deterministic: IncidentRoomDecision,
   draft: AiIncidentDraft,
   model: string,
+  provider: IncidentRoomDecision['mode'],
 ): IncidentRoomDecision {
   const draftById = new Map(draft.tasks.map((task) => [task.id, task]));
 
   return {
     ...deterministic,
-    mode: 'openai',
+    mode: provider,
     model,
     warning: undefined,
     managerBriefing: draft.managerBriefing,
@@ -202,35 +189,38 @@ function mergeAiDraft(
 }
 
 async function createAiIncidentDraft(input: BuildIncidentRoomInput, deterministic: IncidentRoomDecision) {
-  const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
-  const model = process.env.OPENAI_MODEL ?? 'deepseek-chat';
+  const config = getAiProviderConfig();
+
+  if (!config.apiKey) {
+    throw new Error(missingAiProviderMessage(config));
+  }
+
   const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: openaiBaseUrl || undefined,
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
   });
-  const apiMode = normalizeApiMode(process.env.OPENAI_API_MODE);
+  const apiMode = config.apiMode;
   const instructions = buildIncidentInstructions(deterministic);
   const payload = buildIncidentPayload(input, deterministic);
 
   if (apiMode === 'responses') {
-    const reasoningEffort = normalizeReasoningEffort(process.env.OPENAI_REASONING_EFFORT);
     const response = await client.responses.create({
-      model,
+      model: config.model,
       instructions,
       input: payload,
       max_output_tokens: 1400,
       store: false,
-      reasoning: reasoningEffort ? { effort: reasoningEffort } : undefined,
+      reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
     });
 
     return {
-      model,
+      model: config.model,
       parsed: AiIncidentDraftSchema.parse(extractJsonObject(response.output_text ?? '')),
     };
   }
 
   const completion = await client.chat.completions.create({
-    model,
+    model: config.model,
     temperature: 0.2,
     response_format: { type: 'json_object' },
     messages: [
@@ -247,7 +237,7 @@ async function createAiIncidentDraft(input: BuildIncidentRoomInput, deterministi
   const content = completion.choices[0]?.message?.content ?? '';
 
   return {
-    model,
+    model: config.model,
     parsed: AiIncidentDraftSchema.parse(extractJsonObject(content)),
   };
 }
@@ -257,16 +247,18 @@ export async function buildAiIncidentRoomDecision(
 ): Promise<IncidentRoomDecision> {
   const deterministic = buildIncidentRoomDecision(input);
 
-  if (!process.env.OPENAI_API_KEY) {
+  const config = getAiProviderConfig();
+
+  if (!config.apiKey) {
     return {
       ...deterministic,
-      warning: 'AI incident room fallback used: OPENAI_API_KEY is not configured.',
+      warning: `AI incident room fallback used: ${missingAiProviderMessage(config)}`,
     };
   }
 
   try {
     const draft = await createAiIncidentDraft(input, deterministic);
-    return mergeAiDraft(deterministic, draft.parsed, draft.model);
+    return mergeAiDraft(deterministic, draft.parsed, draft.model, getAiProviderConfig().provider);
   } catch (error) {
     return {
       ...deterministic,

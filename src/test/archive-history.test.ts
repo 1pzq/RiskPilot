@@ -6,6 +6,7 @@ import {
   buildWalrusReadbackUrl,
   createArchiveHistoryEntry,
   readArchiveHistory,
+  saveArchiveReceiptProof,
   saveArchiveHistoryEntry,
 } from '@/lib/walrus/archive-history';
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
@@ -127,5 +128,39 @@ describe('archive history', () => {
     expect(buildWalrusReadbackUrl({ id: 'blob_1', url: 'https://example.test/blob_1' })).toBe(
       'https://example.test/blob_1',
     );
+  });
+
+  it('stores StrategyReceipt proof on the matching local archive history entry', () => {
+    const storage = new MemoryStorage();
+    const entry = createArchiveHistoryEntry(
+      buildAuditPackage('audit_receipt', '2026-05-28T00:00:00.000Z'),
+      buildStorageResult('blob_receipt'),
+    );
+
+    saveArchiveHistoryEntry(entry, storage);
+    const history = saveArchiveReceiptProof(
+      {
+        auditId: 'audit_receipt',
+        storageId: 'blob_receipt',
+        receiptProof: {
+          strategyId: 'strategy_receipt',
+          policyObjectId: '0xpolicy',
+          auditBlobId: 'blob_receipt',
+          executionDigest: 'prep_receipt',
+          receiptDigest: 'receipt_tx_digest',
+          receiptObjectId: '0xreceipt',
+          signer: '0xabc',
+          mintedAt: '2026-05-28T00:01:00.000Z',
+        },
+      },
+      storage,
+    );
+
+    expect(history[0].receiptProof).toMatchObject({
+      receiptDigest: 'receipt_tx_digest',
+      receiptObjectId: '0xreceipt',
+      policyObjectId: '0xpolicy',
+    });
+    expect(readArchiveHistory(storage)[0].auditPackage.receiptProof?.receiptDigest).toBe('receipt_tx_digest');
   });
 });

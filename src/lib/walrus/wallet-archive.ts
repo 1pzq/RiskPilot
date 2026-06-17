@@ -315,7 +315,7 @@ export async function storeAuditPackageWithConnectedWallet({
 }: WalletArchiveOptions): Promise<AuditStorageResult> {
   assertNoWhatIfPreviewPayload(
     auditPackage,
-    'What-if preview payloads cannot be submitted to wallet-paid Walrus archive.',
+    'What-if 预览 payload 不能提交到钱包支付的 Walrus 归档。',
   );
 
   const payload = serializeAuditPackage(auditPackage);
@@ -326,10 +326,10 @@ export async function storeAuditPackageWithConnectedWallet({
   let registerRecoveryWarning: string | undefined;
   let certifyRecoveryWarning: string | undefined;
 
-  onProgress?.({ phase: 'encoded', message: 'Encoding Walrus blob before wallet register.' });
+  onProgress?.({ phase: 'encoded', message: '钱包 register 前正在编码 Walrus blob。' });
   const encoded = await flow.encode();
 
-  onProgress?.({ phase: 'registered', message: 'Wallet approval 1/2: register Walrus storage.' });
+  onProgress?.({ phase: 'registered', message: '钱包确认 1/2：注册 Walrus 存储。' });
   let registerResult: SuiTransactionBlockResponse;
 
   try {
@@ -348,7 +348,7 @@ export async function storeAuditPackageWithConnectedWallet({
 
     onProgress?.({
       phase: 'registered',
-      message: 'Wallet response was lost. Checking Sui mainnet for the paid Walrus register transaction.',
+      message: '钱包响应丢失。正在检查 Sui mainnet 上已支付的 Walrus register 交易。',
     });
     const recovered = await recoverLatestWalrusRegister({ suiClient, walletAddress, encoded, sdk });
 
@@ -373,13 +373,13 @@ export async function storeAuditPackageWithConnectedWallet({
     throw new Error(`Wallet-paid Walrus register failed: ${registerError}`);
   }
 
-  onProgress?.({ phase: 'uploaded', message: 'Registered. Uploading audit package to Walrus relay.' });
+  onProgress?.({ phase: 'uploaded', message: '已注册。正在上传审计包到 Walrus relay。' });
   const uploaded = await flow.upload({
     digest: registerResult.digest,
     deletable: false,
   });
 
-  onProgress?.({ phase: 'certified', message: 'Wallet approval 2/2: certify Walrus blob.' });
+  onProgress?.({ phase: 'certified', message: '钱包确认 2/2：认证 Walrus blob。' });
   let certifyDigest: string | undefined;
 
   try {
@@ -401,7 +401,7 @@ export async function storeAuditPackageWithConnectedWallet({
 
     onProgress?.({
       phase: 'certified',
-      message: 'Wallet certify response was lost. Checking Walrus and Sui mainnet for completion.',
+      message: '钱包 certify 响应丢失。正在检查 Walrus 和 Sui mainnet 完成状态。',
     });
     const recovered = await recoverWalrusCertify({ client, suiClient, encoded, uploaded });
 
@@ -425,10 +425,10 @@ export async function storeAuditPackageWithConnectedWallet({
     sizeBytes: payloadBytes.byteLength,
     archivePayer: 'connected_wallet',
     archiveSigner: 'connected_wallet',
-    paymentLabel: 'Connected wallet',
-    signerLabel: 'Connected wallet',
+    paymentLabel: '已连接钱包',
+    signerLabel: '已连接钱包',
     walletPaysArchive: true,
-    custodyNote: 'Connected wallet signed and paid the Walrus register/certify transactions.',
+    custodyNote: '已连接钱包签名并支付了 Walrus register/certify 交易。',
     walletAddress,
     blobObjectId: certified.blobObjectId,
     registerDigest: registerResult.digest,
@@ -438,7 +438,7 @@ export async function storeAuditPackageWithConnectedWallet({
     warning: [
       registerRecoveryWarning,
       certifyRecoveryWarning,
-      uploaded.certificate ? undefined : 'Walrus upload returned without a certificate in the client flow.',
+      uploaded.certificate ? undefined : '客户端流程中的 Walrus 上传返回时没有 certificate。',
     ]
       .filter(Boolean)
       .join(' ') || undefined,
