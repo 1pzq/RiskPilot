@@ -5,12 +5,10 @@ import {
   BarChart3,
   CalendarClock,
   Info,
-  ListChecks,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
   Target,
-  TriangleAlert,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
@@ -94,8 +92,6 @@ export function StrategyPanel({
     },
   ].filter((item) => item.value);
   const displayFacts = recommendation.displayFacts ?? [];
-  const constraints = recommendation.constraints ?? [];
-  const riskTradeoffs = recommendation.riskTradeoffs ?? [];
   const [budgetDraft, setBudgetDraft] = useState(() => ({
     source: predictSettings?.budgetUsd ?? null,
     value: String(predictSettings?.budgetUsd ?? ''),
@@ -177,37 +173,6 @@ export function StrategyPanel({
             </div>
           ) : null}
 
-          {constraints.length > 0 || riskTradeoffs.length > 0 ? (
-            <div className="strategyListGrid">
-              {constraints.length > 0 ? (
-                <div className="strategyList">
-                  <span className="strategyListTitle">
-                    <ListChecks size={14} />
-                    护栏
-                  </span>
-                  <ul>
-                    {constraints.map((constraint) => (
-                      <li key={constraint}>{constraint}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {riskTradeoffs.length > 0 ? (
-                <div className="strategyList">
-                  <span className="strategyListTitle">
-                    <TriangleAlert size={14} />
-                    权衡
-                  </span>
-                  <ul>
-                    {riskTradeoffs.map((tradeoff) => (
-                      <li key={tradeoff}>{tradeoff}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       ) : null}
 

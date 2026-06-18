@@ -29,7 +29,7 @@ function formatAmount(value: number | undefined, symbol: string | undefined) {
 
 function badgeLabel(input: { signedPreparedPtb: SignedPreparedPtb | null; eligible: boolean }) {
   if (input.signedPreparedPtb) {
-    return '已签名，未提交';
+    return '证明已签名，未提交交易';
   }
 
   return input.eligible ? '已构建，待签名' : '暂不可用';
@@ -38,8 +38,8 @@ function badgeLabel(input: { signedPreparedPtb: SignedPreparedPtb | null; eligib
 function safetyNote(note: string): string {
   return note
     .replace(
-      'Wallet signs the prepared PTB bytes for authorization evidence; RiskPilot does not submit this transaction.',
-      '钱包只签名 prepared PTB bytes 作为授权证据；RiskPilot 不会提交这笔交易。',
+      'Wallet signs an evidence message for authorization proof; RiskPilot does not submit a transaction or move funds.',
+      '钱包只签名准备证明，不签真实交易；RiskPilot 不会提交，也不会转出资产。',
     )
     .replace(
       'DeepBook market snapshot is required before building the prepared PTB.',
@@ -88,6 +88,20 @@ export function PreparedPtbPanel({
       <div className="noteRow">
         {signedPreparedPtb ? <CheckCircle2 size={14} /> : preparedPtb.eligible ? <FileSignature size={14} /> : <ShieldAlert size={14} />}
         <span>{safetyNote(preparedPtb.safety.note)}</span>
+      </div>
+
+      <div className={`preparedConstraintBanner ${policyObjectId ? 'preparedConstraintBannerReady' : 'preparedConstraintBannerPending'}`}>
+        <strong>{policyObjectId ? '已受 AgentPolicy 约束' : '等待 Policy object'}</strong>
+        <span>
+          {policyObjectId
+            ? `Policy object ${formatAddress(policyObjectId)} 已绑定到 prepared PTB。`
+            : '先 mint AgentPolicy object，PTB 才会带上授权边界。'}
+        </span>
+      </div>
+
+      <div className="preparedEvidenceNotice">
+        <strong>签名对象是 evidence message，不是交易。</strong>
+        <span>下面是计划参数，钱包签名不会转出 SUI 或 USDC。</span>
       </div>
 
       {preparedPtb.reason ? <div className="warningStrip inline">{preparedPtb.reason}</div> : null}
@@ -146,18 +160,18 @@ export function PreparedPtbPanel({
           </div>
           <div className="ticketRow">
             <span>Submit status</span>
-            <strong>{signedPreparedPtb ? '已签名，未提交' : '未提交'}</strong>
+            <strong>{signedPreparedPtb ? '证明已签名，未提交交易' : '未提交'}</strong>
           </div>
       </div>
 
       <button className="button buttonPrimary" type="button" onClick={onSign} disabled={!canSign}>
-        {signedPreparedPtb ? 'PTB 已签名' : signing ? '等待钱包…' : '签名 prepared PTB'}
+        {signedPreparedPtb ? '准备证明已签名' : signing ? '等待钱包…' : '签名准备证明'}
       </button>
 
       {!accountAddress ? (
         <div className="noteRow">
           <WalletCards size={14} />
-          <span>连接 Sui mainnet 钱包后，才可以签名 prepared PTB bytes。</span>
+          <span>连接 Sui mainnet 钱包后，才可以签名准备证明。</span>
         </div>
       ) : null}
 
@@ -165,8 +179,8 @@ export function PreparedPtbPanel({
         <div className="receiptResult">
           <div>
             <CheckCircle2 size={16} />
-            <span>PTB bytes digest</span>
-            <strong>{signedPreparedPtb.bytesDigest}</strong>
+            <span>Evidence message digest</span>
+            <strong>{signedPreparedPtb.messageDigest}</strong>
           </div>
           <div>
             <WalletCards size={16} />

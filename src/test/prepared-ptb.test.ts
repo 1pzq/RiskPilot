@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildPreparedDeepBookPtbTransaction,
   buildPreparedDeepBookPtb,
+  buildPreparedPtbEvidenceMessage,
   createSignedPreparedPtb,
+  encodePreparedPtbEvidenceMessage,
   executionDigestForReceipt,
 } from '@/lib/sui/prepared-ptb';
 import type { DeepBookLiveMarketSnapshot } from '@/lib/sui/deepbook-live';
@@ -80,39 +81,45 @@ describe('prepared DeepBook PTB', () => {
     });
   });
 
-  it('builds a sign-only transaction wrapper for eligible SUI/USDC proof paths', () => {
-    const prepared = buildPreparedDeepBookPtbTransaction({
-      walletAddress: '0xabc',
+  it('builds a stable no-outflow evidence message for eligible SUI/USDC proof paths', () => {
+    const preparedPtb = buildPreparedDeepBookPtb({
       recommendation: spotRecommendation,
       marketSnapshot,
     });
-
-    expect(prepared.ptbPlan.summary).toContain('Live DeepBook mainnet swap');
-    expect(prepared.preparedPtb).toMatchObject({
-      eligible: true,
-      safety: {
-        mode: 'prepare_mainnet',
-        submitted: false,
+    const message = buildPreparedPtbEvidenceMessage({
+      walletAddress: '0xabc',
+      policyObjectId: '0xpolicy',
+      executionIntent: {
+        executionIntentId: 'intent_123',
+        portfolioDigest: 'portfolio_digest',
+        riskReportDigest: 'risk_digest',
+        recommendationDigest: 'recommendation_digest',
+        policyDigest: 'policy_digest',
+        policyObjectId: '0xpolicy',
+        intentCreatedAt: '2026-06-14T00:00:00.000Z',
+        intentExpiresAt: '2026-06-14T00:30:00.000Z',
+        intentSource: 'base_wallet',
       },
+      preparedPtb,
     });
-    expect(prepared.transaction).toBeTruthy();
-  });
+    const encoded = new TextDecoder().decode(encodePreparedPtbEvidenceMessage(message));
 
-  it('blocks the sign-only transaction wrapper for unsupported paths', () => {
-    expect(() =>
-      buildPreparedDeepBookPtbTransaction({
-        walletAddress: '0xabc',
-        recommendation: {
-          ...spotRecommendation,
-          deepbookAction: {
-            ...spotRecommendation.deepbookAction,
-            assetIn: 'DEEP',
-            assetOut: 'USDC',
-          },
-        },
-        marketSnapshot,
-      }),
-    ).toThrow('Only spot SUI/USDC or USDC/SUI');
+    expect(message).toMatchObject({
+      kind: 'RiskPilotPreparedEvidence',
+      walletAddress: '0xabc',
+      policyObjectId: '0xpolicy',
+      executionIntentId: 'intent_123',
+      recommendationDigest: 'recommendation_digest',
+      policyDigest: 'policy_digest',
+      market: 'SUI/USDC',
+      side: 'sell',
+      assetIn: 'SUI',
+      assetOut: 'USDC',
+      submitStatus: 'not_submitted',
+      warning: 'This is evidence only. It is not a transaction and cannot move funds.',
+    });
+    expect(encoded).toContain('"kind":"RiskPilotPreparedEvidence"');
+    expect(encoded).toContain('"submitStatus":"not_submitted"');
   });
 
   it('returns clear ineligibility reasons for Predict and no-trade paths', () => {
@@ -171,6 +178,8 @@ describe('prepared DeepBook PTB', () => {
       executionIntentId: 'intent_123',
       signedAt: '2026-06-14T00:00:00.000Z',
       submitted: false,
+      evidenceKind: 'personal_message',
+      messageDigest: expect.stringMatching(/^msg_[a-f0-9]{24}$/u),
       bytesDigest: expect.stringMatching(/^ptb_[a-f0-9]{24}$/u),
     });
   });

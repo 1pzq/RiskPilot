@@ -1019,10 +1019,11 @@ button.walletButton:hover:not(:disabled) {
 .strategyBriefing {
   display: grid;
   gap: 12px;
-  max-height: clamp(310px, 42vh, 500px);
-  padding-right: 6px;
-  overflow: auto;
-  scrollbar-gutter: stable;
+  height: auto;
+  max-height: none;
+  padding: 0 0 14px;
+  border-bottom: 3px solid rgba(7, 17, 31, 0.16);
+  overflow: visible;
 }
 
 .strategyBriefGrid,
@@ -2231,6 +2232,7 @@ button.walletButton:active {
   --font-display: 'Arial Black', 'Avenir Next Condensed', Impact, var(--font-ui);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-pixel: 'Courier New', Courier, var(--font-mono);
+  --stage-scroll-offset: 132px;
   color-scheme: light;
 }
 
@@ -2241,10 +2243,12 @@ html {
 
 body {
   background:
-    linear-gradient(rgba(95, 157, 247, 0.42) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(95, 157, 247, 0.42) 1px, transparent 1px),
+    radial-gradient(circle at 20px 20px, rgba(95, 157, 247, 0.12) 0 1.5px, transparent 2px),
+    linear-gradient(135deg, rgba(7, 17, 31, 0.035) 0 1px, transparent 1px),
+    radial-gradient(circle at 82% 18%, rgba(131, 217, 159, 0.12), transparent 26rem),
+    radial-gradient(circle at 12% 82%, rgba(255, 226, 95, 0.16), transparent 22rem),
     var(--paper);
-  background-size: 54px 54px, 54px 54px, auto;
+  background-size: 96px 96px, 28px 28px, auto, auto, auto;
   color: var(--ink);
   font-family: var(--font-ui);
 }
@@ -2260,16 +2264,17 @@ body::after {
 body::before {
   z-index: -2;
   background:
-    radial-gradient(circle at 82% 22%, rgba(95, 157, 247, 0.18), transparent 24rem),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.94) 0 48%, rgba(255, 255, 255, 0.18) 48% 100%);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0 1px, transparent 1px) 0 0 / 160px 160px,
+    linear-gradient(0deg, rgba(255, 255, 255, 0.76) 0 1px, transparent 1px) 0 0 / 160px 160px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.92) 0 48%, rgba(255, 255, 255, 0.2) 48% 100%);
 }
 
 body::after {
   z-index: -1;
   background:
-    linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.62) 40%, transparent 58%),
-    radial-gradient(circle at 20% 78%, rgba(255, 226, 95, 0.24), transparent 18rem);
-  background-size: 210% 100%, 100% 100%;
+    linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.5) 40%, transparent 58%),
+    repeating-linear-gradient(115deg, transparent 0 18px, rgba(95, 157, 247, 0.055) 18px 19px, transparent 19px 48px);
+  background-size: 210% 100%, 220px 220px;
   animation: overflowSweep 9s ease-in-out infinite alternate;
 }
 
@@ -3297,6 +3302,55 @@ body::after {
   box-shadow: none;
 }
 
+.stageGridAudit .preparedConstraintBanner {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 2px solid #cfd4db;
+  background: #fff;
+  box-shadow: none;
+}
+
+.stageGridAudit .preparedConstraintBanner strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.stageGridAudit .preparedConstraintBanner span {
+  color: #67748b;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.stageGridAudit .preparedConstraintBannerReady {
+  border-color: rgba(131, 217, 159, 0.65);
+  background: rgba(131, 217, 159, 0.12);
+}
+
+.stageGridAudit .preparedConstraintBannerPending {
+  border-color: rgba(255, 226, 95, 0.65);
+  background: rgba(255, 226, 95, 0.14);
+}
+
+.stageGridAudit .preparedEvidenceNotice {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 2px solid rgba(95, 157, 247, 0.42);
+  color: var(--ink);
+  background: rgba(220, 236, 255, 0.58);
+}
+
+.stageGridAudit .preparedEvidenceNotice strong {
+  font-size: 0.88rem;
+}
+
+.stageGridAudit .preparedEvidenceNotice span {
+  color: #67748b;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .stageGridAudit .preparedPtbPanel .panelCopy {
   color: #67748b;
 }
@@ -3727,6 +3781,7 @@ button.walletButtonDisconnect {
   max-width: none;
   margin: 8px auto 0;
   padding: 0 0 46px;
+  scroll-margin-top: var(--stage-scroll-offset);
 }
 
 .stack {
@@ -5787,7 +5842,8 @@ button.walletButton:hover:not(:disabled) {
 }
 
 .archiveHistoryPanelCompact .archiveHistoryList {
-  max-height: clamp(150px, 20vh, 240px);
+  height: clamp(600px, 66vh, 840px);
+  max-height: none;
 }
 
 .archiveHistoryItem {
@@ -8068,6 +8124,10 @@ button.walletButton:hover:not(:disabled) {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --stage-scroll-offset: 198px;
+  }
+
   html {
     overflow-x: hidden;
   }
@@ -8358,7 +8418,8 @@ button.walletButton:hover:not(:disabled) {
   }
 
   .strategyBriefing {
-    max-height: min(34vh, 320px);
+    height: auto;
+    max-height: none;
   }
 
   .strategyMarketGrid,

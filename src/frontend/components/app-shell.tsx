@@ -25,6 +25,20 @@ const demoSections = [
   { id: 'prepare', label: 'Remember', subtitle: '归档审计记忆', step: '05', icon: 'archive' },
 ] as const;
 
+export function scrollToDemoStage() {
+  const target = document.getElementById('risk-dashboard');
+
+  if (!target) {
+    return;
+  }
+
+  const styles = window.getComputedStyle(document.documentElement);
+  const offset = Number.parseFloat(styles.getPropertyValue('--stage-scroll-offset')) || 132;
+  const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - offset);
+
+  window.scrollTo({ top, behavior: 'smooth' });
+}
+
 export function AppShell({
   networkBadge,
   walletLabel,
@@ -47,7 +61,7 @@ export function AppShell({
     url.hash = 'risk-dashboard';
     window.history.replaceState(null, '', url);
     window.requestAnimationFrame(() => {
-      document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollToDemoStage();
     });
   }
 

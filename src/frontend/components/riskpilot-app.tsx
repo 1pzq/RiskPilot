@@ -1,17 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSignTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSignPersonalMessage, useSuiClient } from '@mysten/dapp-kit';
 import type { SuiTransactionBlockResponse } from '@mysten/sui/jsonRpc';
 
-import { AppShell, type DemoSection } from './app-shell';
+import { AppShell, scrollToDemoStage, type DemoSection } from './app-shell';
 import { AgentCouncilPanel } from './agent-council-panel';
 import { AgentPolicyPanel } from './agent-policy-panel';
 import { ArchiveHistoryPanel } from './archive-history-panel';
 import { ArchivePreflightPanel, type ArchiveProgressPhase } from './archive-preflight-panel';
 import { AuditLogPanel } from './audit-log-panel';
 import { BoundaryCheckPanel } from './boundary-check-panel';
-import { JudgeGuidePanel, type JudgeGuideStep } from './judge-guide-panel';
 import { AgentToolTimeline, type AgentToolStep } from './agent-tool-timeline';
 import { PortfolioOverview } from './portfolio-overview';
 import { PolicyReview } from './policy-review';
@@ -45,7 +44,7 @@ import {
   type WhatIfScenarioId,
 } from '@/lib/risk/what-if-scenarios';
 import { MAINNET_RPC_URL } from '@/lib/sui/client';
-import { createExecutionIntent, type ExecutionIntent } from '@/lib/security/execution-intent';
+import { createExecutionIntent, verifyExecutionIntent, type ExecutionIntent } from '@/lib/security/execution-intent';
 import {
   buildWalletAssetsPortfolio,
   readMainnetWalletAssets,
@@ -77,9 +76,10 @@ import {
 } from '@/lib/sui/deepbook-live';
 import { prepareDeepBookTransaction } from '@/lib/sui/deepbook';
 import {
-  buildPreparedDeepBookPtbTransaction,
   buildPreparedDeepBookPtb,
+  buildPreparedPtbEvidenceMessage,
   createSignedPreparedPtb,
+  encodePreparedPtbEvidenceMessage,
   type SignedPreparedPtb,
 } from '@/lib/sui/prepared-ptb';
 import {
@@ -95,6 +95,15 @@ type ExplanationStatus = 'idle' | 'ready' | 'loading' | 'fallback';
 type ExplanationMode = 'mock' | 'deepseek' | 'openai';
 type SelectedExecutionMode = 'prepare_mainnet' | 'mainnet';
 const ARCHIVE_AI_TIMEOUT_MS = 4500;
+const PENDING_PREPARE_STORAGE_KEY = 'riskpilot.pendingPrepare.v1';
+
+type PendingPrepareSession = {
+  walletAddress: string;
+  savedAt: string;
+  agentPolicyObject: AgentPolicyObject;
+  executionIntent: ExecutionIntent;
+  signedPreparedPtb?: SignedPreparedPtb;
+};
 
 function selectedModeLabel(mode: SelectedExecutionMode) {
   if (mode === 'prepare_mainnet') {
@@ -110,6 +119,44 @@ function selectedModeLabel(mode: SelectedExecutionMode) {
 
 function isAiProviderMode(mode: string): boolean {
   return mode === 'openai' || mode === 'deepseek';
+}
+
+function readPendingPrepareSession(): PendingPrepareSession | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PENDING_PREPARE_STORAGE_KEY);
+
+    return raw ? (JSON.parse(raw) as PendingPrepareSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingPrepareSession(session: PendingPrepareSession): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(PENDING_PREPARE_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // Local persistence is a convenience; the wallet flow remains usable without it.
+  }
+}
+
+function clearPendingPrepareSession(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(PENDING_PREPARE_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -151,7 +198,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         },
       }),
   });
-  const signTransaction = useSignTransaction();
+  const signPersonalMessage = useSignPersonalMessage();
 
   const walletAddress = account?.address ?? '0xDEMO';
   const connectionStatus = account ? `已连接 ${formatAddress(account.address)}` : '需要钱包';
@@ -278,7 +325,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     url.hash = 'risk-dashboard';
     window.history.replaceState(null, '', url);
     window.requestAnimationFrame(() => {
-      document.getElementById('risk-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollToDemoStage();
     });
   }, []);
 
@@ -334,6 +381,31 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       setExecutionIntentError('');
 
       try {
+        const expectedPolicyObjectId = agentPolicyObject?.objectId;
+        const expectedSource = account ? 'base_wallet' : 'local_sample';
+
+        if (
+          executionIntent &&
+          executionIntent.policyObjectId === expectedPolicyObjectId &&
+          executionIntent.intentSource === expectedSource
+        ) {
+          const existingIntentCheck = await verifyExecutionIntent({
+            intent: executionIntent,
+            portfolioSnapshot: portfolio,
+            riskReport,
+            recommendation,
+            policy: effectivePolicy,
+            now: new Date(),
+          });
+
+          if (existingIntentCheck.ok) {
+            if (!cancelled) {
+              setExecutionIntentStatus('locked');
+            }
+            return;
+          }
+        }
+
         const intent = await createExecutionIntent({
         portfolioSnapshot: portfolio,
         riskReport,
@@ -361,7 +433,80 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     return () => {
       cancelled = true;
     };
-  }, [account, agentPolicyObject?.objectId, effectivePolicy, portfolio, recommendation, riskReport]);
+  }, [account, agentPolicyObject?.objectId, effectivePolicy, executionIntent, portfolio, recommendation, riskReport]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restorePendingPrepareSession() {
+      const pending = readPendingPrepareSession();
+
+      if (!pending || !account?.address) {
+        return;
+      }
+
+      if (pending.walletAddress.toLowerCase() !== account.address.toLowerCase()) {
+        return;
+      }
+
+      const verification = await verifyExecutionIntent({
+        intent: pending.executionIntent,
+        portfolioSnapshot: portfolio,
+        riskReport,
+        recommendation,
+        policy: effectivePolicy,
+        now: new Date(),
+        rejectLocalSample: true,
+      });
+
+      if (cancelled || !verification.ok) {
+        return;
+      }
+
+      setAgentPolicyObject(pending.agentPolicyObject);
+      setExecutionIntent(pending.executionIntent);
+      setExecutionIntentStatus('locked');
+      setExecutionIntentError('');
+
+      if (pending.signedPreparedPtb) {
+        setSignedPreparedPtb(pending.signedPreparedPtb);
+        setWalletArchiveStatus(`已从本地恢复准备证明：${pending.signedPreparedPtb.messageDigest}。`);
+      } else {
+        setWalletArchiveStatus(`已从本地恢复 AgentPolicy：${formatAddress(pending.agentPolicyObject.objectId)}。`);
+      }
+    }
+
+    void restorePendingPrepareSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.address, effectivePolicy, portfolio, recommendation, riskReport]);
+
+  useEffect(() => {
+    if (!account?.address || !agentPolicyObject || !executionIntent) {
+      return;
+    }
+
+    const pending = readPendingPrepareSession();
+    const signedForIntent =
+      signedPreparedPtb?.policyObjectId === agentPolicyObject.objectId &&
+      signedPreparedPtb.executionIntentId === executionIntent.executionIntentId
+        ? signedPreparedPtb
+        : pending?.walletAddress.toLowerCase() === account.address.toLowerCase() &&
+            pending.agentPolicyObject.objectId === agentPolicyObject.objectId &&
+            pending.signedPreparedPtb
+          ? pending.signedPreparedPtb
+          : undefined;
+
+    savePendingPrepareSession({
+      walletAddress: account.address,
+      savedAt: new Date().toISOString(),
+      agentPolicyObject,
+      executionIntent,
+      signedPreparedPtb: signedForIntent,
+    });
+  }, [account?.address, agentPolicyObject, executionIntent, signedPreparedPtb]);
 
   const resetAiPreviewState = useCallback(() => {
     setAiAgentCouncil(null);
@@ -1030,6 +1175,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       setAuditStorage(null);
       setArchiveProgressPhase('idle');
       setSignedPreparedPtb(null);
+      clearPendingPrepareSession();
       setPreparedPtbError('');
       resetAiPreviewState();
       setExecutionMode('pending');
@@ -1045,6 +1191,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     setAuditStorage(null);
     setArchiveProgressPhase('idle');
     setSignedPreparedPtb(null);
+    clearPendingPrepareSession();
     setPreparedPtbError('');
     resetAiPreviewState();
     setExecutionMode('pending');
@@ -1069,6 +1216,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     setAuditStorage(null);
     setArchiveProgressPhase('idle');
     setSignedPreparedPtb(null);
+    clearPendingPrepareSession();
     setPreparedPtbError('');
     resetAiPreviewState();
     setExecutionMode('pending');
@@ -1104,14 +1252,22 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         throw new Error('钱包响应中没有找到新建的 AgentPolicy object。');
       }
 
-      setAgentPolicyObject(
-        buildAgentPolicyObjectFromPolicy({
-          objectId,
-          policy: effectivePolicy,
-          owner: account.address,
-          packageId: AGENT_POLICY_PACKAGE_ID,
-        }),
-      );
+      const mintedPolicyObject = buildAgentPolicyObjectFromPolicy({
+        objectId,
+        policy: effectivePolicy,
+        owner: account.address,
+        packageId: AGENT_POLICY_PACKAGE_ID,
+      });
+
+      setAgentPolicyObject(mintedPolicyObject);
+      if (executionIntent) {
+        savePendingPrepareSession({
+          walletAddress: account.address,
+          savedAt: new Date().toISOString(),
+          agentPolicyObject: mintedPolicyObject,
+          executionIntent,
+        });
+      }
       setAuditPackage(null);
       setAuditStorage(null);
       setArchiveProgressPhase('idle');
@@ -1127,6 +1283,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     effectivePolicy,
     policyCheck.ok,
     resetAiPreviewState,
+    executionIntent,
     signAndExecute,
   ]);
 
@@ -1146,16 +1303,22 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       return;
     }
 
+    if (!agentPolicyObject?.objectId) {
+      setPreparedPtbError('AgentPolicy object is required before signing the evidence message.');
+      return;
+    }
+
     setPreparedPtbError('');
 
     try {
-      const tx = buildPreparedDeepBookPtbTransaction({
+      const evidenceMessage = buildPreparedPtbEvidenceMessage({
         walletAddress: account.address,
-        recommendation: spotPtbRecommendation,
-        marketSnapshot: deepbookMarketSnapshot,
+        policyObjectId: agentPolicyObject.objectId,
+        executionIntent,
+        preparedPtb,
       });
-      const { bytes, signature } = await signTransaction.mutateAsync({
-        transaction: tx.transaction,
+      const { bytes, signature } = await signPersonalMessage.mutateAsync({
+        message: encodePreparedPtbEvidenceMessage(evidenceMessage),
         chain: 'sui:mainnet',
       });
       const signed = await createSignedPreparedPtb({
@@ -1166,7 +1329,14 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         executionIntentId: executionIntent.executionIntentId,
       });
       setSignedPreparedPtb(signed);
-      setWalletArchiveStatus(`Prepared PTB 已签名：${signed.bytesDigest}。`);
+      savePendingPrepareSession({
+        walletAddress: account.address,
+        savedAt: new Date().toISOString(),
+        agentPolicyObject,
+        executionIntent,
+        signedPreparedPtb: signed,
+      });
+      setWalletArchiveStatus(`准备证明已签名：${signed.messageDigest}。`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Prepared PTB signing unavailable.';
@@ -1177,11 +1347,9 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     account,
     agentPolicyObject,
     agentPolicyObjectCheck.ok,
-    deepbookMarketSnapshot,
     executionIntent,
     preparedPtb,
-    signTransaction,
-    spotPtbRecommendation,
+    signPersonalMessage,
   ]);
 
   const prepareAndArchive = useCallback(async () => {
@@ -1203,12 +1371,44 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         throw new Error(preparedPtb.reason ?? 'Prepared PTB is not eligible yet.');
       }
 
-      if (!signedPreparedPtbForCurrentIntent) {
+      let signedPreparedEvidence = signedPreparedPtbForCurrentIntent;
+      let currentExecutionIntent = executionIntent;
+      let currentAgentPolicyObject = agentPolicyObject;
+      const pendingPrepare = readPendingPrepareSession();
+
+      if (
+        !signedPreparedEvidence &&
+        pendingPrepare?.walletAddress.toLowerCase() === account.address.toLowerCase() &&
+        pendingPrepare.agentPolicyObject.objectId === agentPolicyObject?.objectId &&
+        pendingPrepare.signedPreparedPtb
+      ) {
+        const restoredIntentCheck = await verifyExecutionIntent({
+          intent: pendingPrepare.executionIntent,
+          portfolioSnapshot: portfolio,
+          riskReport,
+          recommendation,
+          policy: effectivePolicy,
+          now: new Date(),
+          rejectLocalSample: true,
+        });
+
+        if (restoredIntentCheck.ok) {
+          signedPreparedEvidence = pendingPrepare.signedPreparedPtb;
+          currentExecutionIntent = pendingPrepare.executionIntent;
+          currentAgentPolicyObject = pendingPrepare.agentPolicyObject;
+          setAgentPolicyObject(pendingPrepare.agentPolicyObject);
+          setExecutionIntent(pendingPrepare.executionIntent);
+          setExecutionIntentStatus('locked');
+          setSignedPreparedPtb(pendingPrepare.signedPreparedPtb);
+          setWalletArchiveStatus(`已恢复准备证明：${pendingPrepare.signedPreparedPtb.messageDigest}，正在继续归档。`);
+        }
+      }
+
+      if (!signedPreparedEvidence) {
         throw new Error('Please sign the prepared PTB before archiving evidence.');
       }
 
       const currentPolicy = policyRef.current ?? effectivePolicy;
-      const currentExecutionIntent = executionIntent;
 
       if (new Date(currentExecutionIntent.intentExpiresAt).getTime() <= Date.now()) {
         throw new Error('Execution intent 已过期。请重新检查策略以刷新锁定的 digests。');
@@ -1237,16 +1437,16 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
           ...preparedPtb,
           status: 'signed',
         },
-        signedPreparedPtb: signedPreparedPtbForCurrentIntent,
-        digest: signedPreparedPtbForCurrentIntent.bytesDigest,
+        signedPreparedPtb: signedPreparedEvidence,
+        digest: signedPreparedEvidence.bytesDigest,
         preparedTransactionSummary: preparedPtb.plan.summary,
         authority: {
           signer: 'connected_wallet',
           payer: 'none',
-          signerLabel: '已连接钱包已签名 PTB',
+          signerLabel: '已连接钱包已签名准备证明',
           payerLabel: '未提交，无 gas 支付',
           walletAddress: account.address,
-          note: '钱包只签名 prepared PTB bytes；RiskPilot 不提交这笔交易，Walrus 归档记录签名证据。',
+          note: '钱包只签名 evidence message；RiskPilot 不提交交易、不转出资产，Walrus 归档记录签名证据。',
         },
       };
 
@@ -1296,14 +1496,14 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         deepbookMarketEvidence,
         policy: currentPolicy,
         policyCheck,
-        policyObjectId: agentPolicyObject?.objectId,
-        policyObject: agentPolicyObject
+        policyObjectId: currentAgentPolicyObject?.objectId,
+        policyObject: currentAgentPolicyObject
           ? {
-              objectId: agentPolicyObject.objectId,
-              owner: agentPolicyObject.owner,
-              packageId: agentPolicyObject.packageId,
+              objectId: currentAgentPolicyObject.objectId,
+              owner: currentAgentPolicyObject.owner,
+              packageId: currentAgentPolicyObject.packageId,
               status: agentPolicyObjectCheck.status,
-              source: agentPolicyObject.source,
+              source: currentAgentPolicyObject.source,
             }
           : undefined,
         executionIntent: currentExecutionIntent,
@@ -1335,6 +1535,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       setAuditStorage(storage);
       const historyEntry = createArchiveHistoryEntry(auditPayload, storage);
       setArchiveHistory(saveArchiveHistoryEntry(historyEntry));
+      clearPendingPrepareSession();
       setExecutionMode(execution.mode);
       setExecutionStatus(execution.status);
       setArchiveProgressPhase('certified');
@@ -1494,7 +1695,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     prepare: {
       proof: '证明本次决策可以被回放',
       evidence: auditStorage ? 'Walrus blob、register/certify、StrategyReceipt' : '等待钱包签名和 Walrus 归档',
-      boundary: signedPreparedPtbForCurrentIntent ? '归档 signed PTB 作为未提交证据' : '没有签名就不生成最终记忆',
+      boundary: signedPreparedPtbForCurrentIntent ? '归档签名准备证明作为未提交证据' : '没有签名就不生成最终记忆',
     },
   };
 
@@ -1516,7 +1717,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     },
     audit: {
       label: '执行边界',
-      value: signedPreparedPtbForCurrentIntent ? 'PTB 已签名但仍未提交' : '只准备 PTB，不提交交易',
+      value: signedPreparedPtbForCurrentIntent ? '准备证明已签名，交易仍未提交' : '只准备计划，不提交交易',
       tone: 'proof',
     },
     prepare: {
@@ -1525,58 +1726,6 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       tone: auditStorage ? 'safe' : 'watch',
     },
   };
-
-  const policyGuideError = policyCheck.errors[0]
-    ? policyCheck.errors[0].replace('Policy expired. Choose an expiry in the future.', 'Policy 已过期，请选择未来的过期时间。')
-    : '等待修复';
-
-  const judgeGuideSteps: JudgeGuideStep[] = [
-    {
-      id: 'overview',
-      label: '发现风险',
-      input: account ? formatAddress(account.address) : '安全样例钱包',
-      output: `风险评分 ${riskReport.overallScore}/100`,
-      evidence: account ? 'mainnet 钱包扫描已接入' : '先展示 Walrus 样例和本地安全检查',
-      walletSignature: 'none',
-      complete: Boolean(account || riskReport.signals.length > 0),
-    },
-    {
-      id: 'risk',
-      label: '生成建议',
-      input: `${riskReport.signals.length} 个风险信号`,
-      output: '只生成受限建议，不执行',
-      evidence: `${riskReport.overallScore}/100 · ${riskReport.signals.length} 个信号`,
-      walletSignature: 'none',
-      complete: riskReport.signals.length > 0,
-    },
-    {
-      id: 'strategy',
-      label: 'Policy 阻断/放行',
-      input: agentPolicyObject ? formatAddress(agentPolicyObject.objectId) : 'Policy 条款',
-      output: policyCheck.ok ? '授权边界已通过' : '执行前已阻断',
-      evidence: policyCheck.ok ? 'Policy 已通过' : `Policy 已阻断：${policyGuideError}`,
-      walletSignature: 'optional',
-      complete: policyCheck.ok || policyCheck.errors.length > 0,
-    },
-    {
-      id: 'audit',
-      label: '准备 PTB',
-      input: preparedPtb.plan ? `${preparedPtb.plan.assetIn}->${preparedPtb.plan.assetOut}` : recommendation.deepbookAction.market,
-      output: signedPreparedPtbForCurrentIntent ? '钱包已签 PTB bytes' : '只准备，等待签名',
-      evidence: signedPreparedPtbForCurrentIntent?.bytesDigest ?? (preparedPtb.eligible ? 'prepared PTB 已构建' : 'prepared PTB 暂不可用'),
-      walletSignature: 'required',
-      complete: Boolean(preparedPtb.eligible || signedPreparedPtbForCurrentIntent),
-    },
-    {
-      id: 'prepare',
-      label: 'Walrus 归档',
-      input: signedPreparedPtbForCurrentIntent?.bytesDigest ?? 'signed PTB required',
-      output: auditPackage?.receiptProof ? 'Walrus + StrategyReceipt' : auditStorage ? 'Walrus blob 已归档' : '等待归档',
-      evidence: auditPackage?.receiptProof?.receiptDigest ?? auditStorage?.id ?? '等待 Walrus 归档',
-      walletSignature: 'required',
-      complete: Boolean(auditStorage),
-    },
-  ];
 
   const signedPtbDigest = signedPreparedPtbForCurrentIntent?.bytesDigest;
   const proofExecutionDigest = auditPackage
@@ -1630,9 +1779,9 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       status: signedPreparedPtbForCurrentIntent ? 'complete' : preparedPtb.eligible ? 'active' : 'blocked',
       input: preparedPtb.plan ? `${preparedPtb.plan.assetIn}->${preparedPtb.plan.assetOut}` : recommendation.deepbookAction.market,
       output: signedPreparedPtbForCurrentIntent
-        ? signedPreparedPtbForCurrentIntent.bytesDigest
+        ? signedPreparedPtbForCurrentIntent.messageDigest
         : preparedPtb.eligible
-          ? 'PTB bytes built, waiting wallet signature'
+          ? 'evidence message ready, waiting wallet signature'
           : preparedPtb.reason ?? 'not eligible',
       evidenceRef: proofExecutionDigest,
       walletSignature: 'required',
@@ -1641,7 +1790,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       id: 'archive_walrus',
       label: 'archive_walrus',
       status: auditStorage ? 'complete' : signedPreparedPtbForCurrentIntent ? 'active' : 'pending',
-      input: signedPreparedPtbForCurrentIntent ? signedPreparedPtbForCurrentIntent.bytesDigest : 'signed PTB required',
+      input: signedPreparedPtbForCurrentIntent ? signedPreparedPtbForCurrentIntent.messageDigest : 'signed evidence required',
       output: auditStorage?.id ?? 'Walrus blob pending',
       evidenceRef: auditStorage?.registerDigest ?? auditStorage?.id ?? 'archive not started',
       walletSignature: 'required',
@@ -1663,12 +1812,6 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         return (
           <div className="stageGrid stageGridOverview stageGridConnectedWallet">
             <div className="stageColumn stageColumnWalletContext">
-              <JudgeGuidePanel
-                steps={judgeGuideSteps}
-                activeSection={visibleSection}
-                onOpenSection={openDemoSection}
-                compact
-              />
               <WalletHealthSummary
                 address={walletAddress}
                 assets={walletAssets ?? []}
@@ -1688,12 +1831,6 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       return (
         <div className="stageGrid stageGridOverview">
           <div className="stageColumn">
-            <JudgeGuidePanel
-              steps={judgeGuideSteps}
-              activeSection={visibleSection}
-              onOpenSection={openDemoSection}
-              compact
-            />
             <VerificationPanel
               auditPackage={auditPackage}
               storageResult={auditStorage}
@@ -1799,7 +1936,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
               accountAddress={account?.address}
               preparedPtb={preparedPtb}
               signedPreparedPtb={signedPreparedPtbForCurrentIntent}
-              signing={signTransaction.isPending}
+              signing={signPersonalMessage.isPending}
               error={preparedPtbError}
               policyObjectId={agentPolicyObject?.objectId}
               executionIntent={executionIntent}
@@ -1820,6 +1957,39 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     const prepareButtonLabel = liveSubmitSelected
       ? '提交真实 Sui mainnet 交易并归档'
       : 'Archive signed prepared PTB';
+    const prepareResultPlaceholder = (
+      <section className="panel prepareResultPlaceholder">
+        <div className="panelHeader">
+          <div>
+            <p className="eyebrow">下一个输出</p>
+            <h2 className="panelTitle">准备记录会落在这里</h2>
+          </div>
+          <span className="pill pillWarn">等待中</span>
+        </div>
+
+        <div className="placeholderLedger" aria-hidden="true">
+          <span className="ledgerLine ledgerLineWide" />
+          <span className="ledgerLine" />
+          <span className="ledgerLine ledgerLineMint" />
+          <span className="ledgerStamp">WAL</span>
+        </div>
+
+        <div className="ticketRows">
+          <div className="ticketRow">
+            <span>之前风险</span>
+            <strong>{riskReport.overallScore}</strong>
+          </div>
+          <div className="ticketRow">
+            <span>之后估算</span>
+            <strong>{estimatedAfterRisk.overallScore}</strong>
+          </div>
+          <div className="ticketRow">
+            <span>状态</span>
+            <strong>{policyCheck.ok ? '可准备' : policyCheck.errors[0]}</strong>
+          </div>
+        </div>
+      </section>
+    );
 
     return (
       <div className="stageGrid stageGridPrepare">
@@ -1845,7 +2015,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
                 accountAddress={account?.address}
                 preparedPtb={preparedPtb}
                 signedPreparedPtb={signedPreparedPtbForCurrentIntent}
-                signing={signTransaction.isPending}
+                signing={signPersonalMessage.isPending}
                 error={preparedPtbError}
                 policyObjectId={agentPolicyObject?.objectId}
                 executionIntent={executionIntent}
@@ -1893,6 +2063,28 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
               Prepare / 归档前请先连接 Sui mainnet 钱包。Walrus 存储没有后端或本地钱包支付方。
             </div>
           ) : null}
+
+          {!auditPackage || !auditStorage ? prepareResultPlaceholder : null}
+
+          {auditPackage && auditStorage ? (
+            <>
+              <ResultPanel
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+                executionMode={executionMode}
+                executionStatus={executionStatus}
+                riskBefore={riskReport}
+                riskAfter={estimatedAfterRisk}
+                warning={auditStorage?.warning ?? auditStorage?.error}
+              />
+              <ReceiptMintPanel
+                key={`${auditPackage.id}-${auditStorage.id}`}
+                auditPackage={auditPackage}
+                storageResult={auditStorage}
+                onReceiptMinted={handleReceiptMinted}
+              />
+            </>
+          ) : null}
         </div>
 
         <div className="stageColumn prepareRailColumn">
@@ -1922,58 +2114,6 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
             onOpen={openArchiveHistoryEntry}
             onClear={clearLocalArchiveHistory}
           />
-
-          {auditPackage && auditStorage ? (
-            <>
-              <ResultPanel
-                auditPackage={auditPackage}
-                storageResult={auditStorage}
-                executionMode={executionMode}
-                executionStatus={executionStatus}
-                riskBefore={riskReport}
-                riskAfter={estimatedAfterRisk}
-                warning={auditStorage?.warning ?? auditStorage?.error}
-              />
-              <ReceiptMintPanel
-                key={`${auditPackage.id}-${auditStorage.id}`}
-                auditPackage={auditPackage}
-                storageResult={auditStorage}
-                onReceiptMinted={handleReceiptMinted}
-              />
-            </>
-          ) : (
-            <section className="panel prepareResultPlaceholder">
-              <div className="panelHeader">
-                <div>
-                  <p className="eyebrow">下一个输出</p>
-                  <h2 className="panelTitle">准备记录会落在这里</h2>
-                </div>
-                <span className="pill pillWarn">等待中</span>
-              </div>
-
-              <div className="placeholderLedger" aria-hidden="true">
-                <span className="ledgerLine ledgerLineWide" />
-                <span className="ledgerLine" />
-                <span className="ledgerLine ledgerLineMint" />
-                <span className="ledgerStamp">WAL</span>
-              </div>
-
-              <div className="ticketRows">
-                <div className="ticketRow">
-                  <span>之前风险</span>
-                  <strong>{riskReport.overallScore}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>之后估算</span>
-                  <strong>{estimatedAfterRisk.overallScore}</strong>
-                </div>
-                <div className="ticketRow">
-                  <span>状态</span>
-                  <strong>{policyCheck.ok ? '可准备' : policyCheck.errors[0]}</strong>
-                </div>
-              </div>
-            </section>
-          )}
         </div>
       </div>
     );
