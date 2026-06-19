@@ -74,16 +74,7 @@ export function AuditLogPanel({
 
       <p className="panelCopy auditExplanationText">{explanation}</p>
 
-      {compact ? (
-        <>
-          <details className="auditDetailDrawer">
-            <summary>归档元数据</summary>
-            {archiveMetadata}
-          </details>
-        </>
-      ) : (
-        archiveMetadata
-      )}
+      {compact ? null : archiveMetadata}
     </section>
   );
 }

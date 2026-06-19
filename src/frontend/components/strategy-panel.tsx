@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   BarChart3,
   CalendarClock,
+  FileCheck2,
   Info,
   RotateCcw,
   ShieldAlert,
@@ -92,6 +93,20 @@ export function StrategyPanel({
     },
   ].filter((item) => item.value);
   const displayFacts = recommendation.displayFacts ?? [];
+  const evidenceItems = [
+    {
+      label: 'Policy 会检查',
+      value: `预算 ${formatUsd(recommendation.estimatedCostUsd)}、市场 ${recommendation.deepbookAction.market}、资产 ${recommendation.deepbookAction.assetIn}/${recommendation.deepbookAction.assetOut}`,
+    },
+    {
+      label: '钱包会确认',
+      value: 'Act 阶段只签 evidence message，用来证明用户确认过策略，不会转出资产。',
+    },
+    {
+      label: 'Walrus 会归档',
+      value: 'Remember 阶段保存策略摘要、Policy 边界、准备证明和市场证据，方便评委回放验证。',
+    },
+  ];
   const [budgetDraft, setBudgetDraft] = useState(() => ({
     source: predictSettings?.budgetUsd ?? null,
     value: String(predictSettings?.budgetUsd ?? ''),
@@ -151,12 +166,15 @@ export function StrategyPanel({
       {strategyDetails.length > 0 ? (
         <div className="positionBlock strategyBlock strategyBriefing">
           <div className="strategyBriefGrid">
-            {strategyDetails.map((item) => (
+            {strategyDetails.map((item, index) => (
               <div className="strategyBriefItem" key={item.label}>
-                <span className="strategyBriefLabel">
-                  {item.icon}
-                  {item.label}
-                </span>
+                <div className="strategyBriefLabel">
+                  <span className="strategyBriefIndex">{String(index + 1).padStart(2, '0')}</span>
+                  <span>
+                    {item.icon}
+                    {item.label}
+                  </span>
+                </div>
                 <p>{item.value}</p>
               </div>
             ))}
@@ -209,9 +227,6 @@ export function StrategyPanel({
               </strong>
             </div>
           </div>
-          <div className="strategyNote">
-            真实 DeepBook mainnet 报价和池元数据，取自实时 SUI/USDC 市场。
-          </div>
         </div>
       ) : marketSnapshotStatus === 'loading' ? (
         <div className="noteRow">
@@ -248,6 +263,39 @@ export function StrategyPanel({
           <span>{formatUsd(recommendation.deepbookAction.amountUsd)}</span>
         </div>
         <div className="strategyNote">{recommendation.deepbookAction.description}</div>
+      </div>
+
+      <div className="positionBlock strategyBlock strategyEvidenceBlock">
+        <div className="strategyEvidenceHeader">
+          <span>
+            <FileCheck2 size={14} />
+            策略证据预览
+          </span>
+        </div>
+
+        <div className="strategyEvidenceConclusion" aria-label="策略安全结论">
+          <span>
+            <strong>AI 无执行权</strong>
+            <small>只给建议</small>
+          </span>
+          <span>
+            <strong>Policy 先拦截</strong>
+            <small>越界即阻断</small>
+          </span>
+          <span>
+            <strong>钱包不签不提交</strong>
+            <small>资金不自动流出</small>
+          </span>
+        </div>
+
+        <div className="strategyEvidenceGrid">
+          {evidenceItems.map((item) => (
+            <div className="strategyEvidenceItem" key={item.label}>
+              <span>{item.label}</span>
+              <p>{item.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {canEditPredict ? (

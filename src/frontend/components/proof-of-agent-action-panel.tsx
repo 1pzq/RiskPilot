@@ -226,12 +226,6 @@ export function ProofOfAgentActionPanel({
           );
         })}
       </div>
-
-      <div className="proofActionBoundary">
-        <span>Boundary</span>
-        <strong>已签名也只是 prepare-only，不会自动提交</strong>
-        <em>Policy object 定义授权边界；钱包签名 PTB bytes；Walrus 和 StrategyReceipt 让行动轨迹可回放。</em>
-      </div>
     </section>
   );
 }

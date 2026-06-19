@@ -296,28 +296,30 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             <Layers3 size={14} />
             借贷仓位
           </div>
-          {portfolio.lendingPositions.length > 0 ? (
-            portfolio.lendingPositions.map((position) => (
-              <div className="positionBlock" key={position.protocol}>
-                <div className="positionLine">
-                  <span>{position.protocol}</span>
-                  <span className={position.healthFactor < 1.3 ? 'danger' : 'warn'}>
-                    HF {position.healthFactor.toFixed(2)}
-                  </span>
+          <div className="positionScrollFrame">
+            {portfolio.lendingPositions.length > 0 ? (
+              portfolio.lendingPositions.map((position) => (
+                <div className="positionBlock" key={position.protocol}>
+                  <div className="positionLine">
+                    <span>{position.protocol}</span>
+                    <span className={position.healthFactor < 1.3 ? 'danger' : 'warn'}>
+                      HF {position.healthFactor.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="positionLine subtle">
+                    <span>{position.collateralSymbol} 抵押品</span>
+                    <span>{formatUsd(position.collateralUsd)}</span>
+                  </div>
+                  <div className="positionLine subtle">
+                    <span>{position.debtSymbol} 债务</span>
+                    <span>{formatUsd(position.debtUsd)}</span>
+                  </div>
                 </div>
-                <div className="positionLine subtle">
-                  <span>{position.collateralSymbol} 抵押品</span>
-                  <span>{formatUsd(position.collateralUsd)}</span>
-                </div>
-                <div className="positionLine subtle">
-                  <span>{position.debtSymbol} 债务</span>
-                  <span>{formatUsd(position.debtUsd)}</span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="positionEmpty">这个钱包里没有已解析的借贷仓位。</div>
-          )}
+              ))
+            ) : (
+              <div className="positionEmpty">这个钱包里没有已解析的借贷仓位。</div>
+            )}
+          </div>
         </div>
 
         <div className="subPanel">
@@ -325,30 +327,32 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             <Layers3 size={14} />
             LP 仓位
           </div>
-          {portfolio.liquidityPositions.length > 0 ? (
-            portfolio.liquidityPositions.map((position) => (
-              <div className="positionBlock" key={position.protocol}>
-                <div className="positionLine">
-                  <span>{position.protocol}</span>
-                  <span className="pill pillNeutral">{zhDisplayText(position.estimatedImpermanentLossRisk)}</span>
+          <div className="positionScrollFrame">
+            {portfolio.liquidityPositions.length > 0 ? (
+              portfolio.liquidityPositions.map((position) => (
+                <div className="positionBlock" key={position.protocol}>
+                  <div className="positionLine">
+                    <span>{position.protocol}</span>
+                    <span className="pill pillNeutral">{zhDisplayText(position.estimatedImpermanentLossRisk)}</span>
+                  </div>
+                  <div className="positionLine subtle">
+                    <span>{position.pair}</span>
+                    <span>{formatUsd(position.usdValue)}</span>
+                  </div>
+                  <div className="positionLine subtle">
+                    <span>SUI 侧</span>
+                    <span>{formatUsd(position.tokenAExposureUsd)}</span>
+                  </div>
+                  <div className="positionLine subtle">
+                    <span>USDC 侧</span>
+                    <span>{formatUsd(position.tokenBExposureUsd)}</span>
+                  </div>
                 </div>
-                <div className="positionLine subtle">
-                  <span>{position.pair}</span>
-                  <span>{formatUsd(position.usdValue)}</span>
-                </div>
-                <div className="positionLine subtle">
-                  <span>SUI 侧</span>
-                  <span>{formatUsd(position.tokenAExposureUsd)}</span>
-                </div>
-                <div className="positionLine subtle">
-                  <span>USDC 侧</span>
-                  <span>{formatUsd(position.tokenBExposureUsd)}</span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="positionEmpty">这个钱包里没有已解析的 LP 仓位。</div>
-          )}
+              ))
+            ) : (
+              <div className="positionEmpty">这个钱包里没有已解析的 LP 仓位。</div>
+            )}
+          </div>
         </div>
       </div>
     </section>

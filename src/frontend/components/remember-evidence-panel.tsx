@@ -1,6 +1,6 @@
 'use client';
 
-import { Archive, CheckCircle2, ExternalLink, FileSignature, RotateCcw, WalletCards } from 'lucide-react';
+import { Archive, CheckCircle2, FileSignature, WalletCards } from 'lucide-react';
 
 import { executionDigestForReceipt, type SignedPreparedPtb } from '@/lib/sui/prepared-ptb';
 import type { AuditPackage, AuditStorageResult } from '@/lib/walrus/types';
@@ -11,7 +11,6 @@ type RememberEvidencePanelProps = {
   storageResult: AuditStorageResult | null;
   signedPreparedPtb: SignedPreparedPtb | null;
   accountAddress?: string;
-  onOpenLatest?: () => void;
 };
 
 function evidenceDigest(auditPackage: AuditPackage | null, signedPreparedPtb: SignedPreparedPtb | null) {
@@ -54,7 +53,6 @@ export function RememberEvidencePanel({
   storageResult,
   signedPreparedPtb,
   accountAddress,
-  onOpenLatest,
 }: RememberEvidencePanelProps) {
   const receiptProof = auditPackage?.receiptProof;
   const digest = receiptProof?.executionDigest ?? evidenceDigest(auditPackage, signedPreparedPtb);
@@ -99,20 +97,6 @@ export function RememberEvidencePanel({
         </div>
       </div>
 
-      <div className="rememberEvidenceActions">
-        {storageResult?.url ? (
-          <a className="button buttonGhost" href={storageResult.url} target="_blank" rel="noreferrer">
-            <ExternalLink size={15} />
-            验证 Walrus
-          </a>
-        ) : null}
-        {onOpenLatest ? (
-          <button className="button buttonGhost" type="button" onClick={onOpenLatest}>
-            <RotateCcw size={15} />
-            载入本地证明
-          </button>
-        ) : null}
-      </div>
     </section>
   );
 }

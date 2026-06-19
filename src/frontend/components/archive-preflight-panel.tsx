@@ -25,7 +25,6 @@ type ArchivePreflightPanelProps = {
   policyOk: boolean;
   executionBusy: boolean;
   archiveProgressPhase: ArchiveProgressPhase;
-  walletArchiveStatus: string;
   auditStorage: AuditStorageResult | null;
   executionIntent: ExecutionIntent | null;
   executionIntentStatus: 'locking' | 'locked' | 'error';
@@ -84,7 +83,6 @@ export function ArchivePreflightPanel({
   policyOk,
   executionBusy,
   archiveProgressPhase,
-  walletArchiveStatus,
   auditStorage,
   executionIntent,
   executionIntentStatus,
@@ -218,7 +216,7 @@ export function ArchivePreflightPanel({
             </div>
           </div>
           <details className="archivePreflightDrawer" open={executionBusy || archiveProgressPhase === 'failed'}>
-          <summary>显示钱包确认时间线</summary>
+            <summary>显示钱包确认时间线</summary>
             {modeBox}
             {intentBox}
             {actorGrid}
@@ -234,7 +232,6 @@ export function ArchivePreflightPanel({
         </>
       )}
 
-      {walletArchiveStatus ? <div className="archiveStatusLine">{walletArchiveStatus}</div> : null}
     </section>
   );
 }

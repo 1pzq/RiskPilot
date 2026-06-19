@@ -198,7 +198,7 @@ export function ReceiptMintPanel({ auditPackage, storageResult, onReceiptMinted 
 
       <div className="noteRow">
         <Link2 size={14} />
-        <span>Mint 会把 strategy ID、Policy object、Walrus blob ID 和 prepared execution ID 串成归档后证明；它是 agent 授权记忆，不是自动交易。</span>
+        <span>Mint 会把关键归档字段串成 receipt。</span>
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, History, RotateCcw, Trash2 } from 'lucide-react';
+import { History, Trash2 } from 'lucide-react';
 
 import type { ArchiveHistoryEntry } from '@/lib/walrus/archive-history';
 import { formatAddress, formatDateTime } from '@/lib/utils/format';
@@ -9,7 +9,6 @@ type ArchiveHistoryPanelProps = {
   entries: ArchiveHistoryEntry[];
   activeAuditId?: string;
   compact?: boolean;
-  onOpen: (entry: ArchiveHistoryEntry) => void;
   onClear?: () => void;
 };
 
@@ -17,7 +16,6 @@ export function ArchiveHistoryPanel({
   entries,
   activeAuditId,
   compact = false,
-  onOpen,
   onClear,
 }: ArchiveHistoryPanelProps) {
   const latest = entries[0];
@@ -92,19 +90,6 @@ export function ArchiveHistoryPanel({
                     </div>
                   </details>
                 ) : null}
-
-                <div className="archiveHistoryFooter">
-                  <button className="button buttonGhost" type="button" onClick={() => onOpen(entry)}>
-                    <RotateCcw size={15} />
-                    打开结果
-                  </button>
-                  {entry.readbackUrl ? (
-                    <a className="button buttonGhost" href={entry.readbackUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink size={15} />
-                      验证 Walrus
-                    </a>
-                  ) : null}
-                </div>
               </article>
             );
           })}

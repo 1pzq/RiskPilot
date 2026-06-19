@@ -26,15 +26,13 @@ const demoSections = [
 ] as const;
 
 export function scrollToDemoStage() {
-  const target = document.getElementById('risk-dashboard');
+  const target = document.querySelector<HTMLElement>('.overflowNav') ?? document.getElementById('risk-dashboard');
 
   if (!target) {
     return;
   }
 
-  const styles = window.getComputedStyle(document.documentElement);
-  const offset = Number.parseFloat(styles.getPropertyValue('--stage-scroll-offset')) || 132;
-  const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - offset);
+  const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY);
 
   window.scrollTo({ top, behavior: 'smooth' });
 }

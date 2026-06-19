@@ -745,19 +745,24 @@ button.walletButton:hover:not(:disabled) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: start;
+  padding-top: 10px;
+  border-top: 2px solid rgba(7, 17, 31, 0.14);
 }
 
 .subPanel {
-  padding-top: 8px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
 }
 
 .subPanelHeader {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 0.78rem;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -771,6 +776,18 @@ button.walletButton:hover:not(:disabled) {
 .positionBlock:first-child {
   padding-top: 0;
   border-top: 0;
+}
+
+.positionScrollFrame {
+  display: grid;
+  align-content: start;
+  min-height: 220px;
+  max-height: 280px;
+  padding: 12px;
+  border: 2px solid rgba(7, 17, 31, 0.16);
+  background: rgba(245, 239, 226, 0.62);
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .positionLine {
@@ -1018,7 +1035,7 @@ button.walletButton:hover:not(:disabled) {
 
 .strategyBriefing {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   height: auto;
   max-height: none;
   padding: 0 0 14px;
@@ -1026,7 +1043,12 @@ button.walletButton:hover:not(:disabled) {
   overflow: visible;
 }
 
-.strategyBriefGrid,
+.strategyBriefGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .strategyFactGrid,
 .strategyListGrid {
   display: grid;
@@ -1038,13 +1060,34 @@ button.walletButton:hover:not(:disabled) {
 .strategyFact,
 .strategyList {
   min-width: 0;
+  border-radius: 0;
+}
+
+.strategyBriefItem {
+  display: grid;
+  align-content: start;
+  min-height: 132px;
+  padding: 12px;
+  border: 2px solid rgba(7, 17, 31, 0.16);
+  background:
+    linear-gradient(90deg, rgba(95, 157, 247, 0.1), transparent 42%),
+    rgba(244, 248, 255, 0.72);
+}
+
+.strategyFact,
+.strategyList {
   padding: 10px 12px;
   border: 1px solid rgba(105, 220, 255, 0.13);
-  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
 }
 
-.strategyBriefLabel,
+.strategyBriefLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.strategyBriefLabel > span:last-child,
 .strategyListTitle {
   display: flex;
   align-items: center;
@@ -1056,16 +1099,47 @@ button.walletButton:hover:not(:disabled) {
   text-transform: uppercase;
 }
 
+.strategyBriefIndex {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(7, 17, 31, 0.18);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 950;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
 .strategyBriefItem p {
-  margin: 6px 0 0;
+  margin: 8px 0 0 37px;
   color: var(--text);
-  font-size: 0.86rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.42;
 }
 
 .strategyFact {
   display: grid;
   gap: 4px;
+}
+
+.strategyFactGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.strategyBriefing > .strategyFactGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.strategyBriefing > .strategyFactGrid .strategyFact {
+  grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 10px;
 }
 
 .strategyFact span {
@@ -1078,8 +1152,8 @@ button.walletButton:hover:not(:disabled) {
 
 .strategyFact strong {
   color: var(--text);
-  font-size: 0.9rem;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -1091,14 +1165,12 @@ button.walletButton:hover:not(:disabled) {
 .strategyList ul {
   display: grid;
   gap: 6px;
-  max-height: 150px;
   margin: 0;
   padding-left: 18px;
   color: var(--text-muted);
   font-size: 0.84rem;
   line-height: 1.45;
-  overflow: auto;
-  scrollbar-gutter: stable;
+  overflow: visible;
 }
 
 .strategyNote {
@@ -1142,6 +1214,104 @@ button.walletButton:hover:not(:disabled) {
 
 .strategyActionBlock .strategyNote {
   grid-column: 1 / -1;
+}
+
+.strategyEvidenceBlock {
+  display: grid;
+  gap: 12px;
+}
+
+.strategyEvidenceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strategyEvidenceHeader span,
+.strategyEvidenceHeader strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.strategyEvidenceHeader span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.strategyEvidenceHeader strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.strategyEvidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.strategyEvidenceItem {
+  min-width: 0;
+  padding: 12px;
+  border: 2px solid rgba(7, 17, 31, 0.14);
+  background: var(--paper-soft);
+}
+
+.strategyEvidenceItem span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.strategyEvidenceItem p {
+  margin: 7px 0 0;
+  color: var(--text);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.strategyEvidenceConclusion {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.strategyEvidenceConclusion span {
+  display: grid;
+  align-content: center;
+  justify-content: center;
+  min-height: 62px;
+  padding: 9px 10px;
+  border: 2px solid rgba(7, 17, 31, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  text-align: center;
+}
+
+.strategyEvidenceConclusion strong {
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.strategyEvidenceConclusion small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.strategyEvidenceLists {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .strategyControls {
@@ -2427,7 +2597,7 @@ body::after {
   padding: 34px 42px 0 max(7vw, 56px);
   background:
     linear-gradient(90deg, rgba(251, 251, 247, 0.97), rgba(251, 251, 247, 0.78) 68%, transparent);
-  transform: translateY(-52px);
+  transform: translateY(-20px);
 }
 
 .heroCopy::after {
@@ -2937,6 +3107,92 @@ body::after {
   box-shadow: 3px 3px 0 var(--line);
 }
 
+.resultSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.resultSummaryGrid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 2px solid rgba(7, 17, 31, 0.18);
+  background: var(--cream);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.resultSummaryGrid span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.resultSummaryGrid strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.resultEvidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.resultEvidenceGrid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 86px;
+  padding: 10px;
+  border: 2px solid rgba(7, 17, 31, 0.2);
+  background: rgba(232, 239, 255, 0.78);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.resultEvidenceGrid span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.resultEvidenceGrid strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.resultEvidenceGrid small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #637086;
+  font-size: 0.72rem;
+  font-weight: 820;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .compactDetailsPanel .whatIfStrategyDiffPanel {
   border-width: 3px 0 0;
   box-shadow: none;
@@ -3019,78 +3275,123 @@ body::after {
   margin-top: 12px;
 }
 
-.evidenceDetailsPanel .evidenceExplorer {
-  padding: 0 14px 14px;
-}
-
-.auditArchiveSummary {
-  display: grid;
-  gap: 12px;
-}
-
-.stageIntroPrepare {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.48fr);
-  align-items: stretch;
-  gap: 24px;
-}
-
-.stageIntroAside {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  min-height: 100%;
-}
-
-.stageAsideTile {
-  display: grid;
-  align-content: center;
-  gap: 6px;
-  min-height: 86px;
-  padding: 14px;
-  border: 3px solid var(--line);
-  background: #fff;
-  box-shadow: 5px 5px 0 var(--line);
-}
-
-.stageAsideTile span {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 920;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.stageAsideTile strong {
-  color: var(--ink);
-  font-size: 1rem;
-  line-height: 1;
-  font-weight: 950;
-}
-
-.stageAsideTileBlue {
-  background: var(--blue-soft);
-}
-
-.stageAsideTileMint {
-  background: var(--mint);
-}
-
-.stageAsideTilePink {
-  color: var(--ink);
-  background: #ffd8e2;
-}
-
-.stageAsideTileWide {
-  grid-column: 1 / -1;
-  grid-template-columns: 1fr auto;
-  align-items: center;
+.evidenceDetailsPanel[open] {
+  border-color: var(--line);
   background:
-    linear-gradient(135deg, rgba(255, 226, 95, 0.94), rgba(255, 255, 255, 0.92) 64%),
+    linear-gradient(135deg, rgba(95, 157, 247, 0.1), transparent 28%),
     #fff;
 }
 
-.stageAsideTileWide strong {
-  font-size: 1.18rem;
+.evidenceDetailsPanel[open] > summary {
+  border-bottom: 3px solid var(--line);
+  background: var(--blue-soft);
+}
+
+.evidenceDetailsPanel .evidenceExplorer {
+  height: clamp(620px, 58vh, 760px);
+  margin-top: 0;
+  padding: 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.evidenceDetailsPanel .evidenceExplorerHeader {
+  padding: 10px 12px;
+  background:
+    linear-gradient(var(--blue) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blue) 1px, transparent 1px),
+    #fff;
+  background-size: 26px 26px;
+}
+
+.evidenceDetailsPanel .evidenceExplorerGrid {
+  display: block;
+  column-count: 2;
+  column-gap: 10px;
+}
+
+.evidenceDetailsPanel .evidenceCard {
+  width: 100%;
+  margin: 0 0 10px;
+  break-inside: avoid;
+  gap: 9px;
+  padding: 10px;
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.evidenceDetailsPanel .evidenceCardWide {
+  grid-column: auto;
+}
+
+.evidenceDetailsPanel .evidenceCardHeader {
+  gap: 8px;
+}
+
+.evidenceDetailsPanel .evidenceIcon {
+  width: 26px;
+  height: 26px;
+  border-width: 2px;
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.evidenceDetailsPanel .evidenceCardHeader h3 {
+  font-size: 0.86rem;
+}
+
+.evidenceDetailsPanel .evidenceRows {
+  gap: 6px;
+}
+
+.evidenceDetailsPanel .evidenceRow {
+  grid-template-columns: minmax(86px, 0.38fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 8px;
+}
+
+.evidenceDetailsPanel .evidenceRow span {
+  font-size: 0.66rem;
+}
+
+.evidenceDetailsPanel .evidenceRow strong {
+  font-size: 0.76rem;
+  line-height: 1.22;
+}
+
+.evidenceDetailsPanel .evidenceRiskGrid,
+.evidenceDetailsPanel .evidenceMiniGrid {
+  gap: 6px;
+}
+
+.evidenceDetailsPanel .evidenceScoreBlock {
+  min-height: 74px;
+  padding: 8px;
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.evidenceDetailsPanel .evidenceScoreBlock strong {
+  font-size: 1.38rem;
+}
+
+.evidenceDetailsPanel .evidenceList {
+  gap: 4px;
+  font-size: 0.76rem;
+}
+
+.evidenceDetailsPanel .evidenceMuted,
+.evidenceDetailsPanel .evidenceLead,
+.evidenceDetailsPanel .evidenceWarning,
+.evidenceDetailsPanel .evidenceAgentRow small,
+.evidenceDetailsPanel .evidenceConsensusRow small {
+  font-size: 0.75rem;
+}
+
+.evidenceDetailsPanel .evidenceSignal,
+.evidenceDetailsPanel .evidenceMiniGrid span {
+  padding: 6px 7px;
+  font-size: 0.7rem;
 }
 
 .stageSurface {
@@ -3112,6 +3413,7 @@ body::after {
 }
 
 .stageGridRisk {
+  --risk-panel-height: clamp(760px, 70vh, 820px);
   grid-template-columns: minmax(520px, 1.12fr) minmax(360px, 0.88fr);
   gap: 18px;
   align-items: start;
@@ -3119,6 +3421,11 @@ body::after {
 
 .stageGridStrategy {
   grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.82fr);
+  align-items: start;
+}
+
+.stageGridStrategy .strategyPreviewColumn {
+  gap: 34px;
 }
 
 .stageGridAudit {
@@ -3139,6 +3446,22 @@ body::after {
 .strategyPrimaryColumn,
 .strategyPreviewColumn {
   min-width: 0;
+}
+
+.stageGridRisk .whatIfPanel,
+.stageGridRisk .riskSignalColumn {
+  height: var(--risk-panel-height);
+}
+
+.stageGridRisk .whatIfPanel {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.stageGridRisk .riskSignalColumn {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 18px;
 }
 
 .stageGridPrepare {
@@ -3184,7 +3507,23 @@ body::after {
     #fff;
 }
 
+.stageGridAudit .proofOfAgentActionPanelCompact {
+  margin-top: 4px;
+  padding: 20px;
+}
+
+.stageGridAudit .proofOutcomeStrip {
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stageGridAudit .proofOutcomeItem {
+  min-height: 76px;
+  padding: 11px;
+}
+
 .stageGridAudit .auditLogPanel {
+  grid-column: 1 / -1;
   background:
     linear-gradient(135deg, rgba(95, 157, 247, 0.2), transparent 42%),
     linear-gradient(315deg, rgba(255, 226, 95, 0.18), transparent 48%),
@@ -3302,53 +3641,26 @@ body::after {
   box-shadow: none;
 }
 
-.stageGridAudit .preparedConstraintBanner {
+.stageGridAudit .preparedSignChecklist {
   display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 2px solid #cfd4db;
-  background: #fff;
-  box-shadow: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
 }
 
-.stageGridAudit .preparedConstraintBanner strong {
-  color: var(--ink);
-  font-size: 0.88rem;
-}
-
-.stageGridAudit .preparedConstraintBanner span {
-  color: #67748b;
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.stageGridAudit .preparedConstraintBannerReady {
-  border-color: rgba(131, 217, 159, 0.65);
-  background: rgba(131, 217, 159, 0.12);
-}
-
-.stageGridAudit .preparedConstraintBannerPending {
-  border-color: rgba(255, 226, 95, 0.65);
-  background: rgba(255, 226, 95, 0.14);
-}
-
-.stageGridAudit .preparedEvidenceNotice {
+.stageGridAudit .preparedSignChecklist span {
   display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 2px solid rgba(95, 157, 247, 0.42);
-  color: var(--ink);
-  background: rgba(220, 236, 255, 0.58);
-}
-
-.stageGridAudit .preparedEvidenceNotice strong {
-  font-size: 0.88rem;
-}
-
-.stageGridAudit .preparedEvidenceNotice span {
+  align-items: center;
   color: #67748b;
-  font-size: 0.8rem;
-  line-height: 1.35;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 2px solid rgba(7, 17, 31, 0.2);
+  background: rgba(227, 247, 234, 0.78);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .stageGridAudit .preparedPtbPanel .panelCopy {
@@ -3356,11 +3668,21 @@ body::after {
 }
 
 .stageGridAudit .proofActionChain {
-  gap: 8px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .stageGridAudit .proofActionStep {
-  min-height: 74px;
+  min-height: 80px;
+  padding: 12px;
+}
+
+.stageGridAudit .proofActionIndex {
+  padding: 9px 6px;
+}
+
+.stageGridAudit .proofActionBody {
+  gap: 6px;
 }
 
 .proofOfAgentActionPanel {
@@ -3489,36 +3811,6 @@ body::after {
   overflow-wrap: anywhere;
 }
 
-.proofActionBoundary {
-  display: grid;
-  gap: 5px;
-  padding: 12px 14px;
-  border: 3px solid var(--line);
-  background: var(--mint);
-  box-shadow: 4px 4px 0 var(--line);
-}
-
-.proofActionBoundary span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 950;
-  text-transform: uppercase;
-}
-
-.proofActionBoundary strong {
-  color: var(--ink);
-  font-size: 0.96rem;
-  font-weight: 950;
-}
-
-.proofActionBoundary em {
-  color: var(--ink);
-  font-size: 0.8rem;
-  font-style: normal;
-  font-weight: 750;
-  overflow-wrap: anywhere;
-}
-
 .rememberEvidencePanel {
   background:
     linear-gradient(135deg, rgba(95, 157, 247, 0.2), transparent 36%),
@@ -3579,13 +3871,6 @@ body::after {
   font-style: normal;
   font-weight: 800;
   overflow-wrap: anywhere;
-}
-
-.rememberEvidenceActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .auditRefreshButton {
@@ -4070,6 +4355,24 @@ button.walletButtonDisconnect {
   font-size: 0.84rem;
   font-weight: 820;
   line-height: 1.3;
+}
+
+.riskBreakdownPanel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.riskBreakdownPanel > .stack {
+  max-height: none;
+  min-height: 0;
+  align-content: start;
+  overflow: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
 }
 
 .riskBreakdownPanelEmpty {
@@ -5277,8 +5580,7 @@ button.walletButton:hover:not(:disabled) {
   margin-bottom: 16px;
 }
 
-.prepareCompanionPanel .ticketRows,
-.prepareResultPlaceholder .ticketRows {
+.prepareCompanionPanel .ticketRows {
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -5339,8 +5641,7 @@ button.walletButton:hover:not(:disabled) {
   box-shadow: 4px 4px 0 var(--line);
 }
 
-.prepareCompanionPanel .ticketRow,
-.prepareResultPlaceholder .ticketRow {
+.prepareCompanionPanel .ticketRow {
   padding: 9px 10px;
 }
 
@@ -5526,6 +5827,114 @@ button.walletButton:hover:not(:disabled) {
   width: 100%;
 }
 
+.prepareStepCard .policyObjectGrid {
+  gap: 8px;
+}
+
+.prepareStepCard .policyCompactSummary,
+.prepareStepCard .preparedCompactSummary,
+.prepareStepCard .policyCompactMeta {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  background: var(--cream);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.prepareStepCard .policyCompactSummary strong,
+.prepareStepCard .preparedCompactSummary strong,
+.prepareStepCard .policyCompactMeta strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.prepareStepCard .policyCompactSummary span,
+.prepareStepCard .preparedCompactSummary span,
+.prepareStepCard .policyCompactMeta span {
+  color: #67748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.prepareStepCard .policyCompactMeta {
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  min-height: 94px;
+}
+
+.prepareStepCard .policyCompactMetaText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prepareStepCard .compactProofStack {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.prepareStepCard .compactProofGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.prepareStepCard .compactProofGrid > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 9px;
+  border: 2px solid rgba(7, 17, 31, 0.18);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: none;
+}
+
+.prepareStepCard .compactProofGrid span {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 920;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prepareStepCard .compactProofGrid strong {
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 880;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+}
+
+.prepareStepCard .preparedCompactSummary {
+  min-height: 58px;
+}
+
+.prepareStepCard .preparedSafetyCompact {
+  margin-bottom: 4px;
+}
+
+.prepareStepCard .preparedSafetyCompact,
+.prepareStepCard .agentPolicyBoundaryPreview {
+  border-color: rgba(7, 17, 31, 0.16);
+  box-shadow: none;
+}
+
+.prepareStepCard .preparedSafetyCompact strong,
+.prepareStepCard .agentPolicyBoundaryPreview strong {
+  font-size: 0.82rem;
+}
+
 .prepareStepCardPtb > .preparedPtbPanel {
   background:
     linear-gradient(135deg, rgba(126, 235, 177, 0.26), transparent 40%),
@@ -5693,13 +6102,6 @@ button.walletButton:hover:not(:disabled) {
   display: none;
 }
 
-.archivePreflightDrawer .archivePreflightMode,
-.archivePreflightDrawer .executionIntentBox,
-.archivePreflightDrawer .archiveActorGrid,
-.archivePreflightDrawer .archiveTimeline {
-  margin-top: 10px;
-}
-
 .archiveActorGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5709,8 +6111,7 @@ button.walletButton:hover:not(:disabled) {
 .archiveActorGrid div,
 .archivePreflightMode,
 .executionIntentBox,
-.archiveTimelineStep,
-.archiveStatusLine {
+.archiveTimelineStep {
   border: 2px solid var(--line);
   color: var(--ink);
   background: rgba(255, 255, 255, 0.82);
@@ -5759,8 +6160,7 @@ button.walletButton:hover:not(:disabled) {
 
 .archivePreflightMode small,
 .executionIntentBox small,
-.archiveTimelineStep span,
-.archiveStatusLine {
+.archiveTimelineStep span {
   color: var(--muted);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -5819,12 +6219,6 @@ button.walletButton:hover:not(:disabled) {
   animation: spin 900ms linear infinite;
 }
 
-.archiveStatusLine {
-  padding: 9px 10px;
-  background: rgba(255, 226, 95, 0.4);
-  font-weight: 820;
-}
-
 .archiveHistoryPanel {
   background:
     linear-gradient(135deg, rgba(211, 193, 255, 0.22), transparent 36%),
@@ -5842,8 +6236,7 @@ button.walletButton:hover:not(:disabled) {
 }
 
 .archiveHistoryPanelCompact .archiveHistoryList {
-  height: clamp(600px, 66vh, 840px);
-  max-height: none;
+  max-height: clamp(460px, calc(52vh + 100px), 720px);
 }
 
 .archiveHistoryItem {
@@ -5935,19 +6328,6 @@ button.walletButton:hover:not(:disabled) {
 
 .archiveHistoryFieldsSecondary {
   padding-top: 8px;
-}
-
-.archiveHistoryFooter {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.archiveHistoryFooter .button {
-  min-width: 0;
-  min-height: 36px;
-  padding-inline: 8px;
-  font-size: 0.8rem;
 }
 
 .archiveHistoryEmpty {
@@ -6626,13 +7006,9 @@ button.walletButton:hover:not(:disabled) {
   background: var(--purple-soft);
 }
 
-.prepareResultPlaceholder {
-  background: var(--cream);
-}
-
 .prepareRailColumn {
   align-content: start;
-  gap: 12px;
+  gap: 14px;
 }
 
 .prepareRailColumn .resultPanel,
@@ -6648,71 +7024,8 @@ button.walletButton:hover:not(:disabled) {
   margin-bottom: 0;
 }
 
-.placeholderLedger {
-  position: relative;
-  display: grid;
-  gap: 9px;
-  min-height: 108px;
-  margin-bottom: 10px;
-  padding: 12px;
-  border: 3px solid var(--line);
-  overflow: hidden;
-  background:
-    linear-gradient(var(--blue) 1px, transparent 1px),
-    linear-gradient(90deg, var(--blue) 1px, transparent 1px),
-    #fff;
-  background-size: 38px 38px;
-  box-shadow: 6px 6px 0 var(--line);
-}
-
-.placeholderLedger::after {
-  position: absolute;
-  inset: -30% auto auto 52%;
-  width: 220px;
-  height: 220px;
-  border: 4px solid var(--line);
-  background: var(--purple);
-  content: '';
-  opacity: 0.9;
-  transform: rotate(17deg);
-}
-
-.ledgerLine {
-  position: relative;
-  z-index: 1;
-  width: 64%;
-  height: 13px;
-  border: 3px solid var(--line);
-  background: var(--blue-soft);
-  box-shadow: 4px 4px 0 var(--line);
-}
-
-.ledgerLineWide {
-  width: 82%;
-  background: var(--yellow);
-}
-
-.ledgerLineMint {
-  width: 48%;
-  background: var(--mint);
-}
-
-.ledgerStamp {
-  position: absolute;
-  right: 16px;
-  bottom: 14px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 44px;
-  border: 4px solid var(--line);
-  color: var(--ink);
-  background: var(--orange);
-  font-size: 1.12rem;
-  font-weight: 950;
-  box-shadow: 8px 8px 0 var(--line);
-  transform: rotate(-8deg);
+.prepareRailColumn > .archiveHistoryPanel {
+  margin-top: 8px;
 }
 
 .resultPanel {
@@ -7097,9 +7410,9 @@ button.walletButton:hover:not(:disabled) {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .receiptProofRailCompact {
@@ -7153,9 +7466,9 @@ button.walletButton:hover:not(:disabled) {
 
 .receiptProofPreview div {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
-  padding: 8px;
+  padding: 9px;
   border: 3px solid var(--line);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: 4px 4px 0 var(--line);
@@ -7170,7 +7483,7 @@ button.walletButton:hover:not(:disabled) {
 
 .receiptProofPreview strong {
   color: var(--ink);
-  line-height: 1.14;
+  line-height: 1.12;
   font-weight: 950;
 }
 
@@ -7194,9 +7507,9 @@ button.walletButton:hover:not(:disabled) {
 
 .receiptProofMinted div {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
-  padding: 8px;
+  padding: 9px;
   border: 3px solid var(--line);
   background: var(--mint);
   box-shadow: 4px 4px 0 var(--line);
@@ -7908,8 +8221,11 @@ button.walletButton:hover:not(:disabled) {
 .walletSourceList {
   display: grid;
   gap: 8px;
-  max-height: clamp(180px, 26vh, 320px);
+  height: clamp(360px, 44vh, 500px);
+  margin-top: 8px;
+  padding-top: 14px;
   padding-right: 8px;
+  border-top: 3px solid rgba(7, 17, 31, 0.18);
   overflow: auto;
   scrollbar-gutter: stable;
 }
@@ -7936,9 +8252,9 @@ button.walletButton:hover:not(:disabled) {
 }
 
 .positionEmpty {
-  padding: 12px;
-  border: 2px solid rgba(7, 17, 31, 0.16);
-  background: rgba(245, 239, 226, 0.62);
+  display: grid;
+  align-content: center;
+  min-height: 160px;
   font-weight: 760;
 }
 
@@ -8071,7 +8387,7 @@ button.walletButton:hover:not(:disabled) {
   .heroCopy {
     min-height: 560px;
     padding: 36px 28px 0;
-    transform: translateY(-36px);
+    transform: translateY(-14px);
   }
 
   .heroCopy::after {
@@ -8186,7 +8502,7 @@ button.walletButton:hover:not(:disabled) {
   .heroCopy {
     min-height: 520px;
     padding: 30px 18px 0;
-    transform: translateY(-24px);
+    transform: translateY(-8px);
   }
 
   .heroTitle {
@@ -8367,8 +8683,8 @@ button.walletButton:hover:not(:disabled) {
   .receiptProofCompactGrid,
   .receiptProofMinted,
   .receiptProofBoundary,
-  .archiveHistoryFields,
-  .archiveHistoryFooter {
+  .resultEvidenceGrid,
+  .archiveHistoryFields {
     grid-template-columns: 1fr;
   }
 
@@ -8412,9 +8728,23 @@ button.walletButton:hover:not(:disabled) {
     justify-items: start;
   }
 
+  .riskBreakdownPanel,
+  .riskBreakdownPanel > .stack {
+    min-height: 0;
+  }
+
   .portfolioPanelWallet .portfolioAssetGrid {
     max-height: min(44vh, 360px);
     overflow: auto;
+  }
+
+  .positionScrollFrame {
+    min-height: 204px;
+    max-height: 272px;
+  }
+
+  .walletSourceList {
+    height: min(56vh, 460px);
   }
 
   .strategyBriefing {
@@ -8423,10 +8753,22 @@ button.walletButton:hover:not(:disabled) {
   }
 
   .strategyMarketGrid,
+  .strategyEvidenceGrid,
+  .strategyEvidenceLists,
+  .strategyEvidenceConclusion,
   .strategyActionBlock,
   .preparePrimaryColumn,
   .preparePrimaryColumn .prepareSafetyPanel {
     grid-template-columns: 1fr;
+  }
+
+  .strategyEvidenceHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .strategyEvidenceHeader strong {
+    text-align: left;
   }
 
   .preparePrimaryColumn > .policyPanel,
@@ -8504,6 +8846,23 @@ button.walletButton:hover:not(:disabled) {
     text-align: left;
   }
 
+  .evidenceDetailsPanel .evidenceExplorer {
+    height: min(68vh, 560px);
+    padding: 10px;
+  }
+
+  .evidenceDetailsPanel .evidenceExplorerGrid,
+  .evidenceDetailsPanel .evidenceRiskGrid,
+  .evidenceDetailsPanel .evidenceMiniGrid {
+    column-count: initial;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceDetailsPanel .evidenceCardWide {
+    grid-column: 1;
+  }
+
   .evidenceBadge {
     justify-content: flex-start;
     width: 100%;
@@ -8531,14 +8890,9 @@ button.walletButton:hover:not(:disabled) {
     max-height: min(38vh, 360px);
   }
 
-  .stageIntroAside,
   .prepareRoute,
   .walletBoundaryNotice,
   .prepareSafetyPanel {
-    grid-template-columns: 1fr;
-  }
-
-  .stageAsideTileWide {
     grid-template-columns: 1fr;
   }
 
@@ -8594,6 +8948,31 @@ button.walletButton:hover:not(:disabled) {
 .agentToolStepHeader strong,
 .judgeGuideBody strong {
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.agentPolicyBoundaryPreview {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid rgba(7, 17, 31, 0.16);
+  background: rgba(220, 236, 255, 0.64);
+}
+
+.agentPolicyBoundaryPreview span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.agentPolicyBoundaryPreview strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1.22;
   overflow-wrap: anywhere;
 }
 
