@@ -1,5 +1,9 @@
 # RiskPilot
 
+<p align="center">
+  <img src="./assets/brand/loge.svg" alt="RiskPilot logo" width="760" />
+</p>
+
 > AI suggests. Policy gates. Wallet confirms. Walrus remembers.
 
 RiskPilot is a Sui Overflow 2026 **Agentic Web** project that explores a safer path for DeFi agents on Sui. It is built around one problem: an AI agent may be useful at reading risk and proposing action, but it should not be able to move user funds just because it produced a confident recommendation.
