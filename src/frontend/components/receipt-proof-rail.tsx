@@ -25,7 +25,7 @@ export function ReceiptProofRail({
   compact = false,
 }: ReceiptProofRailProps) {
   const receiptProof = auditPackage?.receiptProof;
-  const auditBlobId = storageResult?.id ?? '需要先完成 Walrus 归档';
+  const auditBlobId = storageResult?.id ?? 'Walrus archive required first';
   const executionDigest =
     receiptProof?.executionDigest ??
     (auditPackage
@@ -61,7 +61,7 @@ export function ReceiptProofRail({
           </div>
           <div>
             <span>Receipt object</span>
-            <strong>{receiptProof.receiptObjectId ?? '钱包响应中创建对象待定'}</strong>
+            <strong>{receiptProof.receiptObjectId ?? 'Created object pending in wallet response'}</strong>
           </div>
         </div>
       ) : null}
@@ -71,11 +71,11 @@ export function ReceiptProofRail({
         <Wallet size={14} />
         <span>
           {accountAddress
-            ? `签名者：${formatAddress(accountAddress)}`
-            : '必须由已连接钱包显式签名 receipt mint。'}
+            ? `Signer: ${formatAddress(accountAddress)}`
+            : 'Receipt mint must be explicitly signed by the connected wallet.'}
         </span>
         <FileCheck2 size={14} />
-        <span>{RECEIPT_PACKAGE_ID ? `Package：${formatAddress(RECEIPT_PACKAGE_ID)}` : 'Receipt package 未配置。'}</span>
+        <span>{RECEIPT_PACKAGE_ID ? `Package: ${formatAddress(RECEIPT_PACKAGE_ID)}` : 'Receipt package not configured.'}</span>
       </div>
     </>
   );
@@ -84,12 +84,12 @@ export function ReceiptProofRail({
     <section className={`panel receiptProofRailPanel ${compact ? 'receiptProofRailCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">归档后证明轨</p>
-          <h2 className="panelTitle">StrategyReceipt 链接预览</h2>
+          <p className="eyebrow">Post-archive proof rail</p>
+          <h2 className="panelTitle">StrategyReceipt link preview</h2>
         </div>
         <span className={`pill ${receiptProof ? 'pillSuccess' : storageResult ? 'pillWarn' : 'pillMuted'}`}>
           <FileCheck2 size={14} />
-          {receiptProof ? '已 mint' : storageResult ? '可 mint' : '归档后'}
+          {receiptProof ? 'Minted' : storageResult ? 'Ready to mint' : 'After archive'}
         </span>
       </div>
 
@@ -98,15 +98,15 @@ export function ReceiptProofRail({
           <div className="receiptProofCompactGrid">
             <div>
               <span>Receipt</span>
-              <strong>{receiptProof ? '已 mint' : storageResult ? '可 mint' : '归档后'}</strong>
+              <strong>{receiptProof ? 'Minted' : storageResult ? 'Ready to mint' : 'After archive'}</strong>
             </div>
             <div>
               <span>Blob</span>
-              <strong>{storageResult?.id ?? '待处理'}</strong>
+              <strong>{storageResult?.id ?? 'Pending'}</strong>
             </div>
           </div>
           <details className="receiptProofDrawer" open={Boolean(receiptProof)}>
-            <summary>{receiptProof ? '显示已 mint 的 receipt 证明' : '显示 receipt 链接字段'}</summary>
+            <summary>{receiptProof ? 'Show minted receipt proof' : 'Show receipt link fields'}</summary>
             {receiptDetails}
           </details>
         </>

@@ -18,23 +18,23 @@ export type DemoScenario = {
 export const DEMO_SCENARIOS: DemoScenario[] = [
   {
     id: 'conservative_sui_holder',
-    label: '保守型 SUI 持有者',
-    summary: 'SUI 占比较高的钱包，带有少量 LP 和借贷上下文。',
+    label: 'Conservative SUI holder',
+    summary: 'Wallet with high SUI share plus light LP and lending context.',
   },
   {
     id: 'leveraged_lending_user',
-    label: '杠杆借贷用户',
-    summary: '用 SUI 抵押借入 USDC，健康因子偏紧。',
+    label: 'Leveraged lending user',
+    summary: 'Borrowed USDC against SUI collateral with a tight health factor.',
   },
   {
     id: 'lp_impermanent_loss',
-    label: '存在无常损失风险的 LP',
-    summary: '较大的 SUI/USDC LP 仓位，带有较高无常损失风险。',
+    label: 'LP with impermanent-loss risk',
+    summary: 'Large SUI/USDC LP position with elevated impermanent-loss risk.',
   },
   {
     id: 'dao_stablecoin_treasury',
-    label: 'DAO 金库',
-    summary: '金库账本集中在单一 stablecoin 仓位。',
+    label: 'DAO treasury',
+    summary: 'Treasury ledger concentrated in a single stablecoin position.',
   },
 ];
 

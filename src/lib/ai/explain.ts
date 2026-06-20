@@ -10,9 +10,9 @@ function limitWords(text: string, maxWords: number): string {
 function buildSignalPhrase(report: RiskReport): string {
   const names = report.signals.slice(0, 3).map((signal) => signal.title.toLowerCase());
   if (names.length === 0) {
-    return '根据确定性规则，当前 Portfolio 风险较低';
+    return 'the current portfolio is low risk under deterministic rules';
   }
-  return `主要关注点是 ${names.join(', ')}`;
+  return `the main concerns are ${names.join(', ')}`;
 }
 
 export function buildMockExplanation(
@@ -22,11 +22,11 @@ export function buildMockExplanation(
   policy: ExecutionPolicy,
 ): string {
   const text = [
-    `RiskPilot 看到 ${buildSignalPhrase(riskReport)}，跟踪价值为 $${portfolio.totalUsdValue.toFixed(2)}。`,
-    `当前推荐是 ${recommendation.title.toLowerCase()}，预算上限为 $${recommendation.estimatedCostUsd.toFixed(2)}。`,
-    `这是一个针对 ${recommendation.deepbookAction.market} 的仅 Prepare mainnet 计划，因此默认不会提交资金。`,
-    `你的 Policy 将此交易限制在允许资产、允许市场以及截至 ${new Date(policy.expiresAt).toLocaleString('zh-CN')} 的过期窗口内。`,
-    '这不是投资建议，也不保证收益或保护。',
+    `RiskPilot sees ${buildSignalPhrase(riskReport)} with $${portfolio.totalUsdValue.toFixed(2)} tracked value.`,
+    `The current recommendation is ${recommendation.title.toLowerCase()} with a $${recommendation.estimatedCostUsd.toFixed(2)} budget cap.`,
+    `This is a prepare-only mainnet plan for ${recommendation.deepbookAction.market}, so funds are not submitted by default.`,
+    `Your Policy constrains this action to allowed assets, allowed markets, and an expiry window ending ${new Date(policy.expiresAt).toLocaleString('en-US')}.`,
+    'This is not investment advice and does not guarantee returns or protection.',
   ].join(' ');
 
   return limitWords(text, 180);

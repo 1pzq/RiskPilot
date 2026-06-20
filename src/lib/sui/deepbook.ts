@@ -37,7 +37,7 @@ export type DeepBookExecutionResult = {
 
 function summarizeRequest(request: DeepBookExecutionRequest): string {
   const kind = request.kind === 'predict_binary' ? 'DeepBook Predict binary' : 'DeepBook spot';
-  return `${kind}：在 ${request.market} 上 ${request.side.toUpperCase()} ${request.amountUsd.toFixed(2)} USD 的 ${request.assetIn} 换入 ${request.assetOut}`;
+  return `${kind}: ${request.side.toUpperCase()} ${request.amountUsd.toFixed(2)} USD of ${request.assetIn} into ${request.assetOut} on ${request.market}`;
 }
 
 function venueForRequest(request: DeepBookExecutionRequest): 'DeepBook mainnet' | 'DeepBook Predict mainnet' {
@@ -68,7 +68,7 @@ export function prepareDeepBookTransaction(
     mode: 'prepare_mainnet',
     status: 'prepared',
     digest: `prep_${fingerprint.slice(0, 12)}`,
-    preparedTransactionSummary: `已为 ${walletAddress} 准备 mainnet 动作：${summary}。`,
+    preparedTransactionSummary: `Prepared mainnet action for ${walletAddress}: ${summary}.`,
     transactionBytes: `0x${fingerprint}`,
     adapter: {
       venue: venueForRequest(request),
@@ -78,10 +78,10 @@ export function prepareDeepBookTransaction(
     authority: {
       signer: 'none',
       payer: 'none',
-      signerLabel: '无钱包签名',
-      payerLabel: '无链上付款',
+      signerLabel: 'No wallet signature',
+      payerLabel: 'No on-chain payment',
       walletAddress,
-      note: '已准备的 mainnet 动作只记录意图；只有明确选择 Live 模式后，已连接钱包才会签名。',
+      note: 'Prepared mainnet action only records intent; the connected wallet signs only after live mode is explicitly selected.',
     },
   };
 }
@@ -100,13 +100,13 @@ export async function executeDeepBookTransaction(
       return {
         ...prepareDeepBookTransaction(request, walletAddress, requestedMode),
         warning:
-          '该动作尚未接入 Live mainnet 提交，已改为准备 mainnet 动作。',
+          'This action is not connected to live mainnet submission yet, so it was converted to a prepared mainnet action.',
       };
     }
 
     return prepareDeepBookTransaction(request, walletAddress, requestedMode);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'DeepBook 执行失败';
+    const message = error instanceof Error ? error.message : 'DeepBook execution failed';
 
     return {
       mode: requestedMode,

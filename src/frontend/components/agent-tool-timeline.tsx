@@ -37,14 +37,14 @@ function StatusIcon({ status }: { status: AgentToolStatus }) {
 
 function walletLabel(value: AgentToolStep['walletSignature']) {
   if (value === 'required') {
-    return '钱包签名';
+    return 'Wallet signature';
   }
 
   if (value === 'optional') {
-    return '可选签名';
+    return 'Optional signature';
   }
 
-  return '无需签名';
+  return 'No signature';
 }
 
 export function AgentToolTimeline({ steps, compact = false }: AgentToolTimelineProps) {

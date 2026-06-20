@@ -59,22 +59,22 @@ export function MonitorPanel({ rules, onToggleRule, compact = false }: MonitorPa
               onClick={() => onToggleRule(rule.id, !rule.enabled)}
             >
               {rule.enabled ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
-              <span>{rule.enabled ? '已启用' : '已停用'}</span>
+              <span>{rule.enabled ? 'Enabled' : 'Disabled'}</span>
             </button>
           </div>
 
           <div className="monitorMetaLine">
             <span className={`pill ${severityClass(rule.severity)}`}>{zhStatus(rule.severity)}</span>
-            <span>{rule.sourceRiskSignalId ?? '审计上下文'}</span>
+            <span>{rule.sourceRiskSignalId ?? 'Audit context'}</span>
           </div>
 
           <div className="monitorRuleBody">
             <div>
-              <span>条件</span>
+              <span>Condition</span>
               <p>{rule.condition}</p>
             </div>
             <div>
-              <span>触发</span>
+              <span>Trigger</span>
               <p>{rule.trigger}</p>
             </div>
           </div>
@@ -95,30 +95,30 @@ export function MonitorPanel({ rules, onToggleRule, compact = false }: MonitorPa
     <section className={`panel monitorPanel ${compact ? 'monitorPanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">风险观察</p>
-          <h2 className="panelTitle">Monitor 模式</h2>
+          <p className="eyebrow">Risk watch</p>
+          <h2 className="panelTitle">Monitor mode</h2>
         </div>
-        <span className="pill pillAccent">{enabledCount}/{rules.length} 已启用</span>
+        <span className="pill pillAccent">{enabledCount}/{rules.length} enabled</span>
       </div>
 
       {compact ? (
         <>
-          <div className="auditCompactStats" aria-label="Monitor 摘要">
+          <div className="auditCompactStats" aria-label="Monitor summary">
             <div>
-              <span>规则</span>
+              <span>Rules</span>
               <strong>{rules.length}</strong>
             </div>
             <div>
-              <span>已启用</span>
+              <span>Enabled</span>
               <strong>{enabledCount}</strong>
             </div>
             <div>
-              <span>高 / 严重</span>
+              <span>High / critical</span>
               <strong>{highCount} / {criticalCount}</strong>
             </div>
           </div>
           <details className="auditDetailDrawer">
-            <summary>Monitor 规则列表</summary>
+            <summary>Monitor rule list</summary>
             {ruleList}
           </details>
         </>

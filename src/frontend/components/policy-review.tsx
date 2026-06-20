@@ -29,7 +29,7 @@ function toLocalDateParts(value: string) {
 }
 
 function formatShortDate(date: Date): string {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
@@ -73,10 +73,10 @@ function setExpiryTime(base: string, part: 'hour' | 'minute', value: string): st
 
 function formatDateChip(daysFromNow: number): string {
   if (daysFromNow === 1) {
-    return '+1 天';
+    return '+1 day';
   }
 
-  return `+${daysFromNow} 天`;
+  return `+${daysFromNow} days`;
 }
 
 function parseUsdInput(value: string): number | null {
@@ -159,7 +159,7 @@ export function PolicyReview({
         <label className="field">
           <span className="fieldLabel">
             <Scale size={14} />
-            最大预算 USD
+            Max budget USD
           </span>
           <input
             className="input"
@@ -188,7 +188,7 @@ export function PolicyReview({
         <label className="field">
           <span className="fieldLabel">
             <Scale size={14} />
-            单笔上限 USD
+            Single-trade cap USD
           </span>
           <input
             className="input"
@@ -220,9 +220,9 @@ export function PolicyReview({
         <div className="field wide">
           <span className="fieldLabel">
             <Lock size={14} />
-            允许资产
+            Allowed assets
           </span>
-          <div className="optionGroup optionGroupWide policyChoiceGroup" role="group" aria-label="允许资产">
+          <div className="optionGroup optionGroupWide policyChoiceGroup" role="group" aria-label="Allowed assets">
             {selectableAssets.map((asset) => {
               const active = policy.allowedAssets.includes(asset);
 
@@ -249,9 +249,9 @@ export function PolicyReview({
         <div className="field wide">
           <span className="fieldLabel">
             <Lock size={14} />
-            允许市场
+            Allowed markets
           </span>
-          <div className="optionGroup optionGroupWide policyChoiceGroup" role="group" aria-label="允许市场">
+          <div className="optionGroup optionGroupWide policyChoiceGroup" role="group" aria-label="Allowed markets">
             {selectableMarkets.map((market) => {
               const active = policy.allowedMarkets.includes(market);
 
@@ -278,10 +278,10 @@ export function PolicyReview({
         <label className="field wide">
           <span className="fieldLabel">
             <CalendarClock size={14} />
-            过期时间
+            Expiry
           </span>
           <span className="dateControl">
-            <span className="dateQuickGroup" role="group" aria-label="过期日期">
+            <span className="dateQuickGroup" role="group" aria-label="Expiry date">
               {[1, 3, 7].map((days) => (
                 <button
                   className="optionChip dateChip"
@@ -300,9 +300,9 @@ export function PolicyReview({
               ))}
             </span>
 
-            <span className="timeControl" aria-label="过期时间">
+            <span className="timeControl" aria-label="Expiry time">
               <input
-                aria-label="过期小时"
+                aria-label="Expiry hour"
                 className="timeInput"
                 inputMode="numeric"
                 max="23"
@@ -318,7 +318,7 @@ export function PolicyReview({
               />
               <span className="timeColon">:</span>
               <input
-                aria-label="过期分钟"
+                aria-label="Expiry minute"
                 className="timeInput"
                 inputMode="numeric"
                 max="59"
@@ -349,7 +349,7 @@ export function PolicyReview({
             }
           />
           <span className="checkMark" aria-hidden="true" />
-          <span>需要人工确认</span>
+          <span>Require manual confirmation</span>
         </label>
       </div>
 
@@ -366,20 +366,20 @@ export function PolicyReview({
       <div className="policyTrustBoundary" aria-label="Policy trust boundary">
         <ShieldCheck size={16} />
         <div>
-          <span>当前执行边界</span>
-          <strong>App/服务端 shadow check</strong>
+          <span>Current execution boundary</span>
+          <strong>App/server shadow check</strong>
         </div>
         <div>
-          <span>防护对象</span>
-          <strong>客户端漂移、AI 文案越权、过期 Policy</strong>
+          <span>Protects against</span>
+          <strong>Client drift, AI wording overreach, expired Policy</strong>
         </div>
         <div>
-          <span>链上授权</span>
-          <strong>由 AgentPolicy object 承载</strong>
+          <span>On-chain authority</span>
+          <strong>Carried by AgentPolicy object</strong>
         </div>
         <div>
-          <span>Agent 姿态</span>
-          <strong>在授权边界内准备行动</strong>
+          <span>Agent posture</span>
+          <strong>Prepare actions within authorized boundaries</strong>
         </div>
       </div>
     </>
@@ -390,10 +390,10 @@ export function PolicyReview({
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Policy shadow check</p>
-          <h2 className="panelTitle">Agent 授权草案</h2>
+          <h2 className="panelTitle">Agent authorization draft</h2>
         </div>
         <span className={`pill ${policyCheck.ok ? 'pillSuccess' : 'pillDanger'}`}>
-          {policyCheck.ok ? '通过' : '已阻断'}
+          {policyCheck.ok ? 'Passed' : 'Blocked'}
         </span>
       </div>
 
@@ -401,26 +401,26 @@ export function PolicyReview({
         <>
           <div className="policyCompactGrid">
             <div>
-              <span>预算</span>
+              <span>Budget</span>
               <strong>${policy.maxBudgetUsd}</strong>
             </div>
             <div>
-              <span>单笔交易</span>
+              <span>Single trade</span>
               <strong>${policy.maxSingleTradeUsd}</strong>
             </div>
             <div>
-              <span>人工确认</span>
-              <strong>{policy.requireManualApproval ? '需要' : '关闭'}</strong>
+              <span>Manual confirmation</span>
+              <strong>{policy.requireManualApproval ? 'Required' : 'Off'}</strong>
             </div>
             <div>
-              <span>资产 / 市场</span>
+              <span>Assets / markets</span>
               <strong>
-                {policy.allowedAssets.join(', ') || '无'} / {policy.allowedMarkets.join(', ') || '无'}
+                {policy.allowedAssets.join(', ') || 'None'} / {policy.allowedMarkets.join(', ') || 'None'}
               </strong>
             </div>
           </div>
           <details className="policyEditorDrawer" open={!policyCheck.ok}>
-            <summary>{policyCheck.ok ? '编辑 Policy 边界' : '查看被阻断的 Policy 详情'}</summary>
+            <summary>{policyCheck.ok ? 'Edit Policy boundaries' : 'View blocked Policy details'}</summary>
             {policyControls}
           </details>
         </>

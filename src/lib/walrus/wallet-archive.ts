@@ -141,39 +141,39 @@ async function preflightWalletWalrusArchive({
 
   if (availableWalMist < requiredWalMist) {
     throw new Error(
-      `Walrus 归档需要约 ${formatMistToken(requiredWalMist, 9, 'WAL')}，当前钱包只有 ${formatMistToken(
+      `Walrus archive needs about ${formatMistToken(requiredWalMist, 9, 'WAL')}, but the current wallet only has ${formatMistToken(
         availableWalMist,
         9,
         'WAL',
-      )}。准备证明已经签好；补充 WAL 后回到 Remember 重新点击归档。`,
+      )}. The evidence proof is already signed; add WAL, then return to Remember and click archive again.`,
     );
   }
 
   if (!largestWalCoin || largestWalCoinBalance < requiredWalMist) {
     throw new Error(
       [
-        `Walrus 归档总共需要约 ${formatMistToken(requiredWalMist, 9, 'WAL')}，其中 storage ${formatMistToken(
+        `Walrus archive needs about ${formatMistToken(requiredWalMist, 9, 'WAL')} total, including storage ${formatMistToken(
           storageCost,
           9,
           'WAL',
-        )}、write ${formatMistToken(writeCost, 9, 'WAL')}。`,
-        `当前钱包总 WAL 是 ${formatMistToken(availableWalMist, 9, 'WAL')}，但最大的单个 WAL coin 只有 ${formatMistToken(
+        )} and write ${formatMistToken(writeCost, 9, 'WAL')}.`,
+        `The wallet has ${formatMistToken(availableWalMist, 9, 'WAL')} total WAL, but the largest single WAL coin is only ${formatMistToken(
           largestWalCoinBalance,
           9,
           'WAL',
-        )}。`,
-        '请先在钱包里合并 WAL coin，或换一个单个 WAL coin 足够大的钱包后再归档。',
+        )}.`,
+        'Merge WAL coins in the wallet first, or use a wallet with one large enough WAL coin before archiving again.',
       ].join(' '),
     );
   }
 
   if (availableSuiMist < WALRUS_MIN_SUI_BALANCE_MIST) {
     throw new Error(
-      `Walrus 归档还需要少量 SUI 支付 register/certify gas，建议至少保留 ${formatMistToken(
+      `Walrus archive also needs a small SUI balance for register/certify gas. Keep at least ${formatMistToken(
         WALRUS_MIN_SUI_BALANCE_MIST,
         9,
         'SUI',
-      )}。当前钱包只有 ${formatMistToken(availableSuiMist, 9, 'SUI')}。`,
+      )}. The current wallet only has ${formatMistToken(availableSuiMist, 9, 'SUI')}.`,
     );
   }
 
@@ -281,8 +281,8 @@ function isWalrusCoinSplitFailure(message: string): boolean {
 function toReadableWalrusArchiveError(error: string): string {
   if (isWalrusCoinSplitFailure(error)) {
     return [
-      'Walrus 注册付款失败：钱包总余额可能够，但用于付款的 WAL/SUI coin object 没有成功拆分。',
-      '准备证明已经签好，交易没有提交；可以先在钱包里合并 WAL coin 或换一个有单个大额 WAL coin 的钱包后重试归档。',
+      'Walrus register payment failed: wallet total balance may be enough, but the WAL/SUI coin object used for payment did not split successfully.',
+      'The evidence proof is already signed and no transaction was submitted. Merge WAL coins in the wallet or retry with a wallet that has one larger WAL coin.',
     ].join(' ');
   }
 
@@ -534,7 +534,7 @@ export async function storeAuditPackageWithConnectedWallet({
 }: WalletArchiveOptions): Promise<AuditStorageResult> {
   assertNoWhatIfPreviewPayload(
     auditPackage,
-    'What-if 预览 payload 不能提交到钱包支付的 Walrus 归档。',
+    'What-if preview payload cannot be submitted to wallet-paid Walrus archive.',
   );
 
   const payload = serializeAuditPackage(auditPackage);
@@ -545,7 +545,7 @@ export async function storeAuditPackageWithConnectedWallet({
   let registerRecoveryWarning: string | undefined;
   let certifyRecoveryWarning: string | undefined;
 
-  onProgress?.({ phase: 'encoded', message: '钱包 register 前正在编码 Walrus blob。' });
+  onProgress?.({ phase: 'encoded', message: 'Encoding Walrus blob before wallet register.' });
   const encoded = await flow.encode();
   const preflight = await preflightWalletWalrusArchive({
     client,
@@ -554,7 +554,7 @@ export async function storeAuditPackageWithConnectedWallet({
     payloadBytes,
   });
 
-  onProgress?.({ phase: 'registered', message: '钱包确认 1/2：注册 Walrus 存储。' });
+  onProgress?.({ phase: 'registered', message: 'Wallet confirmation 1/2: register Walrus storage.' });
   let registerResult: SuiTransactionBlockResponse;
 
   try {
@@ -575,7 +575,7 @@ export async function storeAuditPackageWithConnectedWallet({
 
     onProgress?.({
       phase: 'registered',
-      message: '钱包响应丢失。正在检查 Sui mainnet 上已支付的 Walrus register 交易。',
+      message: 'Wallet response was lost. Checking Sui mainnet for the paid Walrus register transaction.',
     });
     const recovered = await recoverLatestWalrusRegister({ suiClient, walletAddress, encoded, sdk });
 
@@ -609,7 +609,7 @@ export async function storeAuditPackageWithConnectedWallet({
 
   if (!registeredBlobObjectId) {
     throw new Error(
-      `Walrus register 已成功，但钱包响应里没有找到新建的 Walrus blob object。Register digest: ${registerResult.digest}`,
+      `Walrus register succeeded, but the wallet response did not include the created Walrus blob object. Register digest: ${registerResult.digest}`,
     );
   }
 
@@ -626,12 +626,12 @@ export async function storeAuditPackageWithConnectedWallet({
   });
   await uploadFlow.encode();
 
-  onProgress?.({ phase: 'uploaded', message: '已注册。正在上传审计包到 Walrus relay。' });
+  onProgress?.({ phase: 'uploaded', message: 'Registered. Uploading audit package to Walrus relay.' });
   const uploaded = await uploadFlow.upload({
     deletable: false,
   });
 
-  onProgress?.({ phase: 'certified', message: '钱包确认 2/2：认证 Walrus blob。' });
+  onProgress?.({ phase: 'certified', message: 'Wallet confirmation 2/2: certify Walrus blob.' });
   let certifyDigest: string | undefined;
 
   try {
@@ -653,7 +653,7 @@ export async function storeAuditPackageWithConnectedWallet({
 
     onProgress?.({
       phase: 'certified',
-      message: '钱包 certify 响应丢失。正在检查 Walrus 和 Sui mainnet 完成状态。',
+      message: 'Wallet certify response was lost. Checking Walrus and Sui mainnet completion state.',
     });
     const recovered = await recoverWalrusCertify({ client, suiClient, encoded, uploaded });
 
@@ -677,10 +677,10 @@ export async function storeAuditPackageWithConnectedWallet({
     sizeBytes: payloadBytes.byteLength,
     archivePayer: 'connected_wallet',
     archiveSigner: 'connected_wallet',
-    paymentLabel: '已连接钱包',
-    signerLabel: '已连接钱包',
+    paymentLabel: 'Connected wallet',
+    signerLabel: 'Connected wallet',
     walletPaysArchive: true,
-    custodyNote: '已连接钱包签名并支付了 Walrus register/certify 交易。',
+    custodyNote: 'Connected wallet signed and paid the Walrus register/certify transactions.',
     walletAddress,
     blobObjectId: certified.blobObjectId,
     registerDigest: registerResult.digest,
@@ -688,17 +688,17 @@ export async function storeAuditPackageWithConnectedWallet({
     uploadRelayUrl: WALRUS_WALLET_UPLOAD_RELAY_URL,
     checksum,
     warning: [
-      `Walrus 预检通过：约需 ${formatMistToken(preflight.requiredWalMist, 9, 'WAL')}，钱包有 ${formatMistToken(
+      `Walrus preflight passed: needs about ${formatMistToken(preflight.requiredWalMist, 9, 'WAL')}; wallet has ${formatMistToken(
         preflight.availableWalMist,
         9,
         'WAL',
-      )}；SUI gas 余额 ${formatMistToken(preflight.availableSuiMist, 9, 'SUI')}；付款 WAL coin ${preflight.walCoinObjectId.slice(
+      )}; SUI gas balance ${formatMistToken(preflight.availableSuiMist, 9, 'SUI')}; payment WAL coin ${preflight.walCoinObjectId.slice(
         0,
         10,
-      )}…。`,
+      )}...`,
       registerRecoveryWarning,
       certifyRecoveryWarning,
-      uploaded.certificate ? undefined : '客户端流程中的 Walrus 上传返回时没有 certificate。',
+      uploaded.certificate ? undefined : 'Walrus upload in the client flow returned without a certificate.',
     ]
       .filter(Boolean)
       .join(' ') || undefined,

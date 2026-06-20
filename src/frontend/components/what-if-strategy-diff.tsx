@@ -23,7 +23,7 @@ function deltaLabel(value: number, suffix = ''): string {
 }
 
 function policyLabel(policyCheck: PolicyCheckResult): string {
-  return policyCheck.ok ? '预览 Policy 放行' : '预览 Policy 已阻断';
+  return policyCheck.ok ? 'Preview Policy passed' : 'Preview Policy blocked';
 }
 
 export function WhatIfStrategyDiff({
@@ -44,28 +44,28 @@ export function WhatIfStrategyDiff({
     <section className="panel whatIfStrategyDiffPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">What-if 策略差异</p>
-          <h2 className="panelTitle">基准计划 vs 压力计划</h2>
+          <p className="eyebrow">What-if strategy diff</p>
+          <h2 className="panelTitle">Base plan vs stressed plan</h2>
         </div>
         <span className="pill pillAccent">
           <Sparkles size={14} />
-          仅预览
+          Preview only
         </span>
       </div>
 
       <div className="whatIfDiffHeader">
         <GitCompareArrows size={18} />
         <p>
-          {simulation.scenario.label} 会在预览中重新运行风险和策略引擎，但不会替换真实的 Prepare/归档 payload。
+          {simulation.scenario.label} reruns the risk and strategy engines in preview, but does not replace the real prepare/archive payload.
         </p>
       </div>
 
       <div className="whatIfDiffGrid">
         <div className="whatIfDiffColumn">
-          <span>基准</span>
+          <span>Base</span>
           <strong>{baseRecommendation.title}</strong>
           <small>
-            评分 {baseRisk.overallScore} · {formatRiskLevel(baseRisk.overallLevel)}
+            Score {baseRisk.overallScore} · {formatRiskLevel(baseRisk.overallLevel)}
           </small>
         </div>
         <div className="whatIfDiffArrow" aria-hidden="true">
@@ -75,45 +75,45 @@ export function WhatIfStrategyDiff({
           <span>What-if</span>
           <strong>{simulatedRecommendation.title}</strong>
           <small>
-            评分 {simulatedRisk.overallScore} · {formatRiskLevel(simulatedRisk.overallLevel)}
+            Score {simulatedRisk.overallScore} · {formatRiskLevel(simulatedRisk.overallLevel)}
           </small>
         </div>
       </div>
 
       <div className="ticketRows whatIfDiffRows">
         <div className="ticketRow">
-          <span>风险评分</span>
+          <span>Risk score</span>
           <strong>
             {baseRisk.overallScore} → {simulatedRisk.overallScore} ({deltaLabel(simulation.delta.scoreDelta)})
           </strong>
         </div>
         <div className="ticketRow">
-          <span>预估成本</span>
+          <span>Estimated cost</span>
           <strong>
             {formatUsd(baseRecommendation.estimatedCostUsd)} → {formatUsd(simulatedRecommendation.estimatedCostUsd)} (
             {formatUsd(costDelta)})
           </strong>
         </div>
         <div className="ticketRow">
-          <span>已准备规模</span>
+          <span>Prepared size</span>
           <strong>
             {formatUsd(baseRecommendation.deepbookAction.amountUsd)} →{' '}
             {formatUsd(simulatedRecommendation.deepbookAction.amountUsd)} ({formatUsd(sizeDelta)})
           </strong>
         </div>
         <div className="ticketRow">
-          <span>市场</span>
+          <span>Market</span>
           <strong>
             {baseRecommendation.deepbookAction.market} → {simulatedRecommendation.deepbookAction.market}
           </strong>
         </div>
         <div className="ticketRow">
-          <span>Policy 姿态</span>
+          <span>Policy posture</span>
           <strong>{policyLabel(simulatedPolicyCheck)}</strong>
         </div>
         <div className="ticketRow">
-          <span>Live 提交</span>
-          <strong>What-if 预览中未授权</strong>
+          <span>Live submit</span>
+          <strong>Not authorized in What-if preview</strong>
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export function WhatIfStrategyDiff({
           {marketChanged ? (
             <span>
               <RouteOff size={14} />
-              模拟路径中的市场路线已变化或降级。
+              Market route changed or downgraded in the simulated path.
             </span>
           ) : null}
           {simulation.delta.marketNote ? <span>{simulation.delta.marketNote}</span> : null}

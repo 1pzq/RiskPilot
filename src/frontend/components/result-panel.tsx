@@ -20,31 +20,31 @@ function formatExecutionMode(mode: string): string {
 }
 
 function resultTitle(mode: string): string {
-  return mode === 'mainnet' ? 'Mainnet 交易已归档' : 'Prepared 动作已归档';
+  return mode === 'mainnet' ? 'Mainnet transaction archived' : 'Prepared action archived';
 }
 
 function archivePaymentLabel(storageResult: AuditStorageResult): string {
-  return storageResult.paymentLabel ?? '已连接钱包';
+  return storageResult.paymentLabel ?? 'Connected wallet';
 }
 
 function ResultProofStrip({ auditPackage, storageResult }: { auditPackage: AuditPackage; storageResult: AuditStorageResult }) {
   return (
-    <div className="resultProofStrip" aria-label="核心归档证明">
+    <div className="resultProofStrip" aria-label="Core archive proof">
       <div>
         <span>Walrus blob</span>
         <strong>{storageResult.id}</strong>
       </div>
       <div>
         <span>Register tx</span>
-        <strong>{storageResult.registerDigest ?? '等待证据'}</strong>
+        <strong>{storageResult.registerDigest ?? 'Awaiting proof'}</strong>
       </div>
       <div>
         <span>Certify tx</span>
-        <strong>{storageResult.certifyDigest ?? '等待证据'}</strong>
+        <strong>{storageResult.certifyDigest ?? 'Awaiting proof'}</strong>
       </div>
       <div>
-        <span>最终指令</span>
-        <strong>{auditPackage.incidentRoom?.finalCommand ?? auditPackage.agentCouncil?.managerSummary ?? '未记录'}</strong>
+        <span>Final command</span>
+        <strong>{auditPackage.incidentRoom?.finalCommand ?? auditPackage.agentCouncil?.managerSummary ?? 'Not recorded'}</strong>
       </div>
     </div>
   );
@@ -52,7 +52,7 @@ function ResultProofStrip({ auditPackage, storageResult }: { auditPackage: Audit
 
 function ResultSummaryGrid({ auditPackage, storageResult }: { auditPackage: AuditPackage; storageResult: AuditStorageResult }) {
   return (
-    <div className="resultSummaryGrid" aria-label="归档摘要">
+    <div className="resultSummaryGrid" aria-label="Archive summary">
       <div>
         <span>Audit ID</span>
         <strong>{auditPackage.id}</strong>
@@ -65,10 +65,10 @@ function ResultSummaryGrid({ auditPackage, storageResult }: { auditPackage: Audi
       </div>
       <div>
         <span>Receipt</span>
-        <strong>{auditPackage.receiptProof ? '已 mint' : '可 mint'}</strong>
+        <strong>{auditPackage.receiptProof ? 'Minted' : 'Ready to mint'}</strong>
       </div>
       <div>
-        <span>归档支付方</span>
+        <span>Archive payer</span>
         <strong>{archivePaymentLabel(storageResult)}</strong>
       </div>
     </div>
@@ -80,26 +80,26 @@ function ResultEvidenceGrid({ auditPackage }: { auditPackage: AuditPackage }) {
   const intent = auditPackage.executionIntent;
 
   return (
-    <div className="resultEvidenceGrid" aria-label="签名与约束摘要">
+    <div className="resultEvidenceGrid" aria-label="Signature and boundary summary">
       <div>
-        <span>签名证明</span>
-        <strong>{signedEvidence?.messageDigest ?? signedEvidence?.bytesDigest ?? '等待签名'}</strong>
-        <small>{signedEvidence?.signedAt ? formatDateTime(signedEvidence.signedAt) : '签名后写入归档包'}</small>
+        <span>Evidence signature</span>
+        <strong>{signedEvidence?.messageDigest ?? signedEvidence?.bytesDigest ?? 'Awaiting signature'}</strong>
+        <small>{signedEvidence?.signedAt ? formatDateTime(signedEvidence.signedAt) : 'Written into the archive after signing'}</small>
       </div>
       <div>
         <span>Policy object</span>
-        <strong>{auditPackage.policyObjectId ? formatAddress(auditPackage.policyObjectId) : '未绑定'}</strong>
-        <small>{auditPackage.policyCheck.ok ? 'Policy 已通过' : 'Policy 已阻断'}</small>
+        <strong>{auditPackage.policyObjectId ? formatAddress(auditPackage.policyObjectId) : 'Not bound'}</strong>
+        <small>{auditPackage.policyCheck.ok ? 'Policy passed' : 'Policy blocked'}</small>
       </div>
       <div>
         <span>Execution intent</span>
-        <strong>{intent?.executionIntentId ?? signedEvidence?.executionIntentId ?? '未记录'}</strong>
-        <small>{intent ? `过期 ${formatDateTime(intent.intentExpiresAt)}` : '归档包未绑定 intent'}</small>
+        <strong>{intent?.executionIntentId ?? signedEvidence?.executionIntentId ?? 'Not recorded'}</strong>
+        <small>{intent ? `Expires ${formatDateTime(intent.intentExpiresAt)}` : 'Archive package is not bound to an intent'}</small>
       </div>
       <div>
-        <span>提交状态</span>
-        <strong>{signedEvidence?.submitted === false ? '未提交交易' : auditPackage.execution.status}</strong>
-        <small>默认只归档证据，不发起 Live 交易</small>
+        <span>Submit status</span>
+        <strong>{signedEvidence?.submitted === false ? 'Not submitted' : auditPackage.execution.status}</strong>
+        <small>Archives evidence only by default. No Live transaction is sent.</small>
       </div>
     </div>
   );
@@ -124,7 +124,7 @@ export function ResultPanel({
     <section className="panel resultPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">准备结果</p>
+          <p className="eyebrow">Prepare result</p>
           <h2 className="panelTitle">{resultTitle(auditPackage.execution.mode)}</h2>
         </div>
         <span className="pill pillSuccess">
@@ -136,7 +136,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <ShieldCheck size={14} />
-            执行
+            Execution
           </div>
           <div className="metricValue">{formatExecutionMode(executionMode)}</div>
           <div className="metricSub">{executionStatus}</div>
@@ -144,7 +144,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <CheckCircle2 size={14} />
-            之前
+            Before
           </div>
           <div className="metricValue">
             {archivedRiskBefore.overallScore}{' '}
@@ -154,7 +154,7 @@ export function ResultPanel({
         <div className="resultMetric">
           <div className="metricLabel">
             <CheckCircle2 size={14} />
-            之后估算
+            Estimated after
           </div>
           <div className="metricValue">
             {archivedRiskAfter ? archivedRiskAfter.overallScore : '—'}{' '}

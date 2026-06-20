@@ -13,15 +13,15 @@ type AuditPackageExplorerProps = {
 };
 
 function storageLabel(storage: AuditStorageResult): string {
-  return storage.provider ?? 'Walrus 归档';
+  return storage.provider ?? 'Walrus archive';
 }
 
 function archivePaymentLabel(storage: AuditStorageResult): string {
-  return storage.paymentLabel ?? '已连接钱包';
+  return storage.paymentLabel ?? 'Connected wallet';
 }
 
 function archiveSignerLabel(storage: AuditStorageResult): string {
-  return storage.signerLabel ?? '已连接钱包';
+  return storage.signerLabel ?? 'Connected wallet';
 }
 
 type EvidenceAuthority = 'deterministic' | 'ai_wording' | 'chain_proof';
@@ -37,14 +37,14 @@ type EvidenceMapRow = {
 
 function authorityLabel(authority: EvidenceAuthority): string {
   if (authority === 'ai_wording') {
-    return 'AI 文案';
+    return 'AI wording';
   }
 
   if (authority === 'chain_proof') {
-    return '链上证明';
+    return 'Chain proof';
   }
 
-  return '确定性规则';
+  return 'Deterministic rules';
 }
 
 function authorityClass(authority: EvidenceAuthority): string {
@@ -61,7 +61,7 @@ function authorityClass(authority: EvidenceAuthority): string {
 
 function optionalValue(value: string | number | undefined | null): string {
   if (value === undefined || value === null || value === '') {
-    return '未记录';
+    return 'Not recorded';
   }
 
   return String(value);
@@ -76,124 +76,124 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
 
   return [
     {
-      group: '钱包证据',
-      label: '主体钱包',
+      group: 'Wallet evidence',
+      label: 'Subject wallet',
       value: auditPackage.walletAddress,
       evidenceRef: 'walletAddress',
       authority: 'deterministic',
       copyable: true,
     },
     {
-      group: '钱包证据',
-      label: '余额',
-      value: `${auditPackage.portfolioSnapshot.assets.length} 个资产 · ${formatUsd(auditPackage.portfolioSnapshot.totalUsdValue)}`,
+      group: 'Wallet evidence',
+      label: 'Balances',
+      value: `${auditPackage.portfolioSnapshot.assets.length} assets · ${formatUsd(auditPackage.portfolioSnapshot.totalUsdValue)}`,
       evidenceRef: 'portfolioSnapshot.assets',
       authority: 'deterministic',
     },
     {
-      group: '钱包证据',
-      label: '已拥有对象扫描',
+      group: 'Wallet evidence',
+      label: 'Owned object scan',
       value: walletScan
-        ? `${walletScan.totalObjects} 个对象 · ${walletScan.defiCandidates} 个 DeFi 候选`
-        : '本地样例或扫描未记录',
+        ? `${walletScan.totalObjects} objects · ${walletScan.defiCandidates} DeFi candidates`
+        : 'Local sample or scan not recorded',
       evidenceRef: 'portfolioSnapshot.walletScan',
       authority: 'deterministic',
     },
     {
-      group: '确定性风险',
-      label: '风险评分',
+      group: 'Deterministic risk',
+      label: 'Risk score',
       value: `${auditPackage.riskReportBefore.overallScore}/${auditPackage.riskReportBefore.overallLevel}`,
       evidenceRef: 'riskReportBefore.overallScore',
       authority: 'deterministic',
     },
     {
-      group: '确定性风险',
-      label: '信号',
+      group: 'Deterministic risk',
+      label: 'Signals',
       value: `${auditPackage.riskReportBefore.signals.length} signals`,
       evidenceRef: 'riskReportBefore.signals',
       authority: 'deterministic',
     },
     {
-      group: '确定性风险',
-      label: '场景',
+      group: 'Deterministic risk',
+      label: 'Scenarios',
       value: `${auditPackage.riskReportBefore.scenarioResults.length} scenario checks`,
       evidenceRef: 'riskReportBefore.scenarioResults',
       authority: 'deterministic',
     },
     {
-      group: '策略证据',
-      label: '推荐',
+      group: 'Strategy evidence',
+      label: 'Recommendation',
       value: `${auditPackage.recommendation.type} · ${auditPackage.recommendation.deepbookAction.mode}`,
       evidenceRef: 'recommendation',
       authority: 'deterministic',
     },
     {
-      group: '策略证据',
-      label: '动作边界',
+      group: 'Strategy evidence',
+      label: 'Action boundary',
       value: `${auditPackage.recommendation.deepbookAction.market} · ${formatUsd(auditPackage.recommendation.estimatedCostUsd)}`,
       evidenceRef: 'recommendation.deepbookAction',
       authority: 'deterministic',
     },
     {
-      group: 'Policy 证据',
+      group: 'Policy evidence',
       label: 'Policy Gate',
-      value: auditPackage.policyCheck.ok ? '通过' : `${auditPackage.policyCheck.errors.length} 个错误`,
+      value: auditPackage.policyCheck.ok ? 'Passed' : `${auditPackage.policyCheck.errors.length} errors`,
       evidenceRef: 'policyCheck',
       authority: 'deterministic',
     },
     {
-      group: 'Policy 证据',
-      label: '意图摘要',
-      value: intent?.executionIntentId ?? '未记录',
+      group: 'Policy evidence',
+      label: 'Intent digest',
+      value: intent?.executionIntentId ?? 'Not recorded',
       evidenceRef: 'executionIntent',
       authority: 'deterministic',
       copyable: Boolean(intent?.executionIntentId),
     },
     {
-      group: '市场证据',
-      label: 'DeepBook 路线',
+      group: 'Market evidence',
+      label: 'DeepBook route',
       value: `${marketEvidence.poolKey} · ${marketEvidence.routeStatus ?? 'unknown'} · ${marketEvidence.status}`,
       evidenceRef: 'deepbookMarketEvidence',
       authority: 'deterministic',
     },
     {
-      group: '市场证据',
-      label: '池证明',
-      value: `${optionalValue(marketEvidence.poolAddress)} · 白名单 ${marketEvidence.whitelistStatus ?? '未知'}`,
+      group: 'Market evidence',
+      label: 'Pool proof',
+      value: `${optionalValue(marketEvidence.poolAddress)} · whitelist ${marketEvidence.whitelistStatus ?? 'unknown'}`,
       evidenceRef: 'deepbookMarketEvidence.poolAddress',
       authority: 'chain_proof',
       copyable: Boolean(marketEvidence.poolAddress),
     },
     {
-      group: 'Agent 证据',
-      label: 'Incident 指令',
+      group: 'Agent evidence',
+      label: 'Incident command',
       value: incidentRoom?.finalCommand ?? 'not recorded',
       evidenceRef: 'incidentRoom.finalCommand',
       authority: 'deterministic',
     },
     {
-      group: 'Agent 证据',
-      label: '交接',
+      group: 'Agent evidence',
+      label: 'Handoffs',
       value: incidentRoom ? `${incidentRoom.handoffs.length} handoffs · locked ${incidentRoom.tasks.filter((task) => task.locked).length}/${incidentRoom.tasks.length}` : 'not recorded',
       evidenceRef: 'incidentRoom.handoffs',
       authority: 'deterministic',
     },
     {
-      group: 'AI 文案',
-      label: '解释',
+      group: 'AI wording',
+      label: 'Explanation',
       value: `${auditPackage.aiExplanation.slice(0, 96)}${auditPackage.aiExplanation.length > 96 ? '...' : ''}`,
       evidenceRef: 'aiExplanation',
       authority: 'ai_wording',
     },
     {
-      group: 'AI 文案',
-      label: 'Council 摘要',
+      group: 'AI wording',
+      label: 'Council summary',
       value: agentCouncil?.managerSummary ?? 'not recorded',
       evidenceRef: 'agentCouncil.managerSummary',
       authority: agentCouncil?.mode === 'openai' || agentCouncil?.mode === 'deepseek' ? 'ai_wording' : 'deterministic',
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Walrus blob',
       value: storageResult.id,
       evidenceRef: 'storage.id',
@@ -201,7 +201,7 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
       copyable: true,
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Blob object',
       value: storageResult.blobObjectId ?? 'pending',
       evidenceRef: 'storage.blobObjectId',
@@ -209,7 +209,7 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
       copyable: Boolean(storageResult.blobObjectId),
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Register tx',
       value: storageResult.registerDigest ?? 'pending',
       evidenceRef: 'storage.registerDigest',
@@ -217,7 +217,7 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
       copyable: Boolean(storageResult.registerDigest),
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Certify tx',
       value: storageResult.certifyDigest ?? 'pending',
       evidenceRef: 'storage.certifyDigest',
@@ -225,7 +225,7 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
       copyable: Boolean(storageResult.certifyDigest),
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Checksum',
       value: storageResult.checksum ?? 'not recorded',
       evidenceRef: 'storage.checksum',
@@ -233,7 +233,7 @@ function buildEvidenceMap(auditPackage: AuditPackage, storageResult: AuditStorag
       copyable: Boolean(storageResult.checksum),
     },
     {
-      group: '归档证据',
+      group: 'Archive evidence',
       label: 'Readback URL',
       value: storageResult.url ?? 'not recorded',
       evidenceRef: 'storage.url',
@@ -250,7 +250,7 @@ function EvidenceMapCopyButton({ value }: { value: string }) {
     <button
       className="evidenceMapCopyButton"
       type="button"
-      title="复制证据值"
+      title="Copy evidence value"
       onClick={() => {
         void navigator.clipboard?.writeText(value);
         setCopied(true);
@@ -274,8 +274,8 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
     <section className="panel auditPackageExplorerPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">审计包浏览器</p>
-          <h2 className="panelTitle">可读的证据包</h2>
+          <p className="eyebrow">Audit package explorer</p>
+          <h2 className="panelTitle">Readable evidence package</h2>
         </div>
         <span className="pill pillSuccess">
           <Archive size={14} />
@@ -287,14 +287,14 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
         <div className="packageExplorerCard packageExplorerCardBlue">
           <span>
             <ShieldCheck size={14} />
-            风险前后
+            Risk before / after
           </span>
           <strong>
-            {before.overallScore} {after ? `→ ${after.overallScore}` : '→ 待定'}
+            {before.overallScore} {after ? `→ ${after.overallScore}` : '→ pending'}
           </strong>
           <small>
             {formatRiskLevel(before.overallLevel)}
-            {after ? ` 到 ${formatRiskLevel(after.overallLevel)}` : ''}
+            {after ? ` to ${formatRiskLevel(after.overallLevel)}` : ''}
           </small>
         </div>
         <div className="packageExplorerCard packageExplorerCardMint">
@@ -302,29 +302,29 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
             <CheckCircle2 size={14} />
             Policy Gate
           </span>
-          <strong>{auditPackage.policyCheck.ok ? '通过' : '已阻断'}</strong>
-          <small>{auditPackage.policy.requireManualApproval ? '需要人工确认' : '人工确认关闭'}</small>
+          <strong>{auditPackage.policyCheck.ok ? 'Passed' : 'Blocked'}</strong>
+          <small>{auditPackage.policy.requireManualApproval ? 'Manual approval required' : 'Manual approval off'}</small>
         </div>
         <div className="packageExplorerCard packageExplorerCardYellow">
           <span>
             <BrainCircuit size={14} />
-            Agent 证明
+            Agent proof
           </span>
           <strong>
-            {incidentTasks} 个任务 · {councilAgents} 个 Agent
+            {incidentTasks} tasks · {councilAgents} Agents
           </strong>
-          <small>{auditPackage.incidentRoom?.finalCommand ?? auditPackage.agentCouncil?.managerSummary ?? '没有 Agent 载荷'}</small>
+          <small>{auditPackage.incidentRoom?.finalCommand ?? auditPackage.agentCouncil?.managerSummary ?? 'No Agent payload'}</small>
         </div>
         <div className="packageExplorerCard packageExplorerCardPurple">
           <span>
             <DatabaseZap size={14} />
-            市场证据
+            Market evidence
           </span>
-          <strong>{marketEvidence.status === 'ready' ? marketEvidence.poolKey : '不可用'}</strong>
+          <strong>{marketEvidence.status === 'ready' ? marketEvidence.poolKey : 'Unavailable'}</strong>
           <small>
             {marketEvidence.status === 'ready'
               ? `mid ${marketEvidence.midPrice ?? 'n/a'}`
-              : marketEvidence.error ?? marketEvidence.fallbackReason ?? '快照未就绪'}
+              : marketEvidence.error ?? marketEvidence.fallbackReason ?? 'Snapshot not ready'}
           </small>
         </div>
       </div>
@@ -339,57 +339,57 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
           <strong>{storageResult.id}</strong>
         </div>
         <div className="ticketRow">
-          <span>执行</span>
+          <span>Execution</span>
           <strong>
             {auditPackage.execution.mode} · {auditPackage.execution.status}
           </strong>
         </div>
         <div className="ticketRow">
-          <span>意图</span>
-          <strong>{auditPackage.executionIntent?.executionIntentId ?? '未记录'}</strong>
+          <span>Intent</span>
+          <strong>{auditPackage.executionIntent?.executionIntentId ?? 'Not recorded'}</strong>
         </div>
         <div className="ticketRow">
           <span>Policy digest</span>
-          <strong>{auditPackage.executionIntent?.policyDigest.slice(0, 18) ?? '未记录'}</strong>
+          <strong>{auditPackage.executionIntent?.policyDigest.slice(0, 18) ?? 'Not recorded'}</strong>
         </div>
         <div className="ticketRow">
-          <span>推荐</span>
+          <span>Recommendation</span>
           <strong>
             {auditPackage.recommendation.title} · {formatUsd(auditPackage.recommendation.estimatedCostUsd)}
           </strong>
         </div>
         <div className="ticketRow">
-          <span>主体钱包</span>
+          <span>Subject wallet</span>
           <strong>{formatAddress(auditPackage.walletAddress)}</strong>
         </div>
         <div className="ticketRow">
-          <span>归档支付方</span>
+          <span>Archive payer</span>
           <strong>{archivePaymentLabel(storageResult)}</strong>
         </div>
         <div className="ticketRow">
-          <span>归档签名者</span>
+          <span>Archive signer</span>
           <strong>{archiveSignerLabel(storageResult)}</strong>
         </div>
         <div className="ticketRow">
           <span>Checksum</span>
-          <strong>{storageResult.checksum ? storageResult.checksum.slice(0, 18) : '待处理'}</strong>
+          <strong>{storageResult.checksum ? storageResult.checksum.slice(0, 18) : 'Pending'}</strong>
         </div>
       </div>
 
       <div className="packageExplorerBoundary">
         <FileJson2 size={15} />
         <span>
-          Explorer 会读取主体钱包的已归档审计包。Walrus 归档支付和认证都来自已连接钱包；后端或本地钱包都不是默认支付方。
+          Explorer reads the archived audit package for the subject wallet. Walrus archive payment and certification come from the connected wallet; backend or local wallets are not the default payer.
         </span>
       </div>
 
-      <div className="evidenceMapPanel" aria-label="审计包证据映射">
+      <div className="evidenceMapPanel" aria-label="Audit package evidence map">
         <div className="evidenceMapHeader">
           <div>
-            <p className="eyebrow">证据映射</p>
-            <h3>按字段展示权限</h3>
+            <p className="eyebrow">Evidence map</p>
+            <h3>Field-level proof</h3>
           </div>
-          <span className="pill pillAccent">引用可见</span>
+          <span className="pill pillAccent">Refs visible</span>
         </div>
         <div className="evidenceMapGrid">
           {evidenceMap.map((row) => (
@@ -411,7 +411,7 @@ export function AuditPackageExplorer({ auditPackage, storageResult }: AuditPacka
         </div>
       </div>
 
-      <JsonViewer title="Explorer 源 JSON" value={auditPackage} />
+      <JsonViewer title="Explorer source JSON" value={auditPackage} />
     </section>
   );
 }

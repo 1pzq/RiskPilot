@@ -173,7 +173,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 }
 
 function archivePaymentLabel(storage: AuditStorageResult | null): string {
-  return storage?.paymentLabel ?? '需要连接钱包';
+  return storage?.paymentLabel ?? 'Connect wallet required';
 }
 
 type RiskPilotAppProps = {
@@ -197,7 +197,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
   const signPersonalMessage = useSignPersonalMessage();
 
   const walletAddress = account?.address ?? '0xDEMO';
-  const connectionStatus = account ? `已连接 ${formatAddress(account.address)}` : '需要钱包';
+  const connectionStatus = account ? `Connected ${formatAddress(account.address)}` : 'Wallet required';
   const sourceLabel = account ? 'mainnet wallet' : 'local sample';
 
   const [walletAssets, setWalletAssets] = useState<AssetBalance[] | null>(null);
@@ -1174,7 +1174,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     setPreparedPtbError('');
     resetAiPreviewState();
     setExecutionMode('pending');
-    setExecutionStatus('等待确认');
+    setExecutionStatus('Awaiting confirmation');
     setExecuteWarning('');
   }, [resetAiPreviewState]);
 
@@ -1185,17 +1185,17 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
 
   const mintAgentPolicyObject = useCallback(async () => {
     if (!account?.address) {
-      setAgentPolicyWarning('Mint AgentPolicy 前请先连接 Sui mainnet 钱包。');
+      setAgentPolicyWarning('Connect a Sui mainnet wallet before minting AgentPolicy.');
       return;
     }
 
     if (!AGENT_POLICY_PACKAGE_ID) {
-      setAgentPolicyWarning('NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID 或 NEXT_PUBLIC_RECEIPT_PACKAGE_ID 未配置。');
+      setAgentPolicyWarning('NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID or NEXT_PUBLIC_RECEIPT_PACKAGE_ID is not configured.');
       return;
     }
 
     if (!policyCheck.ok) {
-      setAgentPolicyWarning('当前 app/server Policy Gate 未通过，不能 mint 链上授权对象。');
+      setAgentPolicyWarning('The current app/server Policy Gate has not passed, so the on-chain authorization object cannot be minted.');
       return;
     }
 
@@ -1208,7 +1208,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       const objectId = extractAgentPolicyObjectId(result.objectChanges);
 
       if (!objectId) {
-        throw new Error('钱包响应中没有找到新建的 AgentPolicy object。');
+        throw new Error('No newly created AgentPolicy object was found in the wallet response.');
       }
 
       const mintedPolicyObject = buildAgentPolicyObjectFromPolicy({
@@ -1232,7 +1232,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       setArchiveProgressPhase('idle');
       resetAiPreviewState();
     } catch (error) {
-      setAgentPolicyWarning(error instanceof Error ? error.message : 'AgentPolicy mint 失败。');
+      setAgentPolicyWarning(error instanceof Error ? error.message : 'AgentPolicy mint failed.');
     } finally {
       setAgentPolicyMinting(false);
     }
@@ -1320,7 +1320,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
 
     try {
       if (!account?.address) {
-        throw new Error('准备和归档前请先连接 Sui mainnet 钱包。付费归档存储必须由已连接钱包签名。');
+        throw new Error('Connect a Sui mainnet wallet before preparing and archiving. Paid archive storage must be signed by the connected wallet.');
       }
 
       if (!preparedPtb.eligible || !preparedPtb.plan) {
@@ -1366,7 +1366,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
       const currentPolicy = policyRef.current ?? effectivePolicy;
 
       if (new Date(currentExecutionIntent.intentExpiresAt).getTime() <= Date.now()) {
-        throw new Error('Execution intent 已过期。请重新检查策略以刷新锁定的 digests。');
+        throw new Error('Execution intent expired. Re-check the strategy to refresh locked digests.');
       }
 
       const currentExplanation =
@@ -1398,10 +1398,10 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
         authority: {
           signer: 'connected_wallet',
           payer: 'none',
-          signerLabel: '已连接钱包已签名准备证明',
-          payerLabel: '未提交，无 gas 支付',
+          signerLabel: 'Connected wallet signed the evidence message',
+          payerLabel: 'Not submitted, no gas paid',
           walletAddress: account.address,
-          note: '钱包只签名 evidence message；RiskPilot 不提交交易、不转出资产，Walrus 归档记录签名证据。',
+          note: 'Wallet signs an evidence message only; RiskPilot does not submit a transaction or move assets. Walrus archives the signed proof.',
         },
       };
 
@@ -1506,7 +1506,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     } catch (error) {
       setArchiveProgressPhase('failed');
       setExecuteWarning(
-        error instanceof Error ? error.message : '执行或审计准备失败。',
+        error instanceof Error ? error.message : 'Execution or audit preparation failed.',
       );
       setExecutionMode('failed');
       setExecutionStatus('failed');
@@ -1542,14 +1542,14 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
 
   const liveModeFallbackWarning =
     selectedExecutionMode === 'mainnet' && !liveDeepBookGate.canSubmitLive
-      ? `Live mainnet 已阻断：${liveDeepBookGate.reasons
+      ? `Live mainnet blocked: ${liveDeepBookGate.reasons
           .filter((reason) => reason !== 'Select live mainnet explicitly.')
-          .join(' ')} RiskPilot 会准备动作，但不会提交 Live。`
+          .join(' ')} RiskPilot prepares the action but does not submit Live.`
       : null;
   const warnings = [
     walletWarning,
     agentPolicyWarning,
-    executionIntentStatus === 'error' ? `Execution intent 锁定失败：${executionIntentError}` : null,
+    executionIntentStatus === 'error' ? `Execution intent lock failed: ${executionIntentError}` : null,
     liveModeFallbackWarning,
     executeWarning,
   ].filter(Boolean) as string[];
@@ -1581,83 +1581,83 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
   const sectionMeta: Record<DemoSection, { eyebrow: string; title: string; copy: string }> = {
     overview: {
       eyebrow: 'Observe',
-      title: '读取钱包风险',
-      copy: '动作：读取 Sui mainnet 钱包资产与对象。结果：把风险暴露转成可检查证据。安全意义：没有钱包确认时，RiskPilot 不会移动任何资产。',
+      title: 'Read wallet risk',
+      copy: 'Reads Sui mainnet wallet assets and objects, then turns exposure into checkable evidence. No signature is requested and no assets move.',
     },
     risk: {
       eyebrow: 'Plan',
-      title: '生成风险应对方案',
-      copy: '场景：Sui 风险上升时，普通 Agent 可能直接动作；RiskPilot 只生成受 Policy 约束的建议，并等待后续钱包确认。',
+      title: 'Generate risk response',
+      copy: 'When Sui risk rises, AI proposes a response but has no execution authority. RiskPilot keeps the recommendation bound by Policy and wallet confirmation.',
     },
     strategy: {
       eyebrow: 'Verify Policy',
-      title: '检查授权边界',
-      copy: '动作：检查预算、市场、资产和过期时间。结果：Policy Gate 先给出通过或阻断。安全意义：Agent 必须先证明自己没有越权。',
+      title: 'Check authorization boundaries',
+      copy: 'Policy checks budget, market, asset, and expiry boundaries before action. The Agent must prove it stays inside the authorized lane.',
     },
     audit: {
       eyebrow: 'Act',
-      title: '准备 PTB 与证明',
-      copy: '动作：准备可复核的 PTB、监控规则和审计说明。结果：得到可签名、可检查的行动包。安全意义：没有钱包确认时不会提交交易。',
+      title: 'Prepare PTB proof',
+      copy: 'Prepares reviewable PTB proof, monitor rules, and audit notes. The action package can be signed as evidence, but no transaction is submitted.',
     },
     prepare: {
       eyebrow: 'Remember',
-      title: '归档审计记忆',
-      copy: '动作：把决策、签名和证据写入 Walrus。结果：生成可回放的 StrategyReceipt 记忆。安全意义：后续可以追溯 Agent 为什么这么做。',
+      title: 'Archive audit memory',
+      copy: 'Archives decisions, signatures, and Walrus proof into replayable audit memory so reviewers can verify why the Agent acted.',
     },
   };
 
   const stageCue: Record<DemoSection, { proof: string; evidence: string; boundary: string }> = {
     overview: {
-      proof: account ? '证明钱包真实风险上下文' : '证明真实钱包数据只在连接后读取',
-      evidence: account ? 'Mainnet 余额、已拥有对象、风险信号' : 'Walrus 样例证明轨 + 安全本地检查',
-      boundary: '不请求签名，不移动资产',
+      proof: account ? 'Shows real wallet risk context' : 'Shows real wallet data is read only after connection',
+      evidence: account ? 'Mainnet balances, owned objects, risk signals' : 'Sample Walrus proof rail + safe local checks',
+      boundary: 'No signature request. No asset movement.',
     },
     risk: {
-      proof: '证明风险上升时 Agent 只生成建议',
-      evidence: `评分 ${riskReport.overallScore}/100 · ${riskReport.signals.length} 个信号 · What-if 预览`,
-      boundary: 'AI 没有执行权限，不直接交易',
+      proof: 'Shows the Agent only proposes a response when risk rises',
+      evidence: `Score ${riskReport.overallScore}/100 · ${riskReport.signals.length} signals · What-if preview`,
+      boundary: 'AI has no execution authority and does not trade directly.',
     },
     strategy: {
-      proof: agentPolicyObject ? '证明链上授权对象已存在' : '证明 Policy 会先阻断越权',
+      proof: agentPolicyObject ? 'Shows the on-chain authorization object exists' : 'Shows Policy blocks overreach before action',
       evidence: agentPolicyObject ? formatAddress(agentPolicyObject.objectId) : `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.estimatedCostUsd)}`,
-      boundary: agentPolicyObjectCheck.ok ? '只允许 Policy 内动作' : '未通过前不能继续执行',
+      boundary: agentPolicyObjectCheck.ok ? 'Only Policy-bound actions are allowed' : 'No execution before Policy passes',
     },
     audit: {
-      proof: '证明行动包可复核但未提交',
-      evidence: `${activeWhatIfIncidentRoomDecision.tasks.length} 个复核任务 · prepared PTB`,
-      boundary: '只准备 PTB，不替用户提交交易',
+      proof: 'Shows the action package is reviewable but not submitted',
+      evidence: `${activeWhatIfIncidentRoomDecision.tasks.length} review tasks · prepared PTB`,
+      boundary: 'Prepares PTB proof only. Does not submit for the user.',
     },
     prepare: {
-      proof: '证明本次决策可以被回放',
-      evidence: auditStorage ? 'Walrus blob、register/certify、StrategyReceipt' : '等待钱包签名和 Walrus 归档',
-      boundary: signedPreparedPtbForCurrentIntent ? '归档签名准备证明作为未提交证据' : '没有签名就不生成最终记忆',
+      proof: 'Shows this decision can be replayed',
+      evidence: auditStorage ? 'Walrus blob, register/certify, StrategyReceipt' : 'Awaiting wallet signature and Walrus archive',
+      boundary: signedPreparedPtbForCurrentIntent ? 'Archives signed evidence as not-submitted proof' : 'No final memory without a signature',
     },
   };
 
   const stageOutcome: Record<DemoSection, { label: string; value: string; tone: 'safe' | 'watch' | 'proof' }> = {
     overview: {
-      label: '当前结论',
-      value: account ? '已接入真实钱包上下文' : '未连接钱包时只展示样例和安全检查',
+      label: 'Current answer',
+      value: account ? 'Real wallet context is connected' : 'Without a wallet, only sample data and safe checks are shown',
       tone: account ? 'safe' : 'watch',
     },
     risk: {
-      label: '核心结果',
-      value: 'Sui 风险上升时，AI 已给建议，但无执行权限',
+      label: 'Core result',
+      value: 'Sui risk rose. AI proposed a response, but has no execution authority.',
       tone: 'proof',
     },
     strategy: {
-      label: '安全闸门',
-      value: policyCheck.ok ? 'Policy 已通过，可以进入准备阶段' : 'Policy 已阻断，Agent 不能越权',
+      label: 'Safety gate',
+      value: policyCheck.ok ? 'Policy passed. Prepare can continue.' : 'Policy blocked. The Agent cannot overreach.',
       tone: policyCheck.ok ? 'safe' : 'watch',
     },
     audit: {
-      label: '执行边界',
-      value: signedPreparedPtbForCurrentIntent ? '准备证明已签名，交易仍未提交' : '只准备计划，不提交交易',
+      label: 'Execution boundary',
+      value: signedPreparedPtbForCurrentIntent ? 'Evidence signed. Transaction still not submitted.' : 'Prepared only. Not submitted.',
       tone: 'proof',
     },
     prepare: {
-      label: '可验证记忆',
-      value: auditStorage ? 'Walrus 归档已生成，可回放审计' : '等待钱包签名后写入 Walrus',
+      label: 'Verifiable memory',
+      value: auditStorage ? 'Walrus archive created. Audit can be replayed.' : 'Awaiting wallet signature before writing to Walrus.',
       tone: auditStorage ? 'safe' : 'watch',
     },
   };
@@ -1797,7 +1797,7 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
     }
 
     const prepareButtonLabel = liveSubmitSelected
-      ? '提交真实 Sui mainnet 交易并归档'
+      ? 'Submit real Sui mainnet transaction and archive'
       : 'Archive signed prepared PTB';
     return (
       <div className="stageGrid stageGridPrepare">
@@ -1863,14 +1863,14 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
                   executionIntentStatus !== 'locked'
                 }
               >
-                {executionBusy ? '准备中…' : prepareButtonLabel}
+                {executionBusy ? 'Preparing...' : prepareButtonLabel}
               </button>
             </div>
           </div>
 
           {!account ? (
             <div className="warningStrip inline">
-              Prepare / 归档前请先连接 Sui mainnet 钱包。Walrus 存储没有后端或本地钱包支付方。
+              Connect a Sui mainnet wallet before Prepare / archive. Walrus storage has no backend or local-wallet payer.
             </div>
           ) : null}
 
@@ -1937,17 +1937,17 @@ export function RiskPilotApp({ initialSection = 'overview' }: RiskPilotAppProps)
               <span>{stageOutcome[visibleSection].label}</span>
               <strong>{stageOutcome[visibleSection].value}</strong>
             </div>
-            <div className="stageCue" aria-label="演示证据点">
+            <div className="stageCue" aria-label="Demo proof points">
               <div className="stageCueItem stageCueProof">
-                <span>这一页证明什么</span>
+                <span>What this proves</span>
                 <strong>{stageCue[visibleSection].proof}</strong>
               </div>
               <div className="stageCueItem stageCueEvidence">
-                <span>用什么证明</span>
+                <span>Evidence used</span>
                 <strong>{stageCue[visibleSection].evidence}</strong>
               </div>
               <div className="stageCueItem stageCueBoundary">
-                <span>不做什么</span>
+                <span>What it will not do</span>
                 <strong>{stageCue[visibleSection].boundary}</strong>
               </div>
             </div>

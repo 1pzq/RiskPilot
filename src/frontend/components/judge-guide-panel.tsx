@@ -23,14 +23,14 @@ type JudgeGuidePanelProps = {
 
 function walletLabel(value: JudgeGuideStep['walletSignature']) {
   if (value === 'required') {
-    return '需要钱包签名';
+    return 'Wallet signature required';
   }
 
   if (value === 'optional') {
-    return '可选钱包签名';
+    return 'Optional wallet signature';
   }
 
-  return '无需钱包签名';
+  return 'No wallet signature';
 }
 
 export function JudgeGuidePanel({ steps, activeSection, onOpenSection, compact = false }: JudgeGuidePanelProps) {
@@ -38,10 +38,10 @@ export function JudgeGuidePanel({ steps, activeSection, onOpenSection, compact =
     <section className={`panel judgeGuidePanel ${compact ? 'judgeGuidePanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">评委路径</p>
-          <h2 className="panelTitle">30 秒看懂 Agent Loop</h2>
+          <p className="eyebrow">Judge path</p>
+          <h2 className="panelTitle">30-second Agent Loop</h2>
         </div>
-        <span className="pill pillAccent">按故事走</span>
+        <span className="pill pillAccent">Follow the story</span>
       </div>
 
       <div className="judgeGuideSteps" aria-label="Judge walkthrough">
@@ -60,8 +60,8 @@ export function JudgeGuidePanel({ steps, activeSection, onOpenSection, compact =
               </span>
               <span className="judgeGuideBody">
                 <strong>{index + 1}. {step.label}</strong>
-                <small>动作：{step.input}</small>
-                <small>结果：{step.output}</small>
+                <small>Action: {step.input}</small>
+                <small>Result: {step.output}</small>
                 <em>{step.evidence}</em>
                 <span>
                   <WalletCards size={13} />

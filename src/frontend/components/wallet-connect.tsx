@@ -18,10 +18,10 @@ export function WalletConnectButton() {
         type="button"
         onClick={() => disconnectWallet()}
         disabled={isPending}
-        aria-label="断开钱包"
+        aria-label="Disconnect wallet"
       >
         <LogOut size={14} />
-        <span>{isPending ? '断开中...' : '断开钱包'}</span>
+        <span>{isPending ? 'Disconnecting...' : 'Disconnect wallet'}</span>
       </button>
     );
   }
@@ -34,16 +34,16 @@ export function WalletConnectButton() {
         trigger={
           <button className="walletButton" type="button">
             <Wallet size={14} />
-            <span>连接钱包</span>
+            <span>Connect wallet</span>
           </button>
         }
       />
       <small className="walletConnectHint" suppressHydrationWarning>
         {open
-          ? `连接面板已打开 · 检测到 ${walletCount} 个钱包`
+          ? `Connect panel open · ${walletCount} wallets detected`
           : walletCount > 0
-            ? `检测到 ${walletCount} 个钱包`
-            : '未检测到扩展钱包；连接面板会尝试 Slush Web fallback。'}
+            ? `${walletCount} wallets detected`
+            : 'No extension wallet detected; the connect panel will try Slush Web fallback.'}
       </small>
     </div>
   );

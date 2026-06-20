@@ -26,7 +26,7 @@ const objectKindLabel: Record<WalletObjectKind, string> = {
   riskpilot_receipt: 'Receipt',
   defi_candidate: 'DeFi',
   package_cap: 'Package',
-  other: '对象',
+  other: 'Object',
 };
 
 const objectKindBadge: Record<WalletObjectKind, string> = {
@@ -106,7 +106,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             {fact.label}: <strong>{fact.value}</strong>
           </span>
         ))}
-        {hiddenFacts > 0 ? <span className="walletObjectFactsMore">另有 {hiddenFacts} 项</span> : null}
+        {hiddenFacts > 0 ? <span className="walletObjectFactsMore">+{hiddenFacts} more</span> : null}
       </div>
     );
   }
@@ -115,8 +115,8 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
     <section className={isMainnetWallet ? 'panel portfolioPanel portfolioPanelWallet' : 'panel portfolioPanel'}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">投资组合</p>
-          <h2 className="panelTitle">已追踪价值 {formatUsd(portfolio.totalUsdValue)}</h2>
+          <p className="eyebrow">Portfolio</p>
+          <h2 className="panelTitle">Tracked value {formatUsd(portfolio.totalUsdValue)}</h2>
         </div>
         <div className="panelHeaderMeta">
           <span className="pill pillMuted">{zhSourceLabel(sourceLabel)}</span>
@@ -128,34 +128,34 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         <div className="metricCard">
           <div className="metricLabel">
             <WalletCards size={14} />
-            钱包
+            Wallet
           </div>
           <div className="metricValue">{formatAddress(portfolio.walletAddress)}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <PieChart size={14} />
-            持仓
+            Holdings
           </div>
           <div className="metricValue">{portfolio.assets.length}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <Landmark size={14} />
-            借贷
+            Lending
           </div>
           <div className="metricValue">{portfolio.lendingPositions.length}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <Boxes size={14} />
-            对象
+            Objects
           </div>
           <div className="metricValue">{walletScan ? walletScan.totalObjects : '—'}</div>
         </div>
       </div>
 
-      <div className="portfolioAssetGrid" aria-label="钱包持仓">
+      <div className="portfolioAssetGrid" aria-label="Wallet holdings">
         {portfolio.assets.map((asset) => {
           const isPriced = asset.usdPrice > 0 && asset.usdValue > 0;
           const share = portfolio.totalUsdValue > 0 ? asset.usdValue / portfolio.totalUsdValue : 0;
@@ -174,9 +174,9 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                 </div>
                 <div className="assetNumbers">
                   <strong className={isPriced ? undefined : 'assetUnpriced'}>
-                    {isPriced ? formatUsd(asset.usdValue) : '未定价'}
+                    {isPriced ? formatUsd(asset.usdValue) : 'Unpriced'}
                   </strong>
-                  <span>{isPriced ? formatPercent(share * 100) : '未计入估值'}</span>
+                  <span>{isPriced ? formatPercent(share * 100) : 'Excluded from valuation'}</span>
                 </div>
               </div>
               <div className="barTrack" aria-hidden="true">
@@ -190,7 +190,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
               </div>
               <div className="assetMetaRow">
                 <span>{formatCompact(asset.amount)} {asset.symbol}</span>
-                <span>{isPriced ? `@ ${formatUsd(asset.usdPrice)}` : '价格不可用'}</span>
+                <span>{isPriced ? `@ ${formatUsd(asset.usdPrice)}` : 'Price unavailable'}</span>
               </div>
             </div>
           );
@@ -203,23 +203,23 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
             <div>
               <div className="subPanelHeader">
                 <Boxes size={14} />
-                Mainnet 对象扫描
+                Mainnet object scan
               </div>
             </div>
-            <span className="pill pillSuccess">真实扫描</span>
+            <span className="pill pillSuccess">Live scan</span>
           </div>
 
-          <div className="walletScanChips" aria-label="钱包对象计数">
-            <span>{walletScan.coinObjects} 个 Coin 对象</span>
+          <div className="walletScanChips" aria-label="Wallet object counts">
+            <span>{walletScan.coinObjects} Coin objects</span>
             <span>{walletScan.deepbookObjects} DeepBook objects</span>
             <span>{walletScan.walrusBlobs} Walrus blobs</span>
-            <span>{walletScan.receiptObjects} 个 Receipt</span>
-            <span>{walletScan.defiCandidates} 个 DeFi 候选</span>
-            <span>{walletScan.packageCaps} 个 Package 权限</span>
+            <span>{walletScan.receiptObjects} Receipts</span>
+            <span>{walletScan.defiCandidates} DeFi candidates</span>
+            <span>{walletScan.packageCaps} Package caps</span>
           </div>
 
           {walletScan.protocolHints.length > 0 ? (
-            <div className="walletProtocolHints" aria-label="协议线索">
+            <div className="walletProtocolHints" aria-label="Protocol hints">
               {visibleProtocolHints.map((hint) => {
                 const visibleRoles = hint.roles.slice(0, 3);
                 const hiddenRoles = hint.roles.length - visibleRoles.length;
@@ -232,11 +232,11 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                   </span>
                 );
               })}
-              {hiddenProtocolHintCount > 0 ? <span className="walletProtocolHintsMore">另有 {hiddenProtocolHintCount} 个协议</span> : null}
+              {hiddenProtocolHintCount > 0 ? <span className="walletProtocolHintsMore">+{hiddenProtocolHintCount} protocols</span> : null}
             </div>
           ) : null}
 
-          <div className="walletObjectListViewport" aria-label="Mainnet 对象预览">
+          <div className="walletObjectListViewport" aria-label="Mainnet object preview">
             {sampleObjectCount > 0 ? (
               <div className="walletObjectList">
                 {objectGroupOrder.map((kind) => {
@@ -276,7 +276,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                       </div>
                       {hiddenPreviewCount > 0 ? (
                         <div className="walletObjectGroupFooter">
-                          预览中显示 {groupTotal} 个{objectKindLabel[kind]}对象里的 {previewObjects.length} 个。
+                          Showing {previewObjects.length} of {groupTotal} {objectKindLabel[kind]} objects in preview.
                         </div>
                       ) : null}
                     </div>
@@ -284,7 +284,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                 })}
               </div>
             ) : (
-              <div className="walletObjectEmpty">本次扫描没有返回可预览的已拥有对象。</div>
+              <div className="walletObjectEmpty">This scan returned no owned objects to preview.</div>
             )}
           </div>
         </div>
@@ -294,7 +294,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         <div className="subPanel">
           <div className="subPanelHeader">
             <Layers3 size={14} />
-            借贷仓位
+            Lending positions
           </div>
           <div className="positionScrollFrame">
             {portfolio.lendingPositions.length > 0 ? (
@@ -307,17 +307,17 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                     </span>
                   </div>
                   <div className="positionLine subtle">
-                    <span>{position.collateralSymbol} 抵押品</span>
+                    <span>{position.collateralSymbol} collateral</span>
                     <span>{formatUsd(position.collateralUsd)}</span>
                   </div>
                   <div className="positionLine subtle">
-                    <span>{position.debtSymbol} 债务</span>
+                    <span>{position.debtSymbol} debt</span>
                     <span>{formatUsd(position.debtUsd)}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="positionEmpty">这个钱包里没有已解析的借贷仓位。</div>
+              <div className="positionEmpty">No parsed lending positions in this wallet.</div>
             )}
           </div>
         </div>
@@ -325,7 +325,7 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
         <div className="subPanel">
           <div className="subPanelHeader">
             <Layers3 size={14} />
-            LP 仓位
+            LP positions
           </div>
           <div className="positionScrollFrame">
             {portfolio.liquidityPositions.length > 0 ? (
@@ -340,17 +340,17 @@ export function PortfolioOverview({ portfolio, sourceLabel, walletStatus }: Port
                     <span>{formatUsd(position.usdValue)}</span>
                   </div>
                   <div className="positionLine subtle">
-                    <span>SUI 侧</span>
+                    <span>SUI side</span>
                     <span>{formatUsd(position.tokenAExposureUsd)}</span>
                   </div>
                   <div className="positionLine subtle">
-                    <span>USDC 侧</span>
+                    <span>USDC side</span>
                     <span>{formatUsd(position.tokenBExposureUsd)}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="positionEmpty">这个钱包里没有已解析的 LP 仓位。</div>
+              <div className="positionEmpty">No parsed LP positions in this wallet.</div>
             )}
           </div>
         </div>

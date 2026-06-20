@@ -22,8 +22,8 @@ export function createDeepBookMarketEvidence(input: {
       whitelistStatus: 'unknown',
       error: input.error ?? undefined,
       fallbackReason: input.error
-        ? '准备该审计包时 DeepBook 市场快照不可用。'
-        : '准备该审计包时 DeepBook 市场快照尚未加载。',
+        ? 'DeepBook market snapshot was unavailable when this audit package was prepared.'
+        : 'DeepBook market snapshot had not loaded when this audit package was prepared.',
     };
   }
 

@@ -15,7 +15,7 @@ type RememberEvidencePanelProps = {
 
 function evidenceDigest(auditPackage: AuditPackage | null, signedPreparedPtb: SignedPreparedPtb | null) {
   if (!auditPackage) {
-    return signedPreparedPtb?.bytesDigest ?? '等待 signed PTB';
+    return signedPreparedPtb?.bytesDigest ?? 'Awaiting signed PTB';
   }
 
   return executionDigestForReceipt({
@@ -29,23 +29,23 @@ function evidenceDigest(auditPackage: AuditPackage | null, signedPreparedPtb: Si
 function signerLabel(signedPreparedPtb: SignedPreparedPtb | null, accountAddress?: string) {
   const signer = signedPreparedPtb?.signer ?? accountAddress;
 
-  return signer ? formatAddress(signer) : '等待钱包签名';
+  return signer ? formatAddress(signer) : 'Awaiting wallet signature';
 }
 
 function statusLabel(status: 'receipt ready' | 'archived' | 'signed' | 'waiting') {
   if (status === 'receipt ready') {
-    return 'Receipt 就绪';
+    return 'Receipt ready';
   }
 
   if (status === 'archived') {
-    return 'Walrus 已归档';
+    return 'Walrus archived';
   }
 
   if (status === 'signed') {
-    return '已签名待归档';
+    return 'Signed, awaiting archive';
   }
 
-  return '等待签名';
+  return 'Awaiting signature';
 }
 
 export function RememberEvidencePanel({
@@ -63,7 +63,7 @@ export function RememberEvidencePanel({
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Remember evidence</p>
-          <h2 className="panelTitle">可回放证据</h2>
+          <h2 className="panelTitle">Replayable evidence</h2>
         </div>
         <span className={`pill ${receiptProof ? 'pillSuccess' : storageResult ? 'pillAccent' : signedPreparedPtb ? 'pillWarn' : 'pillMuted'}`}>
           {statusLabel(status)}
@@ -73,27 +73,27 @@ export function RememberEvidencePanel({
       <div className="rememberEvidenceGrid" aria-label="Remember evidence summary">
         <div className="rememberEvidenceItem rememberEvidenceSigner">
           <WalletCards size={16} />
-          <span>谁签了</span>
+          <span>Signer</span>
           <strong>{signerLabel(signedPreparedPtb, accountAddress)}</strong>
-          <em>{signedPreparedPtb?.signedAt ? formatDateTime(signedPreparedPtb.signedAt) : '归档前需要钱包签名'}</em>
+          <em>{signedPreparedPtb?.signedAt ? formatDateTime(signedPreparedPtb.signedAt) : 'Wallet signature required before archive'}</em>
         </div>
         <div className="rememberEvidenceItem rememberEvidenceDigest">
           <FileSignature size={16} />
-          <span>签了什么</span>
+          <span>Signed payload</span>
           <strong>{digest}</strong>
-          <em>prepared PTB digest，签名后仍不会自动提交</em>
+          <em>prepared PTB digest; signing still does not auto-submit</em>
         </div>
         <div className="rememberEvidenceItem rememberEvidenceBlob">
           <Archive size={16} />
-          <span>归档到了哪里</span>
-          <strong>{storageResult?.id ?? '等待 Walrus blob'}</strong>
-          <em>{storageResult?.registerDigest ?? storageResult?.certifyDigest ?? '等待 register / certify'}</em>
+          <span>Archive target</span>
+          <strong>{storageResult?.id ?? 'Awaiting Walrus blob'}</strong>
+          <em>{storageResult?.registerDigest ?? storageResult?.certifyDigest ?? 'Awaiting register / certify'}</em>
         </div>
         <div className="rememberEvidenceItem rememberEvidenceReceipt">
           <CheckCircle2 size={16} />
-          <span>如何复核</span>
-          <strong>{receiptProof?.receiptObjectId ? formatAddress(receiptProof.receiptObjectId) : receiptProof?.receiptDigest ?? 'Receipt 待生成'}</strong>
-          <em>{receiptProof ? `tx ${receiptProof.receiptDigest}` : '归档后可 mint receipt'}</em>
+          <span>Review path</span>
+          <strong>{receiptProof?.receiptObjectId ? formatAddress(receiptProof.receiptObjectId) : receiptProof?.receiptDigest ?? 'Receipt pending'}</strong>
+          <em>{receiptProof ? `tx ${receiptProof.receiptDigest}` : 'Receipt can be minted after archive'}</em>
         </div>
       </div>
 

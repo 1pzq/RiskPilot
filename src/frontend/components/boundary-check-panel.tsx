@@ -28,33 +28,33 @@ async function fetchBoundaryChecks(): Promise<BoundaryCheckResponse> {
 const CHECK_PLACEHOLDERS: BoundaryCheckResult[] = [
   {
     id: 'execute-preview-rejection',
-    label: '/api/execute 拒绝 What-if 预览 payload',
-    expected: 'HTTP 400；不会准备执行',
-    actual: '点击运行检查，提交安全的本地请求。',
+    label: '/api/execute rejects What-if preview payloads',
+    expected: 'HTTP 400; no execution is prepared',
+    actual: 'Click Run checks to submit a safe local request.',
     passed: false,
     evidenceRef: '/api/execute preview guard',
   },
   {
     id: 'audit-preview-rejection',
-    label: '/api/audit 拒绝 What-if 预览 payload',
-    expected: 'HTTP 400；不会接受归档包',
-    actual: '点击运行检查，提交安全的本地请求。',
+    label: '/api/audit rejects What-if preview payloads',
+    expected: 'HTTP 400; no archive package is accepted',
+    actual: 'Click Run checks to submit a safe local request.',
     passed: false,
     evidenceRef: '/api/audit preview guard',
   },
   {
     id: 'policy-blocked-execution',
-    label: '超预算 Policy 会被阻断',
-    expected: '执行准备前返回 HTTP 400',
-    actual: '点击运行检查，提交一个超预算 Policy。',
+    label: 'Over-budget Policy is blocked',
+    expected: 'HTTP 400 before execution preparation',
+    actual: 'Click Run checks to submit an over-budget Policy.',
     passed: false,
     evidenceRef: 'validateExecutionPolicy',
   },
   {
     id: 'ai-posture-lock',
-    label: 'AI 文案不能改变最终姿态',
-    expected: '恶意措辞被忽略；确定性最终指令仍保持仅 Prepare',
-    actual: '点击运行检查，对比 AI 文案和锁定的最终指令。',
+    label: 'AI wording cannot change final posture',
+    expected: 'Malicious wording is ignored; deterministic command remains Prepare only',
+    actual: 'Click Run checks to compare AI wording with the locked final command.',
     passed: false,
     evidenceRef: 'incidentRoom.finalCommand',
   },
@@ -65,7 +65,7 @@ function failedBoundaryPayload(error: unknown): BoundaryCheckResponse {
     ok: false,
     walletSignatureRequested: false,
     results: [],
-    error: error instanceof Error ? error.message : '边界检查失败。',
+    error: error instanceof Error ? error.message : 'Boundary check failed.',
   };
 }
 
@@ -95,12 +95,12 @@ export function BoundaryCheckPanel({ compact = false }: BoundaryCheckPanelProps)
   const displayedResults = payload?.results.length ? payload.results : CHECK_PLACEHOLDERS;
   const summaryResult =
     status === 'idle'
-      ? '等待评审点击'
+      ? 'Waiting for judge click'
       : ok
-        ? '4 项检查通过'
+        ? '4 checks passed'
         : status === 'error'
-          ? '检查失败'
-        : '正在运行检查';
+          ? 'Check failed'
+        : 'Running checks';
   const checkList = (
     <div className="boundaryCheckList">
       {displayedResults.map((result) => (
@@ -130,25 +130,25 @@ export function BoundaryCheckPanel({ compact = false }: BoundaryCheckPanelProps)
               <strong>{result.label}</strong>
               <em>
                 {status === 'idle'
-                  ? '就绪'
+                  ? 'Ready'
                   : status === 'loading'
-                    ? '运行中'
+                    ? 'Running'
                     : result.passed
                       ? 'PASS'
                       : 'FAIL'}
               </em>
             </div>
             <div className="boundaryExpectationGrid">
-              <span>预期</span>
+              <span>Expected</span>
               <p>{result.expected}</p>
-              <span>实际</span>
-              <p>{status === 'loading' ? '正在运行安全本地请求...' : result.actual}</p>
+              <span>Actual</span>
+              <p>{status === 'loading' ? 'Running safe local request...' : result.actual}</p>
             </div>
-            <small>{status === 'idle' ? '不会请求钱包动作' : result.evidenceRef}</small>
+            <small>{status === 'idle' ? 'No wallet action requested' : result.evidenceRef}</small>
           </div>
         </article>
       ))}
-      {status === 'error' ? <div className="evidenceWarning">{payload?.error ?? '边界检查失败。'}</div> : null}
+      {status === 'error' ? <div className="evidenceWarning">{payload?.error ?? 'Boundary check failed.'}</div> : null}
     </div>
   );
 
@@ -156,33 +156,33 @@ export function BoundaryCheckPanel({ compact = false }: BoundaryCheckPanelProps)
     <section className={`panel boundaryCheckPanel ${compact ? 'boundaryCheckPanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">红队边界检查</p>
-          <h2 className="panelTitle">确定性边界检查</h2>
+          <p className="eyebrow">Red-team boundary check</p>
+          <h2 className="panelTitle">Deterministic boundary checks</h2>
         </div>
         <span className={`pill ${ok ? 'pillSuccess' : status === 'error' ? 'pillDanger' : 'pillWarn'}`}>
           {ok ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-          {status === 'loading' ? '运行中' : ok ? '4 项通过' : '安全本地'}
+          {status === 'loading' ? 'Running' : ok ? '4 passed' : 'Safe local'}
         </span>
       </div>
 
       <div className={compact ? 'boundaryCheckSummary boundaryCheckSummaryCompact' : 'boundaryCheckSummary'}>
         <div>
-          <span>钱包签名</span>
-          <strong>{payload?.walletSignatureRequested ? '已请求' : '无需钱包'}</strong>
+          <span>Wallet signature</span>
+          <strong>{payload?.walletSignatureRequested ? 'Requested' : 'No wallet required'}</strong>
         </div>
         <div>
-          <span>结果</span>
+          <span>Result</span>
           <strong>{summaryResult}</strong>
         </div>
         {!compact ? (
           <>
             <div>
-              <span>网络成本</span>
-              <strong>无签名、无 gas、无 Walrus 付款</strong>
+              <span>Network cost</span>
+              <strong>No signature, no gas, no Walrus payment</strong>
             </div>
             <div>
-              <span>执行模式</span>
-              <strong>安全本地红队请求</strong>
+              <span>Execution mode</span>
+              <strong>Safe local red-team request</strong>
             </div>
           </>
         ) : null}
@@ -190,7 +190,7 @@ export function BoundaryCheckPanel({ compact = false }: BoundaryCheckPanelProps)
 
       {compact ? (
         <details className="boundaryCheckDrawer" open={status !== 'idle'}>
-          <summary>{status === 'idle' ? '显示四项安全本地检查' : '显示检查详情'}</summary>
+          <summary>{status === 'idle' ? 'Show four safe local checks' : 'Show check details'}</summary>
           {checkList}
         </details>
       ) : (
@@ -199,7 +199,7 @@ export function BoundaryCheckPanel({ compact = false }: BoundaryCheckPanelProps)
 
       <button className="button buttonPrimary boundaryRefreshButton" type="button" onClick={() => void runChecks()} disabled={status === 'loading'}>
         <RefreshCw size={14} />
-        {status === 'loading' ? '正在运行检查' : '运行检查'}
+        {status === 'loading' ? 'Running checks' : 'Run checks'}
       </button>
     </section>
   );

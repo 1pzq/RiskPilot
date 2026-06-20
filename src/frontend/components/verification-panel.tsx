@@ -68,7 +68,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
       }}
     >
       {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-      <span>{copied ? '已复制' : label}</span>
+      <span>{copied ? 'Copied' : label}</span>
     </button>
   );
 }
@@ -88,20 +88,20 @@ function ProofEvidenceRow({ item }: { item: ProofEvidenceItem }) {
 function ProofRows({ card }: { card: ProofCard }) {
   const proof = card.proof;
   const primaryRows: ProofEvidenceItem[] = [
-    { label: 'Walrus blob ID', value: proof.blobId, copyLabel: '复制 blob' },
-    { label: 'Blob object ID', value: proof.blobObjectId, copyLabel: '复制 object' },
-    { label: 'Register 交易', value: proof.registerTx, copyLabel: '复制 register' },
-    { label: 'Certify 交易', value: proof.certifyTx, copyLabel: '复制 certify' },
+    { label: 'Walrus blob ID', value: proof.blobId, copyLabel: 'Copy blob' },
+    { label: 'Blob object ID', value: proof.blobObjectId, copyLabel: 'Copy object' },
+    { label: 'Register tx', value: proof.registerTx, copyLabel: 'Copy register' },
+    { label: 'Certify tx', value: proof.certifyTx, copyLabel: 'Copy certify' },
   ];
   const secondaryRows: ProofEvidenceItem[] = [
-    { label: '验证时间', value: proof.verifiedAt },
+    { label: 'Verified at', value: proof.verifiedAt },
     {
-      label: 'Blob 大小',
-      value: proof.blobSizeBytes ? `${formatNumber(proof.blobSizeBytes)} bytes` : '待处理',
+      label: 'Blob size',
+      value: proof.blobSizeBytes ? `${formatNumber(proof.blobSizeBytes)} bytes` : 'Pending',
     },
-    { label: 'Checksum', value: proof.checksum ?? '未记录' },
-    { label: 'Walrus readback 命令', value: proof.walrusReadCommand, copyLabel: '复制 read', wide: true },
-    { label: 'Walrus status 命令', value: proof.walrusStatusCommand, copyLabel: '复制 status', wide: true },
+    { label: 'Checksum', value: proof.checksum ?? 'Not recorded' },
+    { label: 'Walrus readback command', value: proof.walrusReadCommand, copyLabel: 'Copy read', wide: true },
+    { label: 'Walrus status command', value: proof.walrusStatusCommand, copyLabel: 'Copy status', wide: true },
   ];
 
   return (
@@ -121,7 +121,7 @@ function ProofRows({ card }: { card: ProofCard }) {
       </div>
 
       <details className="proofDetailDrawer">
-          <summary>Readback 命令和 checksum</summary>
+          <summary>Readback commands and checksum</summary>
         <div className="proofEvidenceRows proofEvidenceRowsSecondary">
           {secondaryRows.map((item) => (
             <ProofEvidenceRow item={item} key={`${proof.auditId}-${item.label}`} />
@@ -130,8 +130,8 @@ function ProofRows({ card }: { card: ProofCard }) {
       </details>
 
       <div className="proofCommandRow">
-        <CopyButton value={proof.walrusReadCommand} label="复制 read" />
-        <CopyButton value={proof.walrusStatusCommand} label="复制 status" />
+        <CopyButton value={proof.walrusReadCommand} label="Copy read" />
+        <CopyButton value={proof.walrusStatusCommand} label="Copy status" />
         <a className="iconTextButton" href={proof.readbackUrl} target="_blank" rel="noreferrer">
           <ExternalLink size={14} />
           <span>Readback</span>
@@ -147,8 +147,8 @@ export function VerificationPanel({ auditPackage, storageResult, onOpenAudit }: 
       auditPackage && storageResult
         ? [
             {
-              label: '当前会话归档',
-              badge: '当前',
+              label: 'Current session archive',
+              badge: 'Current',
               proof: proofFromStorage(auditPackage, storageResult),
               auditPackage,
               active: true,
@@ -159,8 +159,8 @@ export function VerificationPanel({ auditPackage, storageResult, onOpenAudit }: 
     return [
       ...currentCard,
       {
-        label: '最新已验证 mainnet 样例',
-        badge: '已验证样例',
+        label: 'Latest verified mainnet sample',
+        badge: 'Verified sample',
         proof: LATEST_MAINNET_PROOF,
         active: currentCard.length === 0,
       },
@@ -172,8 +172,8 @@ export function VerificationPanel({ auditPackage, storageResult, onOpenAudit }: 
     <section className="panel verificationPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">验证</p>
-          <h2 className="panelTitle">Walrus 可回放证明轨</h2>
+          <p className="eyebrow">Verification</p>
+          <h2 className="panelTitle">Walrus replayable proof rail</h2>
         </div>
         <span className="pill pillSuccess">
           <Archive size={14} />
@@ -185,7 +185,7 @@ export function VerificationPanel({ auditPackage, storageResult, onOpenAudit }: 
         {primaryCard ? <ProofRows card={primaryCard} key={`${primaryCard.badge}-${primaryCard.proof.auditId}`} /> : null}
         {secondaryCards.length > 0 ? (
           <details className="proofSampleDrawer">
-            <summary>样例</summary>
+            <summary>Sample</summary>
             {secondaryCards.map((card) => (
               <ProofRows card={card} key={`${card.badge}-${card.proof.auditId}`} />
             ))}
@@ -196,12 +196,12 @@ export function VerificationPanel({ auditPackage, storageResult, onOpenAudit }: 
       <div className="proofPanelFooter">
         <span>
           <FileJson2 size={14} />
-          {storageResult ? '当前归档可用 readback 复核。' : '未连接钱包时展示最新已验证样例。'}
+          {storageResult ? 'Current archive is available for readback review.' : 'Showing the latest verified sample when no wallet is connected.'}
         </span>
         {onOpenAudit ? (
           <button className="iconTextButton" type="button" onClick={onOpenAudit}>
             <ExternalLink size={14} />
-            <span>审计浏览器</span>
+            <span>Audit explorer</span>
           </button>
         ) : null}
       </div>

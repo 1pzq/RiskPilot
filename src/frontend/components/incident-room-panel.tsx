@@ -26,10 +26,10 @@ type IncidentRoomPanelProps = {
 
 function modeLabel(incidentRoom: IncidentRoomDecision): string {
   if (incidentRoom.mode === 'openai' || incidentRoom.mode === 'deepseek') {
-    return incidentRoom.model ? `AI ${incidentRoom.model}` : 'AI 房间';
+    return incidentRoom.model ? `AI ${incidentRoom.model}` : 'AI room';
   }
 
-  return '规则兜底';
+  return 'Rules fallback';
 }
 
 function severityClass(severity: IncidentSeverity): string {
@@ -133,11 +133,11 @@ export function IncidentRoomPanel({ incidentRoom, refreshing = false, onRefresh,
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Incident Room</p>
-          <h2 className="panelTitle">Agentic 风险指挥台</h2>
+          <h2 className="panelTitle">Agentic risk command desk</h2>
         </div>
         <div className="panelHeaderMeta">
           <span className={`pill ${incidentRoom.mode === 'openai' || incidentRoom.mode === 'deepseek' ? 'pillSuccess' : 'pillWarn'}`}>
-            {refreshing ? '刷新中' : modeLabel(incidentRoom)}
+            {refreshing ? 'Refreshing' : modeLabel(incidentRoom)}
           </span>
           <span className={`pill ${severityClass(incidentRoom.severity)}`}>
             <Siren size={14} />
@@ -150,9 +150,9 @@ export function IncidentRoomPanel({ incidentRoom, refreshing = false, onRefresh,
 
       <div className="incidentCommand">
         <div>
-          <span>最终指令</span>
+          <span>Final command</span>
           <strong>{incidentRoom.finalCommand}</strong>
-          <em>由确定性姿态锁定</em>
+          <em>Locked by deterministic posture</em>
         </div>
         <button
           className="button buttonGhost"
@@ -161,32 +161,32 @@ export function IncidentRoomPanel({ incidentRoom, refreshing = false, onRefresh,
           disabled={refreshing}
         >
           <Activity size={16} />
-          {refreshing ? '刷新房间' : '刷新房间'}
+          {refreshing ? 'Refreshing room' : 'Refresh room'}
         </button>
       </div>
 
       {compact ? (
         <>
-          <div className="auditCompactStats" aria-label="Incident Room 摘要">
+          <div className="auditCompactStats" aria-label="Incident Room summary">
             <div>
-              <span>任务</span>
+              <span>Tasks</span>
               <strong>{incidentRoom.tasks.length}</strong>
             </div>
             <div>
-              <span>已锁定</span>
+              <span>Locked</span>
               <strong>{lockedTaskCount}/{incidentRoom.tasks.length}</strong>
             </div>
             <div>
-              <span>共识</span>
+              <span>Consensus</span>
               <strong>{readyConsensusCount}/{incidentRoom.consensus.length}</strong>
             </div>
             <div>
-              <span>已阻断</span>
+              <span>Blocked</span>
               <strong>{blockedTaskCount}</strong>
             </div>
           </div>
           <details className="auditDetailDrawer">
-            <summary>任务、共识和交接</summary>
+            <summary>Tasks, consensus, and handoffs</summary>
             {incidentDetails}
           </details>
         </>

@@ -122,34 +122,34 @@ function severityFromInput(input: BuildIncidentRoomInput, posture: AgentCouncilD
 
 function postureLabel(posture: AgentCouncilDecision['posture']): string {
   if (posture === 'policy_blocked') {
-    return 'Policy 已阻断';
+    return 'Policy blocked';
   }
 
   if (posture === 'live_ready') {
-    return 'Live 就绪';
+    return 'Live ready';
   }
 
   if (posture === 'audit_only') {
-    return '仅审计';
+    return 'Audit only';
   }
 
-  return 'Prepare 就绪';
+  return 'Prepare ready';
 }
 
 function finalCommandForPosture(input: BuildIncidentRoomInput, posture: AgentCouncilDecision['posture']): string {
   if (posture === 'policy_blocked') {
-    return `暂停该 Incident。在 Policy Guard 放行前，不要 Prepare 或提交：${input.policyCheck.errors[0] ?? 'Policy 检查失败'}`;
+    return `Pause this incident. Do not prepare or submit until Policy Guard clears it: ${input.policyCheck.errors[0] ?? 'Policy check failed'}`;
   }
 
   if (posture === 'live_ready') {
-    return '只有在用户明确选择并完成钱包签名后，Live Spot 才可执行；随后立即归档结果证据。';
+    return 'Live spot can execute only after the user explicitly chooses it and completes wallet signing. Archive result evidence immediately after.';
   }
 
   if (posture === 'audit_only') {
-    return '保持为无交易钱包复核，保留证据链，不要虚构 DeepBook 动作。';
+    return 'Keep this as a no-trade wallet review, preserve the evidence chain, and do not invent a DeepBook action.';
   }
 
-  return 'Prepare mainnet 动作包并归档完整证据链；默认不提交 Live 交易。';
+  return 'Prepare the mainnet action package and archive the full evidence chain. Do not submit a live transaction by default.';
 }
 
 function marketConsensusStatus(evidence: IncidentDeepBookMarketEvidence): IncidentConsensusStatus {
@@ -172,10 +172,10 @@ function signalFinding(report: RiskReport): string {
   const topSignal = report.signals[0];
 
   if (!topSignal) {
-    return '当前 Portfolio 上下文没有活跃的已定价风险信号。';
+    return 'No active priced risk signals in the current portfolio context.';
   }
 
-  return `${topSignal.title} 是首要信号，严重度为 ${topSignal.level}。`;
+  return `${topSignal.title} is the top signal with ${topSignal.level} severity.`;
 }
 
 function buildTasks(input: BuildIncidentRoomInput, council: AgentCouncilDecision): IncidentTask[] {
@@ -188,12 +188,12 @@ function buildTasks(input: BuildIncidentRoomInput, council: AgentCouncilDecision
     {
       id: 'manager',
       agentName: 'Manager',
-      objective: '打开 Incident，分配有边界的 Agent 工作，并发出最终指令。',
+      objective: 'Open the incident, assign bounded Agent work, and issue the final command.',
       status: council.posture === 'policy_blocked' ? 'blocked' : council.posture === 'live_ready' ? 'ready' : 'watch',
       priority: 1,
       findings: [
-        `Council 姿态已锁定为 ${postureLabel(council.posture)}。`,
-        `Incident 严重度为 ${severityFromInput(input, council.posture)}，来自确定性风险和 Policy 信号。`,
+        `Council posture locked as ${postureLabel(council.posture)}.`,
+        `Incident severity is ${severityFromInput(input, council.posture)}, based on deterministic risk and Policy signals.`,
       ],
       evidenceRefs: ['agentCouncil', 'policyCheck', 'riskReportBefore'],
       handoff: finalCommandForPosture(input, council.posture),
@@ -202,91 +202,91 @@ function buildTasks(input: BuildIncidentRoomInput, council: AgentCouncilDecision
     {
       id: 'risk_analyst',
       agentName: 'Risk Analyst',
-      objective: '分诊已定价的钱包/情景风险，并识别活跃 Incident 驱动因素。',
+      objective: 'Triage priced wallet and scenario risk, then identify active incident drivers.',
       status: agentStatus(council, 'risk_analyst') ?? 'clear',
       priority: 2,
       findings: [
-        `风险评分为 ${input.riskReport.overallScore}/${input.riskReport.overallLevel}。`,
+        `Risk score is ${input.riskReport.overallScore}/${input.riskReport.overallLevel}.`,
         signalFinding(input.riskReport),
       ],
       evidenceRefs: ['riskReportBefore', 'portfolioSnapshot'],
       handoff:
         input.riskReport.signals.length > 0
-          ? '将首要信号上下文交给 Liquidity Scout 和 Execution Planner。'
-          : '将低风险上下文交给 Audit Agent 做证据打包。',
+          ? 'Send top-signal context to Liquidity Scout and Execution Planner.'
+          : 'Send low-risk context to Audit Agent for evidence packaging.',
       locked: true,
     },
     {
       id: 'liquidity_scout',
       agentName: 'Liquidity Scout',
-      objective: '检查 DeepBook 市场证据是否足以支撑有边界的动作。',
+      objective: 'Check whether DeepBook market evidence can support a bounded action.',
       status: marketReady ? 'ready' : input.deepbookMarketEvidence.routeStatus === 'error' ? 'watch' : 'waiting',
       priority: 3,
       findings: [
         marketReady
-          ? `${input.deepbookMarketEvidence.poolKey} 快照已就绪${input.deepbookMarketEvidence.midPrice ? `，中间价 ${input.deepbookMarketEvidence.midPrice}` : ''}。`
-          : input.deepbookMarketEvidence.fallbackReason ?? 'DeepBook 市场证据尚未就绪。',
-        `路线状态为 ${input.deepbookMarketEvidence.routeStatus ?? 'unknown'}。`,
+          ? `${input.deepbookMarketEvidence.poolKey} snapshot is ready${input.deepbookMarketEvidence.midPrice ? `, mid ${input.deepbookMarketEvidence.midPrice}` : ''}.`
+          : input.deepbookMarketEvidence.fallbackReason ?? 'DeepBook market evidence is not ready.',
+        `Route status is ${input.deepbookMarketEvidence.routeStatus ?? 'unknown'}.`,
       ],
       evidenceRefs: ['deepbookMarketEvidence'],
       handoff: marketReady
-        ? '将市场就绪状态交给 Execution Planner。'
-        : '将依赖市场的动作保持为仅 Prepare 或复核模式。',
+        ? 'Send market readiness to Execution Planner.'
+        : 'Keep market-dependent actions in prepare-only or review mode.',
       locked: true,
     },
     {
       id: 'policy_guard',
       agentName: 'Policy Guard',
-      objective: '执行预算、资产、市场、过期时间和人工确认约束。',
+      objective: 'Enforce budget, asset, market, expiry, and manual-confirmation constraints.',
       status: policyBlocked ? 'blocked' : 'ready',
       priority: 4,
       findings: policyBlocked
         ? input.policyCheck.errors
         : [
-            `预算上限为 $${input.policy.maxBudgetUsd.toFixed(2)}。`,
-            input.policyObject?.objectId ? `Sui AgentPolicy object 已选择：${input.policyObject.objectId}。` : 'Sui AgentPolicy object 尚未 mint。',
-            `人工确认${input.policy.requireManualApproval ? '必需' : '非必需'}。`,
+            `Budget cap is $${input.policy.maxBudgetUsd.toFixed(2)}.`,
+            input.policyObject?.objectId ? `Sui AgentPolicy object selected: ${input.policyObject.objectId}.` : 'Sui AgentPolicy object not minted.',
+            `Manual confirmation is ${input.policy.requireManualApproval ? 'required' : 'not required'}.`,
           ],
       evidenceRefs: ['policy', 'policyCheck', 'policyObject'],
       handoff: policyBlocked
-        ? '在 Policy 修正前阻断所有执行路径。'
-        : '将 Policy 放行后的边界交给 Execution Planner 和 Audit Agent。',
+        ? 'Block every execution path until Policy is fixed.'
+        : 'Send Policy-cleared boundaries to Execution Planner and Audit Agent.',
       locked: true,
     },
     {
       id: 'execution_planner',
       agentName: 'Execution Planner',
-      objective: '把已批准策略转换为允许范围内最稳妥的执行姿态。',
+      objective: 'Convert the approved strategy into the safest allowed execution posture.',
       status: policyBlocked ? 'blocked' : walletReview ? 'watch' : council.posture === 'live_ready' ? 'ready' : 'watch',
       priority: 5,
       findings: [
-        `推荐类型为 ${input.recommendation.type}。`,
-        `DeepBook 动作模式为 ${input.recommendation.deepbookAction.mode}；市场为 ${input.recommendation.deepbookAction.market}。`,
-        `默认执行仍为 ${council.posture === 'live_ready' ? '明确选择后才进行钱包签名 Live' : 'Prepare/归档'}。`,
+        `Recommendation type is ${input.recommendation.type}.`,
+        `DeepBook action mode is ${input.recommendation.deepbookAction.mode}; market is ${input.recommendation.deepbookAction.market}.`,
+        `Default execution remains ${council.posture === 'live_ready' ? 'live only after explicit wallet-signed choice' : 'prepare/archive'}.`,
       ],
       evidenceRefs: ['recommendation', 'liveGate', 'policyCheck'],
       handoff: walletReview
-        ? '将无交易复核交给 Audit Agent。'
+        ? 'Send no-trade review to Audit Agent.'
         : policyBlocked
-          ? '在准备任何内容前等待 Policy Guard。'
-          : '将有边界的 Prepare 包交给 Audit Agent。',
+          ? 'Wait for Policy Guard before preparing anything.'
+          : 'Send bounded prepare package to Audit Agent.',
       locked: true,
     },
     {
       id: 'audit_agent',
       agentName: 'Audit Agent',
-      objective: '打包监控规则、Council 决策、DeepBook 证据和存储 receipt。',
+      objective: 'Package monitor rules, Council decisions, DeepBook evidence, and storage receipt.',
       status: input.auditArchived ? 'ready' : marketReady ? 'watch' : 'waiting',
       priority: 6,
       findings: [
-        `${enabledRules}/${input.monitorRules.length} 条监控规则已启用。`,
-        input.auditArchived ? '该 Incident 的 Walrus 归档已完成。' : 'Walrus 归档会等待 Prepare/归档后完成。',
-        input.receiptEnabled ? '归档后可 mint Receipt。' : 'Receipt 包为可选或尚未配置。',
+        `${enabledRules}/${input.monitorRules.length} monitor rules enabled.`,
+        input.auditArchived ? 'Walrus archive for this incident is complete.' : 'Walrus archive waits for prepare/archive completion.',
+        input.receiptEnabled ? 'Receipt can be minted after archive.' : 'Receipt package is optional or not configured.',
       ],
       evidenceRefs: ['monitorRules', 'storage', 'receipt'],
       handoff: input.auditArchived
-        ? '向用户展示 blob/checksum 和可选 receipt。'
-        : '最终封存证据前等待 Prepare/归档。',
+        ? 'Show blob/checksum and optional receipt to the user.'
+        : 'Wait for prepare/archive before final evidence sealing.',
       locked: true,
     },
   ];
@@ -304,8 +304,8 @@ function buildHandoffs(input: BuildIncidentRoomInput, council: AgentCouncilDecis
       to: 'liquidity_scout',
       status: input.riskReport.signals.length > 0 ? 'watch' : 'agree',
       summary: input.riskReport.signals[0]
-        ? `Risk Analyst 将 ${input.riskReport.signals[0].id} 升级为市场证据检查。`
-        : 'Risk Analyst 报告没有已定价的 Incident 驱动因素。',
+        ? `Risk Analyst escalates ${input.riskReport.signals[0].id} into market-evidence checks.`
+        : 'Risk Analyst reports no priced incident driver.',
       evidenceRef: 'riskReportBefore',
     },
     {
@@ -315,8 +315,8 @@ function buildHandoffs(input: BuildIncidentRoomInput, council: AgentCouncilDecis
       status: marketConsensusStatus(input.deepbookMarketEvidence),
       summary:
         input.deepbookMarketEvidence.status === 'ready'
-          ? 'Liquidity Scout 确认 DeepBook 证据可支撑有边界的 Prepare 包。'
-          : 'Liquidity Scout 在证据就绪前将依赖市场的执行保持为复核。',
+          ? 'Liquidity Scout confirms DeepBook evidence can support a bounded prepare package.'
+          : 'Liquidity Scout keeps market-dependent execution under review until evidence is ready.',
       evidenceRef: 'deepbookMarketEvidence',
     },
     {
@@ -325,8 +325,8 @@ function buildHandoffs(input: BuildIncidentRoomInput, council: AgentCouncilDecis
       to: 'execution_planner',
       status: policyStatus,
       summary: input.policyCheck.ok
-        ? 'Policy Guard 放行有边界的推荐。'
-        : `Policy Guard 阻断执行：${input.policyCheck.errors[0] ?? 'Policy 检查失败'}`,
+        ? 'Policy Guard clears the bounded recommendation.'
+        : `Policy Guard blocks execution: ${input.policyCheck.errors[0] ?? 'Policy check failed'}`,
       evidenceRef: 'policyCheck',
     },
     {
@@ -336,8 +336,8 @@ function buildHandoffs(input: BuildIncidentRoomInput, council: AgentCouncilDecis
       status: strategyStatus,
       summary:
         council.posture === 'audit_only'
-          ? 'Execution Planner 将无交易复核包交给 Audit Agent。'
-          : 'Execution Planner 将已锁定姿态和有边界动作交给 Audit Agent。',
+          ? 'Execution Planner sends the no-trade review package to Audit Agent.'
+          : 'Execution Planner sends the locked posture and bounded action to Audit Agent.',
       evidenceRef: 'recommendation',
     },
     {
@@ -346,8 +346,8 @@ function buildHandoffs(input: BuildIncidentRoomInput, council: AgentCouncilDecis
       to: 'manager',
       status: input.auditArchived ? 'agree' : 'watch',
       summary: input.auditArchived
-        ? 'Audit Agent 确认证据封存已完成。'
-        : 'Audit Agent 已准备好在 Prepare/归档后封存证据。',
+        ? 'Audit Agent confirms evidence sealing is complete.'
+        : 'Audit Agent is ready to seal evidence after prepare/archive.',
       evidenceRef: 'storage',
     },
   ];
@@ -357,36 +357,36 @@ function buildConsensus(input: BuildIncidentRoomInput, council: AgentCouncilDeci
   return [
     {
       id: 'risk-consensus',
-      label: '风险信号',
+      label: 'Risk signals',
       status: input.riskReport.signals.length > 0 ? 'watch' : 'agree',
       summary:
         input.riskReport.signals.length > 0
-          ? `${input.riskReport.signals.length} 个确定性信号需要处理。`
-          : '没有需要处理的已定价风险信号。',
+          ? `${input.riskReport.signals.length} deterministic signals need handling.`
+          : 'No priced risk signals need handling.',
       evidenceRef: 'riskReportBefore',
     },
     {
       id: 'policy-consensus',
-      label: 'Policy 闸门',
+      label: 'Policy gate',
       status: input.policyCheck.ok ? 'agree' : 'blocked',
       summary: input.policyCheck.ok
-        ? '所有 Policy 检查均通过。'
-        : `${input.policyCheck.errors.length} 个 Policy 问题阻断执行。`,
+        ? 'All Policy checks passed.'
+        : `${input.policyCheck.errors.length} Policy issues block execution.`,
       evidenceRef: 'policyCheck',
     },
     {
       id: 'market-consensus',
-      label: '市场证据',
+      label: 'Market evidence',
       status: marketConsensusStatus(input.deepbookMarketEvidence),
       summary:
         input.deepbookMarketEvidence.status === 'ready'
-          ? `${input.deepbookMarketEvidence.poolKey} 证据已可用于审计。`
-          : input.deepbookMarketEvidence.fallbackReason ?? 'DeepBook 证据尚未就绪。',
+          ? `${input.deepbookMarketEvidence.poolKey} evidence is ready for audit.`
+          : input.deepbookMarketEvidence.fallbackReason ?? 'DeepBook evidence is not ready.',
       evidenceRef: 'deepbookMarketEvidence',
     },
     {
       id: 'execution-consensus',
-      label: '执行姿态',
+      label: 'Execution posture',
       status: council.posture === 'policy_blocked' ? 'blocked' : council.posture === 'live_ready' ? 'agree' : 'watch',
       summary: finalCommandForPosture(input, council.posture),
       evidenceRef: 'agentCouncil',
@@ -406,7 +406,7 @@ export function buildIncidentRoomDecision(input: BuildIncidentRoomInput): Incide
     sourceCouncilId: agentCouncil.id,
     posture: agentCouncil.posture,
     severity,
-    managerBriefing: `Incident Room 已打开，严重度为 ${severity}。${agentCouncil.managerSummary}`,
+    managerBriefing: `Incident Room opened with ${severity} severity. ${agentCouncil.managerSummary}`,
     finalCommand,
     tasks: buildTasks(input, agentCouncil),
     handoffs: buildHandoffs(input, agentCouncil),

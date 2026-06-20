@@ -132,12 +132,12 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
     const expiryDays = recommendation.parameters?.deepbookPredict?.expiryDays;
     rules.push({
       id: buildRuleId(recommendation, `sui-drawdown-${thresholdPct}`),
-      label: 'SUI 回撤达到策略阈值',
-      condition: `${portfolio.walletAddress} 的 SUI 相关敞口仍然显著。`,
-      trigger: `如果 SUI 下跌 ${thresholdPct}%${expiryDays ? `（${expiryDays}D 内）` : ''}，触发复核。`,
+      label: 'SUI drawdown reaches strategy threshold',
+      condition: `${portfolio.walletAddress} still has meaningful SUI-related exposure.`,
+      trigger: `Trigger review if SUI drops ${thresholdPct}%${expiryDays ? ` within ${expiryDays}D` : ''}.`,
       severity: severityFromSignal(suiSignal ?? concentrationSignal),
       sourceRiskSignalId: suiSignal?.id ?? concentrationSignal?.id,
-      recommendedAction: buildPrepareAction(recommendation, '复核已准备的下行计划'),
+      recommendedAction: buildPrepareAction(recommendation, 'Review prepared downside plan'),
       enabled: true,
     });
   }
@@ -147,11 +147,11 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
     hoursToExpiry <= 0 ? 'critical' : hoursToExpiry <= 6 ? 'high' : hoursToExpiry <= 24 ? 'medium' : 'info';
   rules.push({
     id: buildRuleId(recommendation, 'policy-expiry'),
-    label: 'Policy 即将过期',
-    condition: `Policy 过期时间为 ${policy.expiresAt}。`,
-    trigger: '当 Policy 进入最后 6 小时或已经过期时触发复核。',
+    label: 'Policy expires soon',
+    condition: `Policy expires at ${policy.expiresAt}.`,
+    trigger: 'Trigger review when Policy enters the final 6 hours or has already expired.',
     severity: expirySeverity,
-    recommendedAction: buildReviewAction(recommendation, 'Prepare 前刷新 Policy'),
+    recommendedAction: buildReviewAction(recommendation, 'Refresh Policy before prepare'),
     enabled: true,
   });
 
@@ -162,11 +162,11 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
       policyCheck?.errors.some((error) => error.toLowerCase().includes('budget') || error.toLowerCase().includes('trade size')) === true;
     rules.push({
       id: buildRuleId(recommendation, 'budget-cap'),
-      label: '可能超过预算上限',
-      condition: `已准备规模为 ${formatUsd(recommendation.deepbookAction.amountUsd)}，当前最大预算为 ${formatUsd(policy.maxBudgetUsd)}，单笔上限为 ${formatUsd(policy.maxSingleTradeUsd)}。`,
-      trigger: '如果 Live 报价、用户编辑或 Policy 变更让已准备规模超过当前上限，则触发复核。',
+      label: 'May exceed budget cap',
+      condition: `Prepared size is ${formatUsd(recommendation.deepbookAction.amountUsd)}; current max budget is ${formatUsd(policy.maxBudgetUsd)} and single-trade cap is ${formatUsd(policy.maxSingleTradeUsd)}.`,
+      trigger: 'Trigger review if live quote, user edit, or Policy change pushes prepared size beyond current limits.',
       severity: exceedsBudget ? 'critical' : 'medium',
-      recommendedAction: buildReviewAction(recommendation, '降低规模或更新 Policy'),
+      recommendedAction: buildReviewAction(recommendation, 'Reduce size or update Policy'),
       enabled: true,
     });
   }
@@ -174,14 +174,14 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (stablecoinSignal) {
     rules.push({
       id: buildRuleId(recommendation, 'stablecoin-concentration'),
-      label: 'Stablecoin 集中度仍然偏高',
+      label: 'Stablecoin concentration remains elevated',
       condition: stablecoinSignal.summary,
-      trigger: '如果 stablecoin 仓位仍高于集中度阈值，触发金库复核。',
+      trigger: 'Trigger treasury review if stablecoin position remains above the concentration threshold.',
       severity: severityFromSignal(stablecoinSignal),
       sourceRiskSignalId: stablecoinSignal.id,
       recommendedAction: walletReviewOnly
-        ? buildReviewAction(recommendation, '复核 stablecoin 敞口')
-        : buildPrepareAction(recommendation, '复核金库拆分计划'),
+        ? buildReviewAction(recommendation, 'Review stablecoin exposure')
+        : buildPrepareAction(recommendation, 'Review treasury split plan'),
       enabled: true,
     });
   }
@@ -189,12 +189,12 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (lendingSignal) {
     rules.push({
       id: buildRuleId(recommendation, 'lending-health'),
-      label: '借贷健康风险需要复核',
+      label: 'Lending health risk needs review',
       condition: lendingSignal.summary,
-      trigger: '如果健康因子仍低于安全复核阈值，触发借贷复核。',
+      trigger: 'Trigger lending review if health factor remains below the safety review threshold.',
       severity: severityFromSignal(lendingSignal),
       sourceRiskSignalId: lendingSignal.id,
-      recommendedAction: buildReviewAction(recommendation, '复核还款或抵押品选项'),
+      recommendedAction: buildReviewAction(recommendation, 'Review repayment or collateral options'),
       enabled: true,
     });
   }
@@ -202,12 +202,12 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (lpSignal) {
     rules.push({
       id: buildRuleId(recommendation, 'lp-risk'),
-      label: 'LP 无常损失风险仍然偏高',
+      label: 'LP impermanent-loss risk remains elevated',
       condition: lpSignal.summary,
-      trigger: '如果仓位仍处于中高无常损失风险，触发 LP 复核。',
+      trigger: 'Trigger LP review if the position remains at medium or high impermanent-loss risk.',
       severity: severityFromSignal(lpSignal),
       sourceRiskSignalId: lpSignal.id,
-      recommendedAction: buildReviewAction(recommendation, '复核 LP 撤出路径'),
+      recommendedAction: buildReviewAction(recommendation, 'Review LP exit path'),
       enabled: true,
     });
   }
@@ -215,14 +215,14 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (walletScan && walletScan.defiCandidates > 0) {
     rules.push({
       id: `${portfolio.walletAddress}-watch-wallet-defi-candidates`,
-      label: '钱包扫描发现 DeFi 候选对象',
-      condition: `${walletScan.defiCandidates} 个候选对象需要协议特定复核。`,
-      trigger: '当钱包扫描中出现不支持的 DeFi 对象时，触发人工复核。',
+      label: 'Wallet scan found DeFi candidate objects',
+      condition: `${walletScan.defiCandidates} candidate objects need protocol-specific review.`,
+      trigger: 'Trigger human review when unsupported DeFi objects appear in the wallet scan.',
       severity: 'medium',
       recommendedAction: {
         kind: 'review',
-        label: '复核钱包对象扫描',
-        description: '该规则仅用于复核：不支持或未定价对象会记录为审计证据，不能创建替代交易。',
+        label: 'Review wallet object scan',
+        description: 'Review-only rule: unsupported or unpriced objects are recorded as audit evidence and cannot create substitute trades.',
       },
       enabled: true,
     });
@@ -231,13 +231,13 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (deepbookMarketStatus !== 'ready') {
     rules.push({
       id: buildRuleId(recommendation, 'deepbook-market-unavailable'),
-      label: 'DeepBook 市场快照不可用',
-      condition: `DeepBook 市场状态为 ${deepbookMarketStatus}。`,
-      trigger: deepbookMarketError ?? '如果准备包时市场证据不可用，则触发审计备注。',
+      label: 'DeepBook market snapshot unavailable',
+      condition: `DeepBook market status is ${deepbookMarketStatus}.`,
+      trigger: deepbookMarketError ?? 'Trigger an audit note if market evidence is unavailable when preparing the package.',
       severity: deepbookMarketStatus === 'error' ? 'high' : 'info',
       recommendedAction: buildAuditAction(
-        '记录市场证据缺口',
-        '保持包为仅 Prepare，并把缺失的市场快照作为审计上下文归档。',
+        'Record market evidence gap',
+        'Keep the package prepare-only and archive the missing market snapshot as audit context.',
       ),
       enabled: true,
     });
@@ -246,13 +246,13 @@ export function buildMonitorRules(input: BuildMonitorRulesInput): MonitorRule[] 
   if (walletReviewOnly && rules.length === 0) {
     rules.push({
       id: buildRuleId(recommendation, 'wallet-review'),
-      label: '已连接钱包保持仅复核',
-      condition: '没有可用的已定价可执行风险信号。',
-      trigger: '如果出现新的已定价 DeFi 仓位或受支持风险信号，则触发人工复核。',
+      label: 'Connected wallet remains review-only',
+      condition: 'No priced executable risk signal is available.',
+      trigger: 'Trigger human review if new priced DeFi positions or supported risk signals appear.',
       severity: 'info',
       recommendedAction: buildAuditAction(
-        '保持仅审计复核',
-        'wallet_review 不准备交易；RiskPilot 只记录观察上下文和钱包观测。',
+        'Keep audit-only review',
+        'wallet_review prepares no trade; RiskPilot only records observed context and wallet observations.',
       ),
       enabled: true,
     });

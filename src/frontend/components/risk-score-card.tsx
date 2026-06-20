@@ -19,8 +19,8 @@ export function RiskScoreCard({ report }: RiskScoreCardProps) {
     <section className="panel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">风险</p>
-          <h2 className="panelTitle">确定性评分</h2>
+          <p className="eyebrow">Risk</p>
+          <h2 className="panelTitle">Deterministic score</h2>
         </div>
         <span className={`pill pill${report.overallLevel === 'critical' ? 'Danger' : report.overallLevel === 'high' ? 'Warn' : 'Success'}`}>
           {formatRiskLevel(report.overallLevel)}
@@ -38,12 +38,12 @@ export function RiskScoreCard({ report }: RiskScoreCardProps) {
         <div className="scoreCopy">
           <div className="scoreSummary">
             <ShieldCheck size={15} />
-            <span>{report.signals.length} 个活跃信号</span>
+            <span>{report.signals.length} active signals</span>
           </div>
           <div className="scoreSummary">
             <AlertTriangle size={15} />
             <span>
-              最坏情景损失 {formatUsd(Math.max(...report.scenarioResults.map((item) => item.estimatedLossUsd)))}
+              Worst-case loss {formatUsd(Math.max(...report.scenarioResults.map((item) => item.estimatedLossUsd)))}
             </span>
           </div>
 

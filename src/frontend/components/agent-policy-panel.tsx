@@ -22,22 +22,22 @@ type AgentPolicyPanelProps = {
 
 function statusLabel(check: AgentPolicyObjectCheck) {
   if (check.status === 'not_minted') {
-    return '等待 Policy object';
+    return 'Awaiting Policy object';
   }
 
   if (check.ok) {
-    return '链上授权已对齐';
+    return 'On-chain authority aligned';
   }
 
   if (check.status === 'expired') {
-    return '已过期';
+    return 'Expired';
   }
 
   if (check.status === 'revoked') {
-    return '已撤销';
+    return 'Revoked';
   }
 
-  return '需要同步';
+  return 'Needs sync';
 }
 
 export function AgentPolicyPanel({
@@ -53,10 +53,10 @@ export function AgentPolicyPanel({
   simplified = false,
 }: AgentPolicyPanelProps) {
   const canMint = Boolean(accountAddress && AGENT_POLICY_PACKAGE_ID && !minting && policyCheck.ok);
-  const policySummary = `${formatUsd(policy.maxBudgetUsd)} 预算 · ${policy.allowedMarkets.join(', ') || '无市场'} · ${policy.allowedAssets.join(', ') || '无资产'}`;
-  const policyLimitLine = `${formatUsd(policy.maxSingleTradeUsd)} 单笔上限 · ${
-    policy.requireManualApproval ? '需要钱包确认' : '无需手动确认'
-  } · 过期 ${formatDateTime(policy.expiresAt)}`;
+  const policySummary = `${formatUsd(policy.maxBudgetUsd)} budget · ${policy.allowedMarkets.join(', ') || 'no markets'} · ${policy.allowedAssets.join(', ') || 'no assets'}`;
+  const policyLimitLine = `${formatUsd(policy.maxSingleTradeUsd)} single-trade cap · ${
+    policy.requireManualApproval ? 'wallet confirmation required' : 'manual confirmation not required'
+  } · expires ${formatDateTime(policy.expiresAt)}`;
 
   return (
     <section className={`panel agentPolicyPanel ${compact ? 'agentPolicyPanelCompact' : ''}`}>
@@ -82,15 +82,15 @@ export function AgentPolicyPanel({
           <div className="compactProofGrid" aria-label="Policy object compact fields">
             <div>
               <span>Owner</span>
-              <strong>{accountAddress ? formatAddress(accountAddress) : '连接钱包'}</strong>
+              <strong>{accountAddress ? formatAddress(accountAddress) : 'Connect wallet'}</strong>
             </div>
             <div>
               <span>Object</span>
-              <strong>{policyObject ? formatAddress(policyObject.objectId) : '未 mint'}</strong>
+              <strong>{policyObject ? formatAddress(policyObject.objectId) : 'Not minted'}</strong>
             </div>
             <div>
               <span>Package</span>
-              <strong>{AGENT_POLICY_PACKAGE_ID ? formatAddress(AGENT_POLICY_PACKAGE_ID) : '未配置'}</strong>
+              <strong>{AGENT_POLICY_PACKAGE_ID ? formatAddress(AGENT_POLICY_PACKAGE_ID) : 'Not configured'}</strong>
             </div>
             <div>
               <span>Status</span>
@@ -103,17 +103,17 @@ export function AgentPolicyPanel({
           <div>
             <WalletCards size={15} />
             <span>Owner</span>
-            <strong>{accountAddress ? formatAddress(accountAddress) : '连接钱包'}</strong>
+            <strong>{accountAddress ? formatAddress(accountAddress) : 'Connect wallet'}</strong>
           </div>
           <div>
             <WalletCards size={15} />
             <span>Object</span>
-            <strong>{policyObject ? formatAddress(policyObject.objectId) : '未 mint'}</strong>
+            <strong>{policyObject ? formatAddress(policyObject.objectId) : 'Not minted'}</strong>
           </div>
           <div>
             <WalletCards size={15} />
             <span>Package</span>
-            <strong>{AGENT_POLICY_PACKAGE_ID ? formatAddress(AGENT_POLICY_PACKAGE_ID) : '未配置'}</strong>
+            <strong>{AGENT_POLICY_PACKAGE_ID ? formatAddress(AGENT_POLICY_PACKAGE_ID) : 'Not configured'}</strong>
           </div>
         </div>
       )}
@@ -122,25 +122,25 @@ export function AgentPolicyPanel({
         simplified ? null : (
           <div className="policyCompactSummary">
             <strong>{policySummary}</strong>
-            <span>过期 {formatDateTime(policy.expiresAt)}</span>
+            <span>Expires {formatDateTime(policy.expiresAt)}</span>
           </div>
         )
       ) : (
         <div className="ticketRows">
           <div className="ticketRow">
-            <span>预算 / 单笔</span>
+            <span>Budget / single trade</span>
             <strong>{formatUsd(policy.maxBudgetUsd)} / {formatUsd(policy.maxSingleTradeUsd)}</strong>
           </div>
           <div className="ticketRow">
-            <span>资产</span>
-            <strong>{policy.allowedAssets.join(', ') || '无'}</strong>
+            <span>Assets</span>
+            <strong>{policy.allowedAssets.join(', ') || 'None'}</strong>
           </div>
           <div className="ticketRow">
-            <span>市场</span>
-            <strong>{policy.allowedMarkets.join(', ') || '无'}</strong>
+            <span>Markets</span>
+            <strong>{policy.allowedMarkets.join(', ') || 'None'}</strong>
           </div>
           <div className="ticketRow">
-            <span>过期</span>
+            <span>Expires</span>
             <strong>{formatDateTime(policy.expiresAt)}</strong>
           </div>
         </div>
@@ -149,19 +149,19 @@ export function AgentPolicyPanel({
       {!simplified && policyObjectCheck.errors.length === 0 ? (
         <div className="noteRow">
           <CheckCircle2 size={14} />
-          <span>Sui object 是可见授权边界；server gate 同步做 shadow check。</span>
+          <span>The Sui object is the visible authorization boundary; the server gate runs the same shadow check.</span>
         </div>
       ) : null}
 
       {!simplified && showActions ? (
         <>
           <button className="button buttonSecondary" type="button" onClick={onMint} disabled={!canMint}>
-            {minting ? '等待钱包…' : policyObject ? '重新 mint 当前授权' : 'Mint AgentPolicy object'}
+            {minting ? 'Awaiting wallet...' : policyObject ? 'Mint current authority again' : 'Mint AgentPolicy object'}
           </button>
-          <div className="agentPolicyBoundaryPreview" aria-label="AgentPolicy 授权边界预览">
-            <span>授权边界</span>
+          <div className="agentPolicyBoundaryPreview" aria-label="AgentPolicy authorization boundary preview">
+            <span>Authorization boundary</span>
             <strong>
-              {formatUsd(policy.maxBudgetUsd)} 预算 · {policy.allowedMarkets.join(', ') || '无市场'} · Agent 只能在边界内准备行动
+              {formatUsd(policy.maxBudgetUsd)} budget · {policy.allowedMarkets.join(', ') || 'no markets'} · Agent can prepare actions only inside this boundary
             </strong>
           </div>
         </>
@@ -169,7 +169,7 @@ export function AgentPolicyPanel({
 
       {!AGENT_POLICY_PACKAGE_ID ? (
         <div className="warningStrip inline">
-          需要配置 NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID 或 NEXT_PUBLIC_RECEIPT_PACKAGE_ID 后才能 mint on-chain policy。
+          Configure NEXT_PUBLIC_AGENT_POLICY_PACKAGE_ID or NEXT_PUBLIC_RECEIPT_PACKAGE_ID before minting an on-chain policy.
         </div>
       ) : null}
 

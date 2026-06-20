@@ -41,7 +41,7 @@ export function WalletHealthSummary({
   const unsupportedObjectCount = walletScan ? Math.max(0, walletScan.totalObjects - knownObjectCount) : 0;
   const hasActionableRoute =
     recommendation.deepbookAction.amountUsd > 0 && recommendation.deepbookAction.market !== 'No trade';
-  const actionLabel = hasActionableRoute ? '可执行路线' : '不可执行';
+  const actionLabel = hasActionableRoute ? 'Executable route' : 'Not executable';
   const strongestConcern = topSignals[0];
   const unpricedSymbols = unpricedAssets
     .slice(0, 3)
@@ -52,50 +52,50 @@ export function WalletHealthSummary({
     <section className="panel walletHealthPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">钱包健康</p>
-          <h2 className="panelTitle">{formatAddress(address)} 的可信摘要</h2>
+          <p className="eyebrow">Wallet health</p>
+          <h2 className="panelTitle">Trusted summary for {formatAddress(address)}</h2>
         </div>
         <span className={`pill ${levelClass[riskReport.overallLevel]}`}>
           {riskReport.overallScore}/100 · {formatRiskLevel(riskReport.overallLevel)}
         </span>
       </div>
 
-      <div className="walletHealthGrid" aria-label="钱包健康摘要">
+      <div className="walletHealthGrid" aria-label="Wallet health summary">
         <article className="walletHealthCard walletHealthCardBlue">
           <AlertTriangle size={16} />
-          <span>首要关注</span>
-          <strong>{strongestConcern ? strongestConcern.title : '没有已定价风险信号'}</strong>
+          <span>Top concern</span>
+          <strong>{strongestConcern ? strongestConcern.title : 'No priced risk signal'}</strong>
           <small>
             {strongestConcern
               ? strongestConcern.summary
-              : 'RiskPilot 没有发现应生成 DeepBook 交易的已定价、可路由风险。'}
+              : 'RiskPilot found no priced, routable risk that should generate a DeepBook trade.'}
           </small>
         </article>
         <article className="walletHealthCard walletHealthCardMint">
           <BadgeCheck size={16} />
-          <span>可执行性</span>
+          <span>Executability</span>
           <strong>{actionLabel}</strong>
           <small>
             {hasActionableRoute
-              ? `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.deepbookAction.amountUsd)} 已准备供 Policy 审查。`
-              : '钱包审查保持仅审计，不会虚构替代市场。'}
+              ? `${recommendation.deepbookAction.market} · ${formatUsd(recommendation.deepbookAction.amountUsd)} prepared for Policy review.`
+              : 'Wallet review remains audit-only and does not invent a substitute market.'}
           </small>
         </article>
         <article className="walletHealthCard walletHealthCardYellow">
           <ScanSearch size={16} />
-          <span>未知敞口</span>
+          <span>Unknown exposure</span>
           <strong>
-            {unpricedAssets.length} 未定价 · {unsupportedObjectCount} 不支持
+            {unpricedAssets.length} unpriced · {unsupportedObjectCount} unsupported
           </strong>
           <small>
             {unpricedAssets.length > 0
-              ? `${unpricedSymbols || '未定价资产'} 可见，但会被排除在 USD 估值之外。`
-              : '不受支持的对象会作为证据记录，而不是当作假设去交易。'}
+              ? `${unpricedSymbols || 'Unpriced assets'} are visible but excluded from USD valuation.`
+              : 'Unsupported objects are recorded as evidence, not traded as assumptions.'}
           </small>
         </article>
       </div>
 
-      <div className="walletHealthRows" aria-label="风险分类">
+      <div className="walletHealthRows" aria-label="Risk categories">
         {topSignals.length > 0 ? (
           topSignals.map((signal) => (
             <div className="walletHealthRow" key={signal.id}>
@@ -109,10 +109,10 @@ export function WalletHealthSummary({
         ) : (
           <div className="walletHealthRow">
             <div>
-              <strong>没有可执行的已定价风险</strong>
-              <span>已连接钱包模式只使用真实余额和已拥有对象。</span>
+              <strong>No executable priced risk</strong>
+              <span>Connected-wallet mode only uses real balances and owned objects.</span>
             </div>
-            <span className="pill pillSuccess">清晰</span>
+            <span className="pill pillSuccess">Clear</span>
           </div>
         )}
       </div>
@@ -120,7 +120,7 @@ export function WalletHealthSummary({
       <div className="walletHealthBoundary" role="note">
         <Ban size={16} />
           <span>
-          钱包连接后，RiskPilot 不会从不受支持或未定价的数据里拼出借贷、LP 或 DeepBook 交易。
+          After wallet connection, RiskPilot will not fabricate lending, LP, or DeepBook trades from unsupported or unpriced data.
         </span>
       </div>
     </section>

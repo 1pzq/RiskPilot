@@ -31,18 +31,18 @@ function formatAmount(value: number | undefined, symbol: string | undefined) {
 
 function badgeLabel(input: { signedPreparedPtb: SignedPreparedPtb | null; eligible: boolean }) {
   if (input.signedPreparedPtb) {
-    return '证明已签名，未提交交易';
+    return 'Evidence signed, transaction not submitted';
   }
 
-  return input.eligible ? '已构建，待签名' : '暂不可用';
+  return input.eligible ? 'Built, awaiting signature' : 'Not available';
 }
 
 function displayValue(value: string): string {
   const exact: Record<string, string> = {
-    'market snapshot required': '需要市场快照',
-    'mint required': '需要 mint',
-    'not locked': '尚未锁定',
-    'n/a': '不适用',
+    'market snapshot required': 'Market snapshot required',
+    'mint required': 'Mint required',
+    'not locked': 'Not locked',
+    'n/a': 'N/A',
   };
 
   return exact[value] ?? value;
@@ -68,17 +68,17 @@ export function PreparedPtbPanel({
   const summaryDirection = plan ? plan.side : 'spot proof';
   const summaryAmount = plan ? formatAmount(plan.amountIn, plan.assetIn) : 'n/a';
   const summaryOut = plan ? formatAmount(plan.estimatedOut, plan.assetOut) : 'n/a';
-  const summaryStatus = signedPreparedPtb ? '已签名，未提交交易' : preparedPtb.eligible ? '已构建，待签名' : '暂不可用';
+  const summaryStatus = signedPreparedPtb ? 'Evidence signed, transaction not submitted' : preparedPtb.eligible ? 'Built, awaiting signature' : 'Not available';
   const summaryLine = `${summaryMarket} · ${summaryDirection} · ${summaryAmount} → ${summaryOut}`;
   const intentLine = displayValue(executionIntent?.executionIntentId ?? 'not locked');
-  const signedTimeLine = signedPreparedPtb?.signedAt ? formatDateTime(signedPreparedPtb.signedAt) : '尚未签名';
+  const signedTimeLine = signedPreparedPtb?.signedAt ? formatDateTime(signedPreparedPtb.signedAt) : 'Not signed yet';
 
   return (
     <section className={`panel preparedPtbPanel ${compact ? 'preparedPtbPanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Prepared PTB</p>
-          <h2 className="panelTitle">PTB 只准备，不提交</h2>
+          <h2 className="panelTitle">Prepared only. Not submitted.</h2>
         </div>
         <span className={`pill ${signedPreparedPtb ? 'pillSuccess' : preparedPtb.eligible ? 'pillWarn' : 'pillDanger'}`}>
           {badge}
@@ -90,19 +90,19 @@ export function PreparedPtbPanel({
           <div className="compactProofStack">
             <div className="preparedCompactSummary">
               <strong>{summaryLine}</strong>
-              <span>{summaryStatus} · 钱包只签名 evidence message，不提交交易</span>
+              <span>{summaryStatus} · Wallet signs an evidence message, not a transaction.</span>
             </div>
             <div className="compactProofGrid" aria-label="Prepared PTB compact fields">
               <div>
                 <span>Pool</span>
                 <strong>
                   {preparedPtb.poolEvidence?.poolKey ?? 'SUI_USDC'} ·{' '}
-                  {preparedPtb.poolEvidence?.poolAddress ? formatAddress(preparedPtb.poolEvidence.poolAddress) : '需要市场快照'}
+                  {preparedPtb.poolEvidence?.poolAddress ? formatAddress(preparedPtb.poolEvidence.poolAddress) : 'Market snapshot required'}
                 </strong>
               </div>
               <div>
                 <span>Policy</span>
-                <strong>{policyObjectId ? formatAddress(policyObjectId) : '需要 mint'}</strong>
+                <strong>{policyObjectId ? formatAddress(policyObjectId) : 'Mint required'}</strong>
               </div>
               <div>
                 <span>Intent</span>
@@ -114,11 +114,11 @@ export function PreparedPtbPanel({
               </div>
               <div>
                 <span>Signed</span>
-                <strong>{signedPreparedPtb ? signedTimeLine : '尚未签名'}</strong>
+                <strong>{signedPreparedPtb ? signedTimeLine : 'Not signed yet'}</strong>
               </div>
               <div>
                 <span>Submit</span>
-                <strong>{signedPreparedPtb ? '未提交交易' : '等待签名'}</strong>
+                <strong>{signedPreparedPtb ? 'Not submitted' : 'Awaiting signature'}</strong>
               </div>
             </div>
           </div>
@@ -128,10 +128,10 @@ export function PreparedPtbPanel({
         <>
           {preparedPtb.reason ? <div className="warningStrip inline">{preparedPtb.reason}</div> : null}
 
-          <div className="preparedSignChecklist" aria-label="准备证明检查清单">
-            <span>{policyObjectId ? `Policy object ${formatAddress(policyObjectId)}` : 'Policy object 未 mint'}</span>
+          <div className="preparedSignChecklist" aria-label="Preparation proof checklist">
+            <span>{policyObjectId ? `Policy object ${formatAddress(policyObjectId)}` : 'Policy object not minted'}</span>
             <span>{preparedPtb.eligible ? `PTB ready · ${summaryLine}` : `PTB blocked · ${preparedPtb.reason ?? preparedPtb.safety.note}`}</span>
-            <span>{signedPreparedPtb ? `已签名 · ${signedTimeLine}` : canSign ? '点击后仅签名，不提交交易' : '等待钱包或 intent'}</span>
+            <span>{signedPreparedPtb ? `Signed · ${signedTimeLine}` : canSign ? 'Signs evidence only. No transaction submission.' : 'Awaiting wallet or intent'}</span>
           </div>
 
           <div className="ticketRows">
@@ -177,7 +177,7 @@ export function PreparedPtbPanel({
                   <span>Pool</span>
                   <strong>
                     {preparedPtb.poolEvidence?.poolKey ?? 'SUI_USDC'} ·{' '}
-                    {preparedPtb.poolEvidence?.poolAddress ? formatAddress(preparedPtb.poolEvidence.poolAddress) : '需要市场快照'}
+                    {preparedPtb.poolEvidence?.poolAddress ? formatAddress(preparedPtb.poolEvidence.poolAddress) : 'Market snapshot required'}
                   </strong>
                 </div>
               </>
@@ -188,7 +188,7 @@ export function PreparedPtbPanel({
             </div>
             <div className="ticketRow">
               <span>Policy object</span>
-              <strong>{policyObjectId ? formatAddress(policyObjectId) : '需要 mint'}</strong>
+              <strong>{policyObjectId ? formatAddress(policyObjectId) : 'Mint required'}</strong>
             </div>
             <div className="ticketRow">
               <span>Execution intent</span>
@@ -196,7 +196,7 @@ export function PreparedPtbPanel({
             </div>
             <div className="ticketRow">
               <span>Submit status</span>
-              <strong>{signedPreparedPtb ? '证明已签名，未提交交易' : '未提交'}</strong>
+              <strong>{signedPreparedPtb ? 'Evidence signed, transaction not submitted' : 'Not submitted'}</strong>
             </div>
           </div>
 
@@ -219,14 +219,14 @@ export function PreparedPtbPanel({
 
       {showActions ? (
         <button className="button buttonPrimary" type="button" onClick={onSign} disabled={!canSign}>
-          {signedPreparedPtb ? '准备证明已签名' : signing ? '等待钱包…' : '签名准备证明'}
+          {signedPreparedPtb ? 'Evidence message signed' : signing ? 'Awaiting wallet...' : 'Sign evidence message'}
         </button>
       ) : null}
 
       {!accountAddress ? (
         <div className="noteRow">
           <WalletCards size={14} />
-          <span>连接 Sui mainnet 钱包后，才可以签名准备证明。</span>
+          <span>Connect a Sui mainnet wallet before signing the evidence message.</span>
         </div>
       ) : null}
 

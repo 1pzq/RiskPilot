@@ -6,24 +6,24 @@ const motifs = [
   {
     id: 'agent',
     tag: 'Agentic Web',
-    title: '风险 Agent',
-    copy: 'AI 工作流读取 Portfolio、解释敞口，并保持在 Policy 限制内。',
+    title: 'Risk Agent',
+    copy: 'AI workflow reads the portfolio, explains exposure, and stays inside Policy limits.',
     tone: 'yellow',
     visual: 'key',
   },
   {
     id: 'walrus',
     tag: 'Walrus',
-    title: '审计记忆',
-    copy: '每个已准备动作都会成为可携带的决策包，并带有兜底安全存储。',
+    title: 'Audit memory',
+    copy: 'Every prepared action becomes a portable decision package with durable storage.',
     tone: 'cyan',
     visual: 'walrus',
   },
   {
     id: 'deepbook',
     tag: 'DeepBook',
-    title: '已准备保护',
-    copy: 'DeepBook Predict 风格条款会为下行保护提前准备，但不进行 Live 提交。',
+    title: 'Prepared protection',
+    copy: 'DeepBook Predict-style terms are prepared for downside cover without live submission.',
     tone: 'purple',
     visual: 'cash',
   },
@@ -69,7 +69,7 @@ export function VisualMotifPanel() {
   const [activeId, setActiveId] = useState<(typeof motifs)[number]['id']>('agent');
 
   return (
-    <section className="motifSection panel" aria-label="Mainnet 原语流转">
+    <section className="motifSection panel" aria-label="Mainnet primitive flow">
       <div className="trackCardGrid">
         {motifs.map((motif) => {
           const active = motif.id === activeId;

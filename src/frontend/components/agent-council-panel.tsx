@@ -49,18 +49,18 @@ function statusIcon(status: CouncilAgentStatus) {
 
 function postureLabel(posture: AgentCouncilDecision['posture']): string {
   if (posture === 'policy_blocked') {
-    return 'Policy 阻断';
+    return 'Policy blocked';
   }
 
   if (posture === 'live_ready') {
-    return 'Live 就绪';
+    return 'Live ready';
   }
 
   if (posture === 'audit_only') {
-    return '仅审计';
+    return 'Audit only';
   }
 
-  return 'Prepare 就绪';
+  return 'Prepare ready';
 }
 
 function modeLabel(decision: AgentCouncilDecision): string {
@@ -68,7 +68,7 @@ function modeLabel(decision: AgentCouncilDecision): string {
     return decision.model ? `AI ${decision.model}` : 'AI Council';
   }
 
-  return '规则兜底';
+  return 'Rules fallback';
 }
 
 function agentInputs(agentId: string): string[] {
@@ -88,27 +88,27 @@ function agentInputs(agentId: string): string[] {
     return ['monitorRules', 'deepbookMarketEvidence', 'storage'];
   }
 
-  return ['agent 结论', 'policyCheck', 'liveGate'];
+  return ['agent verdicts', 'policyCheck', 'liveGate'];
 }
 
 function agentOutputs(agentId: string): string[] {
   if (agentId === 'risk_analyst') {
-    return ['风险摘要', '风险交接'];
+    return ['risk summary', 'risk handoff'];
   }
 
   if (agentId === 'strategy_agent') {
-    return ['受限动作摘要', '策略交接'];
+    return ['bounded action summary', 'strategy handoff'];
   }
 
   if (agentId === 'policy_guard') {
-    return ['Policy 结论', '阻断/通过证据'];
+    return ['Policy verdict', 'block/pass evidence'];
   }
 
   if (agentId === 'audit_agent') {
-    return ['归档就绪度', 'receipt 交接'];
+    return ['archive readiness', 'receipt handoff'];
   }
 
-  return ['锁定姿态', 'Manager 摘要'];
+  return ['locked posture', 'Manager summary'];
 }
 
 export function AgentCouncilPanel({ decision, refreshing = false, compact = false }: AgentCouncilPanelProps) {
@@ -117,18 +117,18 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
   const blockedCount = decision.agents.filter((agent) => agent.status === 'blocked').length;
   const councilDetails = (
     <>
-      <div className="agentTransparencyBar" aria-label="Agent 权限模式">
+      <div className="agentTransparencyBar" aria-label="Agent authority mode">
         <div>
-          <span>Agent 模式</span>
+          <span>Agent mode</span>
           <strong>{decision.mode}</strong>
         </div>
         <div>
-          <span>AI 可编辑</span>
-          <strong>仅摘要和措辞</strong>
+          <span>AI editable</span>
+          <strong>Summary and wording only</strong>
         </div>
         <div>
-          <span>规则锁定</span>
-          <strong>姿态、Policy Gate、路线边界</strong>
+          <span>Rules locked</span>
+          <strong>Posture, Policy Gate, route boundaries</strong>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
 
             <p>{agent.summary}</p>
 
-            <div className="confidenceTrack" aria-label={`${agent.name} 置信度 ${agent.confidence}%`}>
+            <div className="confidenceTrack" aria-label={`${agent.name} confidence ${agent.confidence}%`}>
               <span style={{ width: `${agent.confidence}%` }} />
             </div>
 
@@ -158,15 +158,15 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
               ))}
             </div>
 
-            <div className="agentIoGrid" aria-label={`${agent.name} 输入和输出`}>
+            <div className="agentIoGrid" aria-label={`${agent.name} inputs and outputs`}>
               <div>
-                <span>读取输入</span>
+                <span>Reads</span>
                 {agentInputs(agent.id).map((item) => (
                   <code key={item}>{item}</code>
                 ))}
               </div>
               <div>
-                <span>产生输出</span>
+                <span>Produces</span>
                 {agentOutputs(agent.id).map((item) => (
                   <code key={item}>{item}</code>
                 ))}
@@ -174,8 +174,8 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
             </div>
 
             <div className="agentAuthorityTags">
-              <span>AI 可编辑：摘要措辞</span>
-              <span>已锁定：状态、置信度、交接引用</span>
+              <span>AI editable: summary wording</span>
+              <span>Locked: status, confidence, handoff refs</span>
             </div>
 
             <div className="councilHandoff">{agent.handoff}</div>
@@ -190,11 +190,11 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Agent Council</p>
-          <h2 className="panelTitle">多 Agent 风险委员会</h2>
+          <h2 className="panelTitle">Multi-Agent risk council</h2>
         </div>
         <div className="panelHeaderMeta">
           <span className={`pill ${decision.mode === 'openai' || decision.mode === 'deepseek' ? 'pillSuccess' : 'pillWarn'}`}>
-            {refreshing ? '刷新中' : modeLabel(decision)}
+            {refreshing ? 'Refreshing' : modeLabel(decision)}
           </span>
           <span className={`pill ${decision.posture === 'policy_blocked' ? 'pillDanger' : 'pillAccent'}`}>
             {postureLabel(decision.posture)}
@@ -211,22 +211,22 @@ export function AgentCouncilPanel({ decision, refreshing = false, compact = fals
 
       {compact ? (
         <>
-          <div className="auditCompactStats" aria-label="Agent Council 摘要">
+          <div className="auditCompactStats" aria-label="Agent Council summary">
             <div>
               <span>Agent</span>
               <strong>{decision.agents.length}</strong>
             </div>
             <div>
-              <span>就绪 / 观察</span>
+              <span>Ready / watch</span>
               <strong>{readyCount} / {watchCount}</strong>
             </div>
             <div>
-              <span>已阻断</span>
+              <span>Blocked</span>
               <strong>{blockedCount}</strong>
             </div>
           </div>
           <details className="auditDetailDrawer">
-            <summary>Agent 卡片、输入输出和交接</summary>
+            <summary>Agent cards, inputs, outputs, and handoffs</summary>
             {councilDetails}
           </details>
         </>

@@ -20,7 +20,7 @@ type ProofOfAgentActionPanelProps = {
 
 type ProofStepTone = 'ready' | 'waiting' | 'blocked';
 
-function shortValue(value?: string, fallback = '等待生成') {
+function shortValue(value?: string, fallback = 'Awaiting generation') {
   if (!value) {
     return fallback;
   }
@@ -29,16 +29,13 @@ function shortValue(value?: string, fallback = '等待生成') {
 }
 
 function fullValue(value?: string) {
-  return value || '暂不可用';
+  return value || 'Not available';
 }
 
 function localizedPtbDetail(value: string) {
   return value
-    .replace(
-      'DeepBook market snapshot is required before building the prepared PTB.',
-      '构建 prepared PTB 前需要 DeepBook 市场快照。',
-    )
-    .replace('not eligible', '暂不可用');
+    .replace('DeepBook market snapshot is required before building the prepared PTB.', 'DeepBook market snapshot is required before building the prepared PTB.')
+    .replace('not eligible', 'not available');
 }
 
 function statusLabel(input: {
@@ -48,22 +45,22 @@ function statusLabel(input: {
   storageResult: AuditStorageResult | null;
 }) {
   if (input.auditPackage?.receiptProof) {
-    return { label: 'Receipt 已 mint', className: 'pillSuccess' };
+    return { label: 'Receipt minted', className: 'pillSuccess' };
   }
 
   if (input.storageResult) {
-    return { label: '已归档', className: 'pillAccent' };
+    return { label: 'Archived', className: 'pillAccent' };
   }
 
   if (input.signedPreparedPtb) {
-    return { label: '已签名，未提交', className: 'pillWarn' };
+    return { label: 'Signed, not submitted', className: 'pillWarn' };
   }
 
   if (input.preparedPtb.eligible) {
-    return { label: 'PTB 已构建', className: 'pillWarn' };
+    return { label: 'PTB built', className: 'pillWarn' };
   }
 
-  return { label: '已阻断', className: 'pillDanger' };
+  return { label: 'Blocked', className: 'pillDanger' };
 }
 
 function proofTone(value?: string, blocked?: boolean): ProofStepTone {
@@ -97,33 +94,33 @@ export function ProofOfAgentActionPanel({
   const badge = statusLabel({ preparedPtb, signedPreparedPtb, auditPackage, storageResult });
   const signedAt = signedPreparedPtb?.signedAt ?? receiptProof?.mintedAt;
   const outcome = receiptProof
-    ? '已签名 + 已归档 + Receipt'
+    ? 'Signed + archived + receipt'
     : storageResult
-      ? '已签名 + 已归档'
+      ? 'Signed + archived'
       : signedPreparedPtb
-        ? '已签名，未提交'
+        ? 'Signed, not submitted'
         : preparedPtb.eligible
-          ? 'PTB 已准备，等待签名'
-          : '动作已被边界阻断';
+          ? 'PTB prepared, awaiting signature'
+          : 'Action blocked by boundaries';
   const summaryItems = [
     {
       label: 'Authority',
-      value: effectivePolicyObjectId ? 'Policy 已验证' : 'Policy 待确认',
+      value: effectivePolicyObjectId ? 'Policy verified' : 'Policy pending',
       tone: effectivePolicyObjectId ? 'ready' : 'waiting',
     },
     {
       label: 'Action',
-      value: preparedPtb.eligible ? 'PTB 已准备' : 'PTB 暂不可用',
+      value: preparedPtb.eligible ? 'PTB prepared' : 'PTB not available',
       tone: preparedPtb.eligible ? 'ready' : 'blocked',
     },
     {
       label: 'Wallet',
-      value: signedPreparedPtb ? '已签名未提交' : '等待签名',
+      value: signedPreparedPtb ? 'Signed, not submitted' : 'Awaiting signature',
       tone: signedPreparedPtb ? 'ready' : 'waiting',
     },
     {
       label: 'Memory',
-      value: storageResult ? 'Walrus 已归档' : '等待归档',
+      value: storageResult ? 'Walrus archived' : 'Awaiting archive',
       tone: storageResult ? 'ready' : 'waiting',
     },
   ] as const;
@@ -132,7 +129,7 @@ export function ProofOfAgentActionPanel({
       id: 'policy',
       icon: ShieldCheck,
       label: 'Policy object',
-      value: shortValue(effectivePolicyObjectId, '需要 mint / 选择'),
+      value: shortValue(effectivePolicyObjectId, 'Mint / selection required'),
       detail: fullValue(effectivePolicyObjectId),
       tone: proofTone(effectivePolicyObjectId),
     },
@@ -140,19 +137,19 @@ export function ProofOfAgentActionPanel({
       id: 'intent',
       icon: FileCheck2,
       label: 'Execution intent',
-      value: executionIntent?.executionIntentId ?? auditPackage?.executionIntent?.executionIntentId ?? '等待锁定',
+      value: executionIntent?.executionIntentId ?? auditPackage?.executionIntent?.executionIntentId ?? 'Awaiting lock',
       detail: executionIntent
         ? `expires ${formatDateTime(executionIntent.intentExpiresAt)}`
-        : '风险、Policy 和建议摘要尚未锁定',
+        : 'Risk, Policy, and recommendation digests are not locked yet',
       tone: proofTone(executionIntent?.executionIntentId ?? auditPackage?.executionIntent?.executionIntentId),
     },
     {
       id: 'ptb',
       icon: FileSignature,
       label: 'Prepared PTB digest',
-      value: signedPreparedPtb?.bytesDigest ?? executionDigest ?? (preparedPtb.eligible ? '已构建，等待签名' : '不可构建'),
+      value: signedPreparedPtb?.bytesDigest ?? executionDigest ?? (preparedPtb.eligible ? 'Built, awaiting signature' : 'Cannot build'),
       detail: signedPreparedPtb
-        ? '钱包已签名 prepared transaction bytes'
+        ? 'Wallet signed the prepared evidence message'
         : localizedPtbDetail(preparedPtb.reason ?? preparedPtb.safety.note),
       tone: proofTone(signedPreparedPtb?.bytesDigest ?? executionDigest, !preparedPtb.eligible),
     },
@@ -160,30 +157,30 @@ export function ProofOfAgentActionPanel({
       id: 'signature',
       icon: WalletCards,
       label: 'Wallet signature',
-      value: signedPreparedPtb ? formatAddress(signedPreparedPtb.signer) : '需要钱包签名',
+      value: signedPreparedPtb ? formatAddress(signedPreparedPtb.signer) : 'Wallet signature required',
       detail: signedPreparedPtb
         ? `signed ${signedAt ? formatDateTime(signedAt) : 'for current intent'}`
-        : 'Walrus 归档前必须先签名',
+        : 'Signature is required before Walrus archive',
       tone: proofTone(signedPreparedPtb?.signature),
     },
     {
       id: 'walrus',
       icon: Archive,
       label: 'Walrus blob',
-      value: storageResult?.id ?? '归档后生成',
-      detail: storageResult?.url ?? storageResult?.registerDigest ?? 'signed prepared action 尚未归档',
+      value: storageResult?.id ?? 'Generated after archive',
+      detail: storageResult?.url ?? storageResult?.registerDigest ?? 'Signed prepared action is not archived yet',
       tone: proofTone(storageResult?.id),
     },
     {
       id: 'receipt',
       icon: CheckCircle2,
       label: 'StrategyReceipt',
-      value: receiptProof?.receiptObjectId ? formatAddress(receiptProof.receiptObjectId) : receiptProof?.receiptDigest ?? '归档后可 mint',
+      value: receiptProof?.receiptObjectId ? formatAddress(receiptProof.receiptObjectId) : receiptProof?.receiptDigest ?? 'Ready to mint after archive',
       detail: receiptProof
         ? `tx ${receiptProof.receiptDigest}`
         : receiptPackageId
           ? `package ${formatAddress(receiptPackageId)}`
-          : 'receipt package 未配置',
+          : 'receipt package not configured',
       tone: proofTone(receiptProof?.receiptDigest),
     },
   ] as const;

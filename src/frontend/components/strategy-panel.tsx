@@ -42,7 +42,7 @@ function parseUsdInput(value: string): number | null {
 }
 
 function formatActionMode(mode: string): string {
-  return mode === 'prepare_mainnet' ? '仅 Prepare' : mode.replace(/_/g, ' ');
+  return mode === 'prepare_mainnet' ? 'Prepare only' : mode.replace(/_/g, ' ');
 }
 
 function OptionButton({
@@ -73,38 +73,38 @@ export function StrategyPanel({
   const strategyDetails = [
     {
       icon: <Info size={14} />,
-      label: '原因',
+      label: 'Why',
       value: recommendation.rationale,
     },
     {
       icon: <Target size={14} />,
-      label: '适用范围',
+      label: 'Applies to',
       value: recommendation.applicability,
     },
     {
       icon: <ShieldCheck size={14} />,
-      label: '仅 Prepare',
+      label: 'Prepare only',
       value: recommendation.prepareOnlyReason,
     },
     {
       icon: <RotateCcw size={14} />,
-      label: '兜底方案',
+      label: 'Fallback',
       value: recommendation.fallback,
     },
   ].filter((item) => item.value);
   const displayFacts = recommendation.displayFacts ?? [];
   const evidenceItems = [
     {
-      label: 'Policy 会检查',
-      value: `预算 ${formatUsd(recommendation.estimatedCostUsd)}、市场 ${recommendation.deepbookAction.market}、资产 ${recommendation.deepbookAction.assetIn}/${recommendation.deepbookAction.assetOut}`,
+      label: 'Policy checks',
+      value: `Budget ${formatUsd(recommendation.estimatedCostUsd)}, market ${recommendation.deepbookAction.market}, assets ${recommendation.deepbookAction.assetIn}/${recommendation.deepbookAction.assetOut}`,
     },
     {
-      label: '钱包会确认',
-      value: 'Act 阶段只签 evidence message，用来证明用户确认过策略，不会转出资产。',
+      label: 'Wallet confirms',
+      value: 'Act signs an evidence message only. It proves the user confirmed the strategy and does not move assets.',
     },
     {
-      label: 'Walrus 会归档',
-      value: 'Remember 阶段保存策略摘要、Policy 边界、准备证明和市场证据，方便评委回放验证。',
+      label: 'Walrus archives',
+      value: 'Remember stores the strategy summary, Policy boundary, preparation proof, and market evidence for judge replay.',
     },
   ];
   const [budgetDraft, setBudgetDraft] = useState(() => ({
@@ -138,7 +138,7 @@ export function StrategyPanel({
     <section className="panel strategyPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">推荐动作</p>
+          <p className="eyebrow">Recommended action</p>
           <h2 className="panelTitle">{recommendation.title}</h2>
         </div>
         <span className="pill pillAccent">{formatActionMode(recommendation.deepbookAction.mode)}</span>
@@ -150,14 +150,14 @@ export function StrategyPanel({
         <div className="metricCard">
           <div className="metricLabel">
             <ShieldAlert size={14} />
-            最大成本
+            Max cost
           </div>
           <div className="metricValue">{formatUsd(recommendation.estimatedCostUsd)}</div>
         </div>
         <div className="metricCard">
           <div className="metricLabel">
             <ArrowRightLeft size={14} />
-            预估降险
+            Est. risk reduction
           </div>
           <div className="metricValue">{recommendation.expectedRiskReduction}%</div>
         </div>
@@ -200,12 +200,12 @@ export function StrategyPanel({
             <div className="strategyFact">
               <span>
                 <BarChart3 size={14} />
-                实时池
+                Live pool
               </span>
               <strong>{marketSnapshot.poolKey}</strong>
             </div>
             <div className="strategyFact">
-              <span>中间价</span>
+              <span>Mid price</span>
               <strong>{formatUsd(marketSnapshot.midPrice)}</strong>
             </div>
             <div className="strategyFact">
@@ -217,11 +217,11 @@ export function StrategyPanel({
               <strong>{marketSnapshot.baseOutForOneQuote.toFixed(4)} SUI</strong>
             </div>
             <div className="strategyFact">
-              <span>池状态</span>
+              <span>Pool status</span>
               <strong>{marketSnapshot.registeredPool ? 'registered' : 'unregistered'} · {marketSnapshot.whitelisted ? 'whitelisted' : 'open'}</strong>
             </div>
             <div className="strategyFact">
-              <span>金库</span>
+              <span>Vault</span>
               <strong>
                 {marketSnapshot.vaultBalances.base.toFixed(2)} / {marketSnapshot.vaultBalances.quote.toFixed(2)} / {marketSnapshot.vaultBalances.deep.toFixed(2)}
               </strong>
@@ -231,7 +231,7 @@ export function StrategyPanel({
       ) : marketSnapshotStatus === 'loading' ? (
         <div className="noteRow">
           <BarChart3 size={14} />
-          <span>正在加载实时 DeepBook mainnet 数据…</span>
+          <span>Loading live DeepBook mainnet data...</span>
         </div>
       ) : marketSnapshotError ? (
         <div className="warningStrip inline">{marketSnapshotError}</div>
@@ -239,27 +239,27 @@ export function StrategyPanel({
 
       <div className="positionBlock strategyBlock strategyActionBlock">
         <div className="positionLine">
-          <span>适配器</span>
+          <span>Adapter</span>
           <span>{recommendation.deepbookAction.kind === 'predict_binary' ? 'DeepBook Predict' : 'DeepBook'}</span>
         </div>
         <div className="positionLine">
-          <span>市场</span>
+          <span>Market</span>
           <span>{recommendation.deepbookAction.market}</span>
         </div>
         <div className="positionLine">
-          <span>方向</span>
+          <span>Direction</span>
           <span>{recommendation.deepbookAction.side}</span>
         </div>
         <div className="positionLine">
-          <span>输入资产</span>
+          <span>Input asset</span>
           <span>{recommendation.deepbookAction.assetIn}</span>
         </div>
         <div className="positionLine">
-          <span>输出资产</span>
+          <span>Output asset</span>
           <span>{recommendation.deepbookAction.assetOut}</span>
         </div>
         <div className="positionLine">
-          <span>准备规模</span>
+          <span>Prepared size</span>
           <span>{formatUsd(recommendation.deepbookAction.amountUsd)}</span>
         </div>
         <div className="strategyNote">{recommendation.deepbookAction.description}</div>
@@ -269,22 +269,22 @@ export function StrategyPanel({
         <div className="strategyEvidenceHeader">
           <span>
             <FileCheck2 size={14} />
-            策略证据预览
+            Strategy evidence preview
           </span>
         </div>
 
-        <div className="strategyEvidenceConclusion" aria-label="策略安全结论">
+        <div className="strategyEvidenceConclusion" aria-label="Strategy safety conclusion">
           <span>
-            <strong>AI 无执行权</strong>
-            <small>只给建议</small>
+            <strong>AI has no execution key</strong>
+            <small>Suggests only</small>
           </span>
           <span>
-            <strong>Policy 先拦截</strong>
-            <small>越界即阻断</small>
+            <strong>Policy gates first</strong>
+            <small>Out of bounds means blocked</small>
           </span>
           <span>
-            <strong>钱包不签不提交</strong>
-            <small>资金不自动流出</small>
+            <strong>No wallet, no submit</strong>
+            <small>No automatic outflow</small>
           </span>
         </div>
 
@@ -303,9 +303,9 @@ export function StrategyPanel({
           <label className="field">
             <span className="fieldLabel">
               <Target size={14} />
-              保护阈值
+              Protection threshold
             </span>
-            <span className="optionGroup" role="radiogroup" aria-label="保护阈值">
+            <span className="optionGroup" role="radiogroup" aria-label="Protection threshold">
               {thresholds.map((threshold) => (
                 <OptionButton
                   active={predictSettings.thresholdPct === threshold}
@@ -326,9 +326,9 @@ export function StrategyPanel({
           <label className="field">
             <span className="fieldLabel">
               <CalendarClock size={14} />
-              过期时间
+              Expiry
             </span>
-            <span className="optionGroup" role="radiogroup" aria-label="过期时间">
+            <span className="optionGroup" role="radiogroup" aria-label="Expiry">
               {expiries.map((expiryDays) => (
                 <OptionButton
                   active={predictSettings.expiryDays === expiryDays}
@@ -340,7 +340,7 @@ export function StrategyPanel({
                     })
                   }
                 >
-                  {expiryDays} 天
+                  {expiryDays}D
                 </OptionButton>
               ))}
             </span>
@@ -349,7 +349,7 @@ export function StrategyPanel({
           <label className="field wide">
             <span className="fieldLabel">
               <ShieldAlert size={14} />
-              预算 USD
+              Budget USD
             </span>
             <input
               className="input"

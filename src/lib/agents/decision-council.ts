@@ -80,12 +80,12 @@ function clampConfidence(value: number): number {
 
 function signalSummary(report: RiskReport): string {
   if (report.signals.length === 0) {
-    return '当前没有活跃的已定价风险信号。';
+    return 'No active priced risk signals.';
   }
 
   return report.signals
     .slice(0, 3)
-    .map((signal) => `${signal.title}（${signal.level}）`)
+    .map((signal) => `${signal.title} (${signal.level})`)
     .join('; ');
 }
 
@@ -111,18 +111,18 @@ function buildPosture(input: BuildAgentCouncilInput): AgentCouncilDecision['post
 
 function postureSummary(posture: AgentCouncilDecision['posture'], input: BuildAgentCouncilInput): string {
   if (posture === 'policy_blocked') {
-    return `Manager 阻断执行，直到 Policy 修复：${input.policyCheck.errors[0] ?? 'Policy 检查失败'}`;
+    return `Manager blocks execution until Policy is fixed: ${input.policyCheck.errors[0] ?? 'Policy check failed'}`;
   }
 
   if (posture === 'live_ready') {
-    return 'Manager 仅在钱包、Policy、路线和市场闸门全部通过时允许 Live Spot。';
+    return 'Manager allows live spot only when wallet, Policy, route, and market gates all pass.';
   }
 
   if (posture === 'audit_only') {
-    return 'Manager 将该钱包保持为仅审计，因为不能虚构已定价的可执行路线。';
+    return 'Manager keeps this wallet audit-only because RiskPilot cannot invent a priced executable route.';
   }
 
-  return 'Manager 批准仅 Prepare 的包：风险、策略、Policy 和市场证据已可归档。';
+  return 'Manager approves a prepare-only package: risk, strategy, Policy, and market evidence are ready to archive.';
 }
 
 function statusFromRisk(score: number): CouncilAgentStatus {
@@ -160,100 +160,100 @@ export function buildAgentCouncilDecision(input: BuildAgentCouncilInput): AgentC
     {
       id: 'risk_analyst',
       name: 'Risk Analyst',
-      role: '评估确定性钱包风险与情景风险。',
+      role: 'Assess deterministic wallet and scenario risk.',
       status: statusFromRisk(input.riskReport.overallScore),
       confidence: clampConfidence(74 + Math.min(16, activeSignals * 4)),
       summary:
         activeSignals > 0
-          ? `${activeSignals} 个信号活跃；评分为 ${input.riskReport.overallScore}/${input.riskReport.overallLevel}。`
-          : `评分为 ${input.riskReport.overallScore}/${input.riskReport.overallLevel}；没有活跃的已定价信号。`,
+          ? `${activeSignals} signals active; score ${input.riskReport.overallScore}/${input.riskReport.overallLevel}.`
+          : `Score ${input.riskReport.overallScore}/${input.riskReport.overallLevel}; no active priced signals.`,
       evidence: [
         signalSummary(input.riskReport),
-        `情景检查：${input.riskReport.scenarioResults.map((scenario) => scenario.scenario).join(', ')}`,
+        `Scenario checks: ${input.riskReport.scenarioResults.map((scenario) => scenario.scenario).join(', ')}`,
       ],
-      handoff: topSignal ? `将 ${topSignal.id} 升级给 Strategy Agent。` : '将钱包上下文送入仅审计复核。',
+      handoff: topSignal ? `Escalate ${topSignal.id} to Strategy Agent.` : 'Send wallet context into audit-only review.',
     },
     {
       id: 'strategy_agent',
       name: 'Strategy Agent',
-      role: '把风险映射为有边界的 DeepBook 动作。',
+      role: 'Map risk into bounded DeepBook actions.',
       status: input.recommendation.type === 'wallet_review' ? 'watch' : 'ready',
       confidence: clampConfidence(input.recommendation.deepbookAction.amountUsd > 0 ? 86 : 72),
-      summary: `${input.recommendation.title} 针对 ${input.recommendation.targetRiskSignalIds.length || '仅复核'} 个信号。`,
+      summary: `${input.recommendation.title} covers ${input.recommendation.targetRiskSignalIds.length || 'review-only'} signals.`,
       evidence: [
-        `模式：${input.recommendation.deepbookAction.mode}`,
-        `市场：${input.recommendation.deepbookAction.market}`,
-        `预估成本：$${input.recommendation.estimatedCostUsd.toFixed(2)}`,
+        `Mode: ${input.recommendation.deepbookAction.mode}`,
+        `Market: ${input.recommendation.deepbookAction.market}`,
+        `Estimated cost: $${input.recommendation.estimatedCostUsd.toFixed(2)}`,
       ],
       handoff:
         input.recommendation.deepbookAction.amountUsd > 0
-          ? '将已准备动作交给 Policy Guard。'
-          : '将无交易复核包交给 Audit Agent。',
+          ? 'Send prepared action to Policy Guard.'
+          : 'Send no-trade review package to Audit Agent.',
     },
     {
       id: 'policy_guard',
       name: 'Policy Guard',
-      role: '执行预算、资产、市场、过期时间和审批闸门。',
+      role: 'Enforce budget, asset, market, expiry, and approval gates.',
       status: policyStatus(input.policyCheck),
       confidence: clampConfidence(input.policyCheck.ok ? 94 : 88),
       summary: input.policyCheck.ok
-        ? `Policy 允许最高 $${input.policy.maxBudgetUsd.toFixed(2)}，人工确认${input.policy.requireManualApproval ? '必需' : '非必需'}。`
-        : `${input.policyCheck.errors.length} 个 Policy 问题需要修复。`,
+        ? `Policy allows up to $${input.policy.maxBudgetUsd.toFixed(2)}; manual approval ${input.policy.requireManualApproval ? 'required' : 'not required'}.`
+        : `${input.policyCheck.errors.length} Policy issues need fixing.`,
       evidence: input.policyCheck.ok
         ? [
-            `允许资产：${input.policy.allowedAssets.join(', ')}`,
-            `允许市场：${input.policy.allowedMarkets.join(', ')}`,
+            `Allowed assets: ${input.policy.allowedAssets.join(', ')}`,
+            `Allowed markets: ${input.policy.allowedMarkets.join(', ')}`,
           ]
         : input.policyCheck.errors,
-      handoff: input.policyCheck.ok ? '将通过闸门的包交给 Audit Agent。' : '在 Policy 修正前阻断 Prepare/归档。',
+      handoff: input.policyCheck.ok ? 'Send gated package to Audit Agent.' : 'Block prepare/archive until Policy is fixed.',
     },
     {
       id: 'audit_agent',
       name: 'Audit Agent',
-      role: '为 Walrus 和 receipt 交接打包证据。',
+      role: 'Package evidence for Walrus and receipt handoff.',
       status: input.deepbookMarketEvidence.status === 'ready' || input.auditArchived ? 'ready' : 'watch',
       confidence: clampConfidence(input.deepbookMarketEvidence.status === 'ready' ? 90 : 70),
       summary: input.auditArchived
-        ? '归档已完成；包内已包含执行与存储证据。'
-        : `归档预览中 ${enabledRules}/${input.monitorRules.length} 条监控规则已启用，DeepBook 证据状态为 ${input.deepbookMarketEvidence.status}。`,
+        ? 'Archive complete; package includes execution and storage evidence.'
+        : `${enabledRules}/${input.monitorRules.length} monitor rules enabled in archive preview; DeepBook evidence is ${input.deepbookMarketEvidence.status}.`,
       evidence: [
-        `DeepBook：${input.deepbookMarketEvidence.status} ${input.deepbookMarketEvidence.poolKey}`,
-        `解释模式：${input.explanationMode}`,
-        `Receipt：${input.receiptEnabled ? 'Walrus 归档后可用' : '未配置'}`,
+        `DeepBook: ${input.deepbookMarketEvidence.status} ${input.deepbookMarketEvidence.poolKey}`,
+        `Explanation mode: ${input.explanationMode}`,
+        `Receipt: ${input.receiptEnabled ? 'available after Walrus archive' : 'not configured'}`,
       ],
-      handoff: input.auditArchived ? '展示存储结果和可选 receipt mint。' : '等待用户点击 Prepare/归档。',
+      handoff: input.auditArchived ? 'Show storage result and optional receipt mint.' : 'Wait for user to prepare/archive.',
     },
     {
       id: 'manager',
       name: 'Manager',
-      role: '汇总各 Agent 结论，形成一个执行姿态。',
+      role: 'Summarize Agent conclusions into one execution posture.',
       status: posture === 'policy_blocked' ? 'blocked' : posture === 'live_ready' ? 'ready' : 'watch',
       confidence: clampConfidence(input.policyCheck.ok ? 89 : 80),
       summary: postureSummary(posture, input),
       evidence: [
-        `钱包模式：${input.walletConnected ? '已连接 mainnet 钱包' : '本地样例上下文'}`,
-        input.policyObject?.objectId ? `Policy object：${input.policyObject.objectId}` : 'Policy object 尚未 mint。',
-        liveReasons.length > 0 ? `Live 闸门备注：${liveReasons.join(' ')}` : '所选上下文没有 Live 闸门阻断备注。',
+        `Wallet mode: ${input.walletConnected ? 'connected mainnet wallet' : 'local sample context'}`,
+        input.policyObject?.objectId ? `Policy object: ${input.policyObject.objectId}` : 'Policy object not minted.',
+        liveReasons.length > 0 ? `Live gate notes: ${liveReasons.join(' ')}` : 'No live-gate blocking note for the selected context.',
       ],
-      handoff: posture === 'live_ready' ? '用户可以选择钱包签名的 Spot 提交。' : '默认动作仍为 Prepare/归档。',
+      handoff: posture === 'live_ready' ? 'User may choose wallet-signed spot submission.' : 'Default action remains prepare/archive.',
     },
   ];
 
   const evidenceTimeline: EvidenceTimelineStep[] = [
     {
       id: 'wallet-scan',
-      label: '钱包扫描',
+      label: 'Wallet scan',
       status: input.walletConnected ? 'complete' : 'pending',
       summary: input.walletConnected
-        ? 'Live mainnet 钱包上下文已加载。'
-        : '连接钱包后，本地样例上下文会替换为 Live mainnet 数据。',
+        ? 'Live mainnet wallet context loaded.'
+        : 'Connecting a wallet replaces local sample context with live mainnet data.',
       evidenceRef: 'portfolioSnapshot',
     },
     {
       id: 'risk-signals',
-      label: '风险信号',
+      label: 'Risk signals',
       status: 'complete',
-      summary: `${activeSignals} 个信号评分为 ${input.riskReport.overallScore}/${input.riskReport.overallLevel}。`,
+      summary: `${activeSignals} signals scored ${input.riskReport.overallScore}/${input.riskReport.overallLevel}.`,
       evidenceRef: 'riskReportBefore',
     },
     {
@@ -265,33 +265,33 @@ export function buildAgentCouncilDecision(input: BuildAgentCouncilInput): AgentC
     },
     {
       id: 'policy',
-      label: 'Policy 闸门',
+      label: 'Policy gate',
       status: input.policyCheck.ok ? 'complete' : 'blocked',
-      summary: input.policyCheck.ok ? 'Policy 闸门已通过。' : input.policyCheck.errors[0] ?? 'Policy 闸门失败。',
+      summary: input.policyCheck.ok ? 'Policy gate passed.' : input.policyCheck.errors[0] ?? 'Policy gate failed.',
       evidenceRef: 'policyCheck',
     },
     {
       id: 'deepbook',
-      label: 'DeepBook 证据',
+      label: 'DeepBook evidence',
       status: marketStatus(input.deepbookMarketEvidence),
       summary:
         input.deepbookMarketEvidence.status === 'ready'
-          ? `${input.deepbookMarketEvidence.poolKey} 市场快照已就绪。`
-          : input.deepbookMarketEvidence.fallbackReason ?? '市场快照尚未就绪。',
+          ? `${input.deepbookMarketEvidence.poolKey} market snapshot is ready.`
+          : input.deepbookMarketEvidence.fallbackReason ?? 'Market snapshot is not ready.',
       evidenceRef: 'deepbookMarketEvidence',
     },
     {
       id: 'walrus',
-      label: 'Walrus 归档',
+      label: 'Walrus archive',
       status: input.auditArchived ? 'complete' : 'pending',
-      summary: input.auditArchived ? '审计包已归档。' : '归档会在 Prepare 后创建。',
+      summary: input.auditArchived ? 'Audit package archived.' : 'Archive is created after prepare.',
       evidenceRef: 'storage',
     },
     {
       id: 'receipt',
       label: 'Receipt',
       status: input.receiptEnabled ? (input.auditArchived ? 'pending' : 'warning') : 'warning',
-      summary: input.receiptEnabled ? 'Walrus 归档后可 mint Receipt。' : 'Receipt 包为可选或尚未配置。',
+      summary: input.receiptEnabled ? 'Receipt can be minted after Walrus archive.' : 'Receipt package is optional or not configured.',
       evidenceRef: 'receipt',
     },
   ];

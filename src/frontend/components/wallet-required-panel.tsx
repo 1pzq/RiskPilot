@@ -10,27 +10,27 @@ export function WalletRequiredPanel() {
     <section className="panel walletRequiredPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">真实数据模式</p>
-          <h2 className="panelTitle">连接 Sui mainnet 钱包</h2>
+          <p className="eyebrow">Live data mode</p>
+          <h2 className="panelTitle">Connect a Sui mainnet wallet</h2>
         </div>
-        <span className="pill pillWarn">需要钱包</span>
+        <span className="pill pillWarn">Wallet required</span>
       </div>
 
       <div className="walletRequiredGrid">
         <div>
           <WalletCards size={16} />
-          <strong>Mainnet 钱包读取</strong>
-          <span>余额和已拥有对象会从已连接钱包加载。</span>
+          <strong>Mainnet wallet read</strong>
+          <span>Balances and owned objects load from the connected wallet.</span>
         </div>
         <div>
           <DatabaseZap size={16} />
-          <strong>Live 证据路径</strong>
-          <span>DeepBook 证据、执行意图和归档上下文都基于当前钱包状态构建。</span>
+          <strong>Live evidence path</strong>
+          <span>DeepBook evidence, execution intent, and archive context are built from current wallet state.</span>
         </div>
         <div>
           <ShieldCheck size={16} />
-          <strong>不使用固定演示数据</strong>
-          <span>连接钱包后，评估路径使用真实数据。</span>
+          <strong>No fixed demo data</strong>
+          <span>After wallet connection, the evaluation path uses real data.</span>
         </div>
       </div>
 
@@ -38,8 +38,8 @@ export function WalletRequiredPanel() {
         <WalletCards size={14} />
         <span suppressHydrationWarning>
           {wallets.length > 0
-            ? `当前页面检测到 ${wallets.length} 个钱包：${walletNames}`
-            : '当前页面暂未检测到扩展钱包；Slush Web fallback 应仍可在连接面板中打开。若点击无反应，请刷新页面或确认 Slush 对 127.0.0.1 有站点访问权限。'}
+            ? `${wallets.length} wallets detected on this page: ${walletNames}`
+            : 'No extension wallet detected on this page yet. Slush Web fallback should still open in the connect panel. If nothing happens, refresh or confirm Slush has site access for 127.0.0.1.'}
         </span>
       </div>
     </section>

@@ -92,12 +92,12 @@ function buildPredictMarket(thresholdPct: number, expiryDays: number): string {
 }
 
 const PREPARE_ONLY_REASON =
-  'RiskPilot 默认将计划保持在 prepare_mainnet 模式：它只准备可复核的 mainnet 条款，不会在没有明确钱包批准的情况下提交资金、签名交易或调用 Predict 合约。';
+  'RiskPilot keeps the plan in prepare_mainnet mode by default: it prepares reviewable mainnet terms without submitting funds, signing transactions, or calling Predict contracts without explicit wallet approval.';
 
 const COMMON_CONSTRAINTS = [
-  '仅限 Sui mainnet。',
-  '默认执行模式保持为 prepare_mainnet。',
-  '任何 Live 交易都必须通过 Policy 检查并获得明确的钱包确认。',
+  'Sui mainnet only.',
+  'Default execution mode remains prepare_mainnet.',
+  'Any live transaction must pass Policy checks and receive explicit wallet confirmation.',
 ];
 
 function presentSignals(signals: (RiskSignal | undefined)[]): RiskSignal[] {
@@ -106,10 +106,10 @@ function presentSignals(signals: (RiskSignal | undefined)[]): RiskSignal[] {
 
 function describeSignals(signals: RiskSignal[]): string {
   if (signals.length === 0) {
-    return '没有已定价的可执行风险信号';
+    return 'No priced executable risk signals';
   }
 
-  return signals.map((signal) => `${signal.id}（${signal.level}）`).join(', ');
+  return signals.map((signal) => `${signal.id} (${signal.level})`).join(', ');
 }
 
 function displayUsd(value: number): string {
@@ -143,8 +143,8 @@ function buildStrategyMetadata(input: {
     constraints: [...COMMON_CONSTRAINTS, ...(input.constraints ?? [])],
     riskTradeoffs: input.riskTradeoffs,
     displayFacts: [
-      { label: '风险信号', value: describeSignals(input.signals) },
-      { label: '默认执行', value: 'prepare_mainnet' },
+      { label: 'Risk signals', value: describeSignals(input.signals) },
+      { label: 'Default execution', value: 'prepare_mainnet' },
       ...(input.displayFacts ?? []),
     ],
   };
@@ -196,36 +196,36 @@ export function buildStrategyRecommendation(
       const now = options?.now ?? new Date();
       const expiryAt = new Date(now.getTime() + predictSettings.expiryDays * 24 * 60 * 60 * 1000).toISOString();
       const thresholdLabel = `${predictSettings.thresholdPct}%`;
-      const condition = `保护条件：到期时 SUI 下跌 ${Math.abs(predictSettings.thresholdPct)}% 或更多。`;
+      const condition = `Protection condition: SUI is down ${Math.abs(predictSettings.thresholdPct)}% or more at expiry.`;
 
       return {
         id: `strategy-${report.portfolioId}-deepbook-predict-${Math.abs(predictSettings.thresholdPct)}-${predictSettings.expiryDays}d`,
         type: 'deepbook_predict_downside_binary',
-        title: 'DeepBook Predict 风格下行保护',
+        title: 'DeepBook Predict-style downside cover',
         summary:
-          `为 ${thresholdLabel} 的 SUI 下行情景准备有边界的 mainnet-ready DeepBook Predict 条款。`,
+          `Prepare bounded mainnet-ready DeepBook Predict terms for a ${thresholdLabel} SUI downside scenario.`,
         targetRiskSignalIds: [suiSignal.id, concentrationSignal?.id].filter(Boolean) as string[],
         ...buildStrategyMetadata({
           signals,
           rationale:
-            '该 Portfolio 有较高的 SUI 下行敞口，任何集中度信号都会放大回撤冲击。有边界的二元保护可以表达这个具体下行观点，同时不会把 Live 执行设为默认。',
+            'The portfolio has elevated SUI downside exposure, and concentration signals can amplify drawdown impact. Bounded binary cover expresses that downside view without making live execution the default.',
           applicability:
-            '适用于钱包存在 SUI 相关敞口，且用户希望在任何资金移动前先复核条款的已定价 SUI 下行和集中度风险信号。',
+            'Applies to priced SUI downside and concentration risks when the wallet has SUI exposure and the user wants to review terms before any funds move.',
           fallback:
-            '如果 DeepBook Predict 准备不可用，RiskPilot 会把推荐保持为仅复核并记录无交易审计路径；单独的 Spot 减仓只能在人工批准后准备。',
+            'If DeepBook Predict preparation is unavailable, RiskPilot keeps the recommendation review-only and records a no-trade audit path. A separate spot reduction can only be prepared after manual approval.',
           constraints: [
-            '该 demo 没有实现真实的 DeepBook Predict 合约调用。',
-            `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
+            'This demo does not execute a live DeepBook Predict contract call.',
+            `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
           ],
           riskTradeoffs: [
-            '如果 SUI 没有跌破所选阈值，二元保护可能到期归零。',
-            '保护规模按预算上限设置，不是完整 Portfolio 对冲。',
-            '未知或未定价币种会从交易决策中排除。',
+            'If SUI does not break the selected threshold, binary cover may expire worthless.',
+            'Cover size is capped by budget and is not a full portfolio hedge.',
+            'Unknown or unpriced coins are excluded from trading decisions.',
           ],
           displayFacts: [
-            { label: '已准备市场', value: buildPredictMarket(predictSettings.thresholdPct, predictSettings.expiryDays) },
-            { label: '预算上限', value: displayUsd(budgetCapUsd) },
-            { label: '到期时间', value: `${predictSettings.expiryDays}D` },
+            { label: 'Prepared market', value: buildPredictMarket(predictSettings.thresholdPct, predictSettings.expiryDays) },
+            { label: 'Budget cap', value: displayUsd(budgetCapUsd) },
+            { label: 'Expiry', value: `${predictSettings.expiryDays}D` },
           ],
         }),
         estimatedCostUsd: budgetUsd,
@@ -239,7 +239,7 @@ export function buildStrategyRecommendation(
           assetOut: 'SUI downside cover',
           amountUsd: budgetUsd,
           description:
-            `Mainnet-ready DeepBook Predict 风格二元计划。${condition}这里只准备条款，不提交资金。`,
+            `Mainnet-ready DeepBook Predict-style binary plan. ${condition} Terms are prepared only; no funds are submitted.`,
         },
         parameters: {
           deepbookPredict: {
@@ -248,7 +248,7 @@ export function buildStrategyRecommendation(
             expiryAt,
             condition,
             budgetUsd,
-            fallback: '如果 DeepBook Predict mainnet 准备不可用，RiskPilot 会把相同条款记录为仅复核证据，不创建执行结果。',
+            fallback: 'If DeepBook Predict mainnet preparation is unavailable, RiskPilot records the same terms as review-only evidence without creating an execution result.',
           },
         },
       };
@@ -257,27 +257,27 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-sui-protection`,
       type: 'sui_downside_protection',
-      title: 'SUI 下行保护',
+      title: 'SUI downside protection',
       summary:
-        '准备有边界的 mainnet SUI/USDC 保护交易，以降低下行敞口，同时不自动提交资金。',
+        'Prepare a bounded mainnet SUI/USDC protective action to reduce downside exposure without auto-submitting funds.',
       targetRiskSignalIds: [suiSignal.id, concentrationSignal?.id].filter(Boolean) as string[],
       ...buildStrategyMetadata({
         signals,
         rationale:
-          '该 Portfolio 对 SUI 回撤敏感，因此减少少量 SUI 敞口可以降低最直接的已定价风险。',
+          'The portfolio is sensitive to SUI drawdowns, so reducing a small amount of SUI exposure lowers the most direct priced risk.',
         applicability:
-          '适用于 DeepBook Predict 条款被关闭或不可用时的 SUI 下行和集中度风险信号。',
+          'Applies to SUI downside and concentration signals when DeepBook Predict terms are disabled or unavailable.',
         fallback:
-          '如果无法准备 SUI/USDC 路线，RiskPilot 会把推荐保持为仅复核并记录无交易审计路径，而不是虚构另一个市场。',
-        constraints: [`在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`],
+          'If the SUI/USDC route cannot be prepared, RiskPilot keeps the recommendation review-only and records a no-trade audit path instead of inventing another market.',
+        constraints: [`Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`],
         riskTradeoffs: [
-          '如果市场恢复，卖出 SUI 可能减少上行收益。',
-          'Spot 减仓不等同于下行保险。',
-          '未知或未定价币种会从交易决策中排除。',
+          'If the market recovers, selling SUI can reduce upside.',
+          'Spot reduction is not the same as downside insurance.',
+          'Unknown or unpriced coins are excluded from trading decisions.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'SUI/USDC' },
-          { label: '预算上限', value: displayUsd(budgetCapUsd) },
+          { label: 'Prepared market', value: 'SUI/USDC' },
+          { label: 'Budget cap', value: displayUsd(budgetCapUsd) },
         ],
       }),
       estimatedCostUsd: round(cost),
@@ -291,7 +291,7 @@ export function buildStrategyRecommendation(
         assetOut: 'USDC',
         amountUsd: round(cost),
         description:
-          'Mainnet DeepBook / DeepBook Predict 风格下行保护计划。仅在明确钱包确认后执行。',
+          'Mainnet DeepBook / DeepBook Predict-style downside protection plan. Execution requires explicit wallet confirmation.',
       },
     };
   }
@@ -302,30 +302,30 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-lending-deleverage`,
       type: 'lending_deleverage',
-      title: '借贷降杠杆',
+      title: 'Lending deleverage',
       summary:
-        '准备一个小规模 mainnet SUI/USDC 动作，用于人工复核后辅助降低债务压力。',
+        'Prepare a small mainnet SUI/USDC action to support debt-pressure reduction after human review.',
       targetRiskSignalIds: [lendingSignal.id],
       ...buildStrategyMetadata({
         signals,
         rationale:
-          '借贷健康信号显示存在清算风险，因此策略会准备可在用户复核协议仓位后用于降低债务压力的流动性。',
+          'Lending health signals indicate liquidation risk, so the strategy prepares liquidity that can help reduce debt pressure after the user reviews protocol positions.',
         applicability:
-          '适用于来自已定价借贷仓位的清算和低健康因子风险信号；不会仅凭未定价对象提示触发。',
+          'Applies to liquidation and low-health-factor signals from priced lending positions. Unpriced object hints alone do not trigger it.',
         fallback:
-          '如果无法准备 DeepBook Spot 腿，RiskPilot 会退回到协议原生还款或补充抵押清单，并记录无交易。',
+          'If the DeepBook spot leg cannot be prepared, RiskPilot falls back to a protocol-native repayment or collateral checklist and records no trade.',
         constraints: [
-          `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
-          '债务偿还或抵押品移动必须在借贷协议中完成，不属于这个仅 DeepBook 的 demo 路径。',
+          `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
+          'Debt repayment or collateral movement must happen inside the lending protocol and is outside this DeepBook-only demo path.',
         ],
         riskTradeoffs: [
-          '卖出抵押品可能减少上行收益，且单独操作未必足以恢复健康度。',
-          '协议特定的还款步骤仍需人工钱包复核。',
-          '未知或未定价的类借贷对象不会触发虚假交易。',
+          'Selling collateral can reduce upside and may not restore health on its own.',
+          'Protocol-specific repayment steps still require human wallet review.',
+          'Unknown or unpriced lending-like objects do not trigger synthetic trades.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'SUI/USDC' },
-          { label: '协议步骤', value: '人工还款或抵押品复核' },
+          { label: 'Prepared market', value: 'SUI/USDC' },
+          { label: 'Protocol step', value: 'Manual repayment or collateral review' },
         ],
       }),
       estimatedCostUsd: round(cost),
@@ -339,7 +339,7 @@ export function buildStrategyRecommendation(
         assetOut: 'USDC',
         amountUsd: round(cost),
         description:
-          '用于借贷健康因子风险的 mainnet DeepBook 降杠杆计划。仅在明确钱包确认后执行。',
+          'Mainnet DeepBook deleverage plan for lending health-factor risk. Execution requires explicit wallet confirmation.',
       },
     };
   }
@@ -350,30 +350,30 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-lp-risk-reduction`,
       type: 'lp_risk_reduction',
-      title: 'LP 风险降低',
+      title: 'LP risk reduction',
       summary:
-        '准备有边界的 mainnet SUI/USDC 动作，以降低 LP 相关下行和无常损失敞口。',
+        'Prepare a bounded mainnet SUI/USDC action to reduce LP-related downside and impermanent-loss exposure.',
       targetRiskSignalIds: [lpSignal.id],
       ...buildStrategyMetadata({
         signals,
         rationale:
-          'LP 信号显示存在有意义的无常损失敞口，因此计划聚焦在风险 LP 部分主导账本前降低该敞口。',
+          'LP signals show meaningful impermanent-loss exposure, so the plan focuses on reducing that exposure before the risky LP position dominates the ledger.',
         applicability:
-          '适用于来自已定价流动性仓位的 LP 风险信号，尤其是中高无常损失风险的 SUI/USDC 敞口。',
+          'Applies to LP risk signals from priced liquidity positions, especially medium-to-high impermanent-loss risk on SUI/USDC exposure.',
         fallback:
-          '如果当前 adapter 无法表达 LP 撤出，RiskPilot 会记录 LP 退出清单，并将 DeepBook 动作保持为仅 Prepare/不提交。',
+          'If the current adapter cannot express LP withdrawal, RiskPilot records an LP exit checklist and keeps the DeepBook action prepared-only and not submitted.',
         constraints: [
-          `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
-          'LP 提取和区间管理具有协议特异性，本 demo 不执行。',
+          `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
+          'LP withdrawal and range management are protocol-specific and are not executed in this demo.',
         ],
         riskTradeoffs: [
-          '降低 LP 敞口可能放弃未来手续费。',
-          '部分退出仍可能留下价格和区间残余风险。',
-          '未定价的类 LP 对象会被复核，但不会触发虚假 swap。',
+          'Reducing LP exposure can forgo future fees.',
+          'A partial exit can leave residual price and range risk.',
+          'Unpriced LP-like objects are reviewed but do not trigger synthetic swaps.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'SUI/USDC' },
-          { label: '兜底路径', value: 'LP 撤出清单' },
+          { label: 'Prepared market', value: 'SUI/USDC' },
+          { label: 'Fallback path', value: 'LP exit checklist' },
         ],
       }),
       estimatedCostUsd: round(cost),
@@ -387,7 +387,7 @@ export function buildStrategyRecommendation(
         assetOut: 'USDC',
         amountUsd: round(cost),
         description:
-          'Mainnet DeepBook LP 风险降低计划。仅在明确钱包确认和 LP 撤出复核后执行。',
+          'Mainnet DeepBook LP risk-reduction plan. Execution requires explicit wallet confirmation and LP exit review.',
       },
     };
   }
@@ -398,29 +398,29 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-stablecoin-split`,
       type: 'stablecoin_split',
-      title: 'Stablecoin 仓位拆分',
-      summary: '为单一 stablecoin 脱锚风险准备 DAO 金库拆分复核，不提交资金。',
+      title: 'Stablecoin position split',
+      summary: 'Prepare a DAO treasury split review for single-stablecoin depeg risk without submitting funds.',
       targetRiskSignalIds: [stablecoinSignal.id],
       ...buildStrategyMetadata({
         signals,
         rationale:
-          'Stablecoin 信号显示某个 stablecoin 主导金库仓位，因此推荐会为 DAO 风格脱锚复核准备有边界的分散化步骤。',
+          'Stablecoin signals show one stablecoin dominating the treasury, so the recommendation prepares bounded diversification steps for a DAO-style depeg review.',
         applicability:
-          '适用于已定价金库资产中的 stablecoin 集中度和脱锚风险信号；不会作用于未知或未定价币种。',
+          'Applies to stablecoin concentration and depeg signals in priced treasury assets. Unknown or unpriced coins are not acted on.',
         fallback:
-          '如果没有可支持的 stable-to-stable 场所，RiskPilot 会保持不提交的金库复核，并记录目标拆分 Policy，而不是强制交易。',
+          'If no supported stable-to-stable venue exists, RiskPilot keeps an unsubmitted treasury review and records the target split Policy instead of forcing a trade.',
         constraints: [
-          `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
-          '该 demo 只准备 DeepBook 腿；最终 stablecoin 分散化需要获批的支持场所。',
+          `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
+          'This demo only prepares the DeepBook leg. Final stablecoin diversification requires an approved supported venue.',
         ],
         riskTradeoffs: [
-          '从单一 stablecoin 分散出去，可能因目标资产引入桥、流动性或波动风险。',
-          '小规模预备拆分不能完全移除脱锚敞口。',
-          '金库运营者仍需批准最终场所和资产列表。',
+          'Diversifying away from one stablecoin can introduce bridge, liquidity, or volatility risk through target assets.',
+          'A small prepared split cannot fully remove depeg exposure.',
+          'Treasury operators still need to approve the final venues and asset list.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'USDC/SUI' },
-          { label: '金库姿态', value: 'DAO 脱锚复核' },
+          { label: 'Prepared market', value: 'USDC/SUI' },
+          { label: 'Treasury posture', value: 'DAO depeg review' },
         ],
       }),
       estimatedCostUsd: round(cost),
@@ -433,7 +433,7 @@ export function buildStrategyRecommendation(
         assetIn: 'USDC',
         assetOut: 'SUI',
         amountUsd: round(cost),
-        description: 'Mainnet DeepBook stablecoin 仓位调整。仅在明确钱包确认后执行。',
+        description: 'Mainnet DeepBook stablecoin position adjustment. Execution requires explicit wallet confirmation.',
       },
     };
   }
@@ -444,30 +444,30 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-rebalance`,
       type: 'rebalance_concentration',
-      title: '集中度降低',
+      title: 'Concentration reduction',
       summary:
-        '在任何 Live 执行前，把最大持仓在 mainnet 上再平衡到 USDC，以降低集中度风险。',
+        'Rebalance the largest holding toward USDC on mainnet to reduce concentration risk before any live execution.',
       targetRiskSignalIds: [concentrationSignal.id],
       ...buildStrategyMetadata({
         signals,
         rationale:
-          '最大已定价持仓超过集中度阈值，因此小规模再平衡可以降低单资产依赖。',
+          'The largest priced holding exceeds the concentration threshold, so a small rebalance can reduce single-asset dependency.',
         applicability:
-          '适用于存在可映射到已批准 mainnet 路线的已定价资产时的头寸集中度信号。',
+          'Applies to position concentration signals when priced assets can map to an approved mainnet route.',
         fallback:
-          '如果最大资产无法安全路由，RiskPilot 会返回复核路径，而不是替换为无关的 SUI/USDC 交易。',
+          'If the largest asset cannot be routed safely, RiskPilot returns a review path instead of substituting an unrelated SUI/USDC trade.',
         constraints: [
-          `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
-          '只有已定价且可路由资产才是预备再平衡候选。',
+          `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
+          'Only priced and routable assets are prepared rebalance candidates.',
         ],
         riskTradeoffs: [
-          '再平衡可能减少集中资产的上行收益。',
-          '小规模再平衡会降低但不会消除集中度风险。',
-          '未知或未定价资产会从交易决策中排除。',
+          'Rebalancing can reduce upside from the concentrated asset.',
+          'A small rebalance reduces but does not eliminate concentration risk.',
+          'Unknown or unpriced assets are excluded from trading decisions.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'SUI/USDC' },
-          { label: '目标姿态', value: '降低最大资产占比' },
+          { label: 'Prepared market', value: 'SUI/USDC' },
+          { label: 'Target posture', value: 'Reduce largest-asset share' },
         ],
       }),
       estimatedCostUsd: round(cost),
@@ -480,7 +480,7 @@ export function buildStrategyRecommendation(
         assetIn: 'SUI',
         assetOut: 'USDC',
         amountUsd: round(cost),
-        description: 'Mainnet DeepBook 再平衡计划。仅在明确钱包确认后执行。',
+        description: 'Mainnet DeepBook rebalance plan. Execution requires explicit wallet confirmation.',
       },
     };
   }
@@ -489,32 +489,32 @@ export function buildStrategyRecommendation(
     return {
       id: `strategy-${report.portfolioId}-wallet-review`,
       type: 'wallet_review',
-      title: '仅钱包复核',
+      title: 'Wallet review only',
       summary:
-        '已连接 mainnet 钱包没有检测到可执行的已定价 DeFi 风险，因此 RiskPilot 只准备审计记录，不虚构交易。',
+        'The connected mainnet wallet has no executable priced DeFi risk, so RiskPilot prepares an audit record without inventing a trade.',
       targetRiskSignalIds: [],
       ...buildStrategyMetadata({
         signals: [],
         rationale:
-          '已连接钱包没有产生已定价的可执行风险信号，因此创建 SUI/USDC 交易会造成误导。',
+          'The connected wallet did not produce priced executable risk signals, so creating a SUI/USDC trade would be misleading.',
         applicability:
-          '适用于没有已定价可执行 DeFi 风险的已连接钱包扫描，包括只暴露未知、不支持或未定价对象的钱包。',
+          'Applies to connected wallet scans with no priced executable DeFi risk, including wallets that only expose unknown, unsupported, or unpriced objects.',
         prepareOnlyReason:
-          'RiskPilot 准备仅审计的钱包复核。默认没有 DeepBook 订单、没有 Predict 调用，也没有待提交交易。',
+          'RiskPilot prepares an audit-only wallet review. By default there is no DeepBook order, no Predict call, and no transaction to submit.',
         fallback:
-          '兜底就是钱包复核本身：记录观察到的对象、定价缺口和不支持仓位，供人工分析，不准备交易。',
+          'The fallback is the wallet review itself: record observed objects, pricing gaps, and unsupported positions for human analysis without preparing a trade.',
         constraints: [
-          'amountUsd 必须保持为 0。',
-          'market 必须保持为 No trade。',
-          '未知或未定价币种不能创建替代 SUI/USDC 交易。',
+          'amountUsd must remain 0.',
+          'market must remain No trade.',
+          'Unknown or unpriced coins cannot create substitute SUI/USDC trades.',
         ],
         riskTradeoffs: [
-          '当协议或资产无法定价时，风险可能被低估。',
-          '用户在未来采取任何行动前，可能需要协议特定分析。',
+          'Risk may be understated when protocols or assets cannot be priced.',
+          'Users may need protocol-specific analysis before taking any future action.',
         ],
         displayFacts: [
-          { label: '已准备市场', value: 'No trade' },
-          { label: '已准备规模', value: displayUsd(0) },
+          { label: 'Prepared market', value: 'No trade' },
+          { label: 'Prepared size', value: displayUsd(0) },
         ],
       }),
       estimatedCostUsd: 0,
@@ -528,7 +528,7 @@ export function buildStrategyRecommendation(
         assetOut: 'N/A',
         amountUsd: 0,
         description:
-          '仅已连接钱包复核。由于钱包没有暴露可执行的已定价风险，不会创建 Live 或已准备的 DeepBook 交易。',
+          'Connected wallet review only. Because the wallet exposes no executable priced risk, no live or prepared DeepBook transaction is created.',
       },
     };
   }
@@ -536,28 +536,28 @@ export function buildStrategyRecommendation(
   return {
     id: `strategy-${report.portfolioId}-stablecoin-split`,
     type: 'stablecoin_split',
-    title: 'Stablecoin 仓位拆分',
-    summary: '为单一 stablecoin 脱锚风险准备 DAO 金库拆分复核，不提交资金。',
+    title: 'Stablecoin position split',
+    summary: 'Prepare a DAO treasury split review for single-stablecoin depeg risk without submitting funds.',
     targetRiskSignalIds: report.signals.filter((signal) => signal.category === 'stablecoin').map((signal) => signal.id),
     ...buildStrategyMetadata({
       signals: report.signals.filter((signal) => signal.category === 'stablecoin'),
       rationale:
-        'Demo 兜底假设剩余可执行风险是 stablecoin 集中度，因此准备小规模仓位拆分供复核。',
+        'Demo fallback assumes the remaining executable risk is stablecoin concentration, so it prepares a small position split for review.',
       applicability:
-        '仅适用于 demo 模式 Portfolio，且没有选中更高优先级的 SUI、借贷、LP 或集中度信号。',
+        'Only applies to the demo portfolio when no higher-priority SUI, lending, LP, or concentration signal is selected.',
       fallback:
-        '如果没有受支持的 stable-to-stable 路线，RiskPilot 会记录无交易审计路径，不提交交易。',
+        'If no supported stable-to-stable route exists, RiskPilot records a no-trade audit path and submits nothing.',
       constraints: [
-        `在当前 Policy 上限下，预算不能超过 ${displayUsd(budgetCapUsd)}。`,
-        '该分支仅用于 demo，并保持为 prepare_mainnet。',
+        `Budget cannot exceed ${displayUsd(budgetCapUsd)} under the current Policy limit.`,
+        'This branch is demo-only and remains prepare_mainnet.',
       ],
       riskTradeoffs: [
-        '分散化可能引入新的资产或路线风险。',
-        '小规模拆分不能完全移除脱锚敞口。',
+        'Diversification can introduce new asset or route risk.',
+        'A small split cannot fully remove depeg exposure.',
       ],
       displayFacts: [
-        { label: '已准备市场', value: 'SUI/USDC' },
-        { label: 'Demo 兜底', value: 'Stablecoin 复核' },
+        { label: 'Prepared market', value: 'SUI/USDC' },
+        { label: 'Demo fallback', value: 'Stablecoin review' },
       ],
     }),
     estimatedCostUsd: round(cost),
@@ -570,7 +570,7 @@ export function buildStrategyRecommendation(
       assetIn: 'USDC',
     assetOut: 'SUI',
     amountUsd: round(cost),
-    description: 'Mainnet DeepBook stablecoin 仓位调整。仅在明确钱包确认后执行。',
+    description: 'Mainnet DeepBook stablecoin position adjustment. Execution requires explicit wallet confirmation.',
   },
 };
 }

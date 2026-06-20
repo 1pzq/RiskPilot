@@ -71,8 +71,8 @@ export function EvidenceTimeline({ steps, compact = false }: EvidenceTimelinePro
     <section className={`panel evidenceTimelinePanel ${compact ? 'evidenceTimelinePanelCompact' : ''}`}>
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">证据时间线</p>
-          <h2 className="panelTitle">决策链</h2>
+          <p className="eyebrow">Evidence timeline</p>
+          <h2 className="panelTitle">Decision chain</h2>
         </div>
         <span className="pill pillAccent">
           <FileCheck2 size={14} />
@@ -82,22 +82,22 @@ export function EvidenceTimeline({ steps, compact = false }: EvidenceTimelinePro
 
       {compact ? (
         <>
-          <div className="auditCompactStats" aria-label="证据时间线摘要">
+          <div className="auditCompactStats" aria-label="Evidence timeline summary">
             <div>
-              <span>完成</span>
+              <span>Complete</span>
               <strong>{completeCount}/{steps.length}</strong>
             </div>
             <div>
-              <span>警告</span>
+              <span>Warnings</span>
               <strong>{warningCount}</strong>
             </div>
             <div>
-              <span>已阻断</span>
+              <span>Blocked</span>
               <strong>{blockedCount}</strong>
             </div>
           </div>
           <details className="auditDetailDrawer" open={blockedCount > 0}>
-            <summary>决策链详情</summary>
+            <summary>Decision chain details</summary>
             {timelineList}
           </details>
         </>

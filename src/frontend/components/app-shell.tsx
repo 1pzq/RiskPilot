@@ -18,11 +18,11 @@ type AppShellProps = {
 };
 
 const demoSections = [
-  { id: 'overview', label: 'Observe', subtitle: '读取钱包风险', step: '01', icon: 'overview' },
-  { id: 'risk', label: 'Plan', subtitle: '生成应对方案', step: '02', icon: 'risk' },
-  { id: 'strategy', label: 'Verify Policy', subtitle: '检查授权边界', step: '03', icon: 'policy' },
-  { id: 'audit', label: 'Act', subtitle: '准备 PTB 证明', step: '04', icon: 'strategy' },
-  { id: 'prepare', label: 'Remember', subtitle: '归档审计记忆', step: '05', icon: 'archive' },
+  { id: 'overview', label: 'Observe', subtitle: 'Wallet risk', step: '01', icon: 'overview' },
+  { id: 'risk', label: 'Plan', subtitle: 'Risk response', step: '02', icon: 'risk' },
+  { id: 'strategy', label: 'Verify Policy', subtitle: 'Check boundaries', step: '03', icon: 'policy' },
+  { id: 'audit', label: 'Act', subtitle: 'Prepare proof', step: '04', icon: 'strategy' },
+  { id: 'prepare', label: 'Remember', subtitle: 'Audit memory', step: '05', icon: 'archive' },
 ] as const;
 
 export function scrollToDemoStage() {
@@ -77,7 +77,7 @@ export function AppShell({
           <PixelIcon name="wallet" className="eventMark eventMarkPixel" />
           <span className="eventBrandCopy">
             <small>RiskPilot</small>
-            <strong>在授权边界内行动的 Sui DeFi Agent</strong>
+            <strong>Sui DeFi Agent with hard execution boundaries</strong>
           </span>
         </div>
         <div className="eventDate">
@@ -100,25 +100,25 @@ export function AppShell({
             2026
           </h1>
           <p className="heroOneLiner">
-            RiskPilot 让 Sui DeFi Agent 会分析风险，但不能越权行动：AI 只给建议，Policy 先做边界检查，钱包确认后才准备 PTB，最后用 Walrus 留下可验证记忆。
+            RiskPilot is a Sui DeFi risk Agent that detects wallet exposure, proposes policy-bound actions, prepares evidence-only PTB proof, and stores verifiable audit memory on Walrus.
           </p>
           <div className="heroMeta">
             <span>
               <strong>Policy-gated Agent</strong>
-              AI 只建议，不越权
+              AI suggests, never overrides
             </span>
             <span>
               <strong>Prepared PTB, not submitted</strong>
-              钱包不签名就不提交
+              Wallet confirms before action
             </span>
             <span>
               <strong>Walrus audit memory</strong>
-              每次决策可回放验证
+              Every decision can be replayed
             </span>
           </div>
           <div className="heroActionRow">
             <a className="heroButton" href="#risk-dashboard">
-              打开 Agent Loop <span aria-hidden="true">↗</span>
+              Open Agent Loop <span aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
